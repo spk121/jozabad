@@ -1,0 +1,70 @@
+<class name = "parch_msg" signature = "1" title = "transport for Switched Virtual Call messages">
+This is the Switched Virtual Call protocol version 1
+<license>
+GPL3+, bitches
+</license>
+
+<!-- Protocol version -->
+<define name = "VERSION" value = "1" />
+
+<!-- Response codes -->
+<declare>
+// BEGIN DECLARE
+// END DECLARE
+</declare>
+
+<message name = "DATA" id = "0">
+Binary data message.
+  <field name = "send sequence number" type = "number" size = "4" />
+  <field name = "data" type = "frame" />
+</message>
+
+<message name = "RR" id = "1">
+Tells peer the lowest send sequence number that it may send in its DATA packet.
+  <field name = "receive sequence number" type = "number" size = "4" />
+</message>
+
+<message name = "RNR" id = "5">
+Tells peer to stop sending data.
+</message>
+
+<!-- message name = "REJ" id = "9" -->
+
+<message name = "CALL_REQUEST" id = "13">
+Call a peer.
+  <field name = "service requested" type = "string" />
+</message>
+
+<message name = "CALL_ACCEPTED" id = "15">
+Answer the call.
+</message>
+
+<message name = "CLEAR_REQUEST" id = "19">
+Tell the peer to hang up.
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "diagnostic" type = "number" size = "1" />
+</message>
+
+<message name = "CLEAR_CONFIRMATION" id = "23">
+Tell the peer you are hanging up.
+</message>
+
+<message name = "CONNECT" id = "27">
+Client node requests connection to the broker, and tells it what service it provides.
+  <field name = "protocol" type = "string" value = "PARCH" />
+  <field name = "version" type = "number" size = "1" value = "PARCH_MSG_VERSION" />
+  <field name = "service name" type = "string" />
+  <field name = "connection data" type = "frame" />
+</message>
+
+<message name = "SERVICE" id = "29">
+Node tells broker to update the name of the service it provides.
+  <field name = "service name" type = "string" />
+</message>
+
+<message name = "DISCONNECT" id = "31">
+Node tells broker that it is disconnecting.
+</message>
+
+
+</class>
