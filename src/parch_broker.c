@@ -8,6 +8,10 @@
 #endif
 
 #include "../include/parch.h"
+#include "parch_msg.h"
+
+#define THROUGHPUT_CLASS_MIN 3
+#define THROUGHPUT_CLASS_MAX 45
 
 struct _broker_t {
     zctx_t *ctx; //  Our context
@@ -86,8 +90,8 @@ parch_node_set_service_name(node_t *self, char *sname) {
     assert(self);
     assert(sname);
     if (self->service_name)
-        free (self->service_name);
-    self->service_name = strdup (sname);
+        free(self->service_name);
+    self->service_name = strdup(sname);
 }
 
 char *
@@ -236,24 +240,50 @@ s_msg_address_dup(parch_msg_t *msg) {
 static void
 s_broker_register_node(broker_t *self, parch_msg_t *msg) {
     char *key = s_msg_address_strhex(msg);
+    char *sname = parch_msg_service(msg);
+    uint8_t incoming = parch_msg_incoming(msg);
+    uint8_t outgoing = parch_msg_outgoing(msg);
+    uint8_t throughput = parch_msg_throughput(msg);
 
-    if (self->verbose)
-        zclock_log("I: [%s] broker -- registering", key);
+    if (sname == 0 || strlen(sname) == 0 || !is_safe_ascii(sname)) {
+        // A connection has to have a service name
+        zframe_t *addr = parch_msg_address(msg);
+        parch_msg_t *node_msg = parch_msg_new_disconnect_indication_msg(addr,
+                local_procedure_error,
+                err_invalid_calling_address);
+        parch_msg_send(&node_msg, self->socket);
+        if (self->verbose)
+            zclock_log("I: [%s] broker -- connect rejected: bad address", key);
 
-    // Make a state engine for the node
-    node_t *val = (node_t *) zmalloc(sizeof (node_t));
-    assert(val);
-    val->broker = self;
-    val->node_address = zframe_dup(parch_msg_address(msg));
-    val->service_name = strdup(parch_msg_service(msg));
-    s_node_set_service(val);
-    val->engine = parch_state_engine_new(self, val);
-    assert(val->engine);
-    int rc = zhash_insert(self->nodes, key, val);
-    assert(rc != -1);
-
-    // Register the node's service
-
+    } else if ((incoming && outgoing)
+            || ((throughput != 0) && (throughput < THROUGHPUT_CLASS_MIN || throughput > THROUGHPUT_CLASS_MAX))) {
+        // FIXME -- THROUGHPUT_CLASS_MAX should be a config option
+        // A service that prevents both incoming and outgoing messages is not allowed.
+        // Also, a valid throughput must be specified.
+        zframe_t *addr = parch_msg_address(msg);
+        parch_msg_t *node_msg = parch_msg_new_disconnect_indication_msg(addr,
+                local_procedure_error,
+                err_facility_parameter_not_allowed);
+        parch_msg_send(&node_msg, self->socket);
+        if (self->verbose)
+            zclock_log("I: [%s] broker -- connect rejected: bad facility parameter", key);
+    } else {
+        // Make a state engine for the node
+        // and register the node's service
+        node_t *val = (node_t *) zmalloc(sizeof (node_t));
+        assert(val);
+        val->broker = self;
+        val->node_address = zframe_dup(parch_msg_address(msg));
+        val->service_name = strdup(parch_msg_service(msg));
+        s_node_set_service(val);
+        val->engine = parch_state_engine_new(self, val, incoming, outgoing, throughput);
+        assert(val->engine);
+        int rc = zhash_insert(self->nodes, key, val);
+        assert(rc != -1);
+        parch_msg_t *node_msg = parch_msg_new(PARCH_MSG_CONNECT_INDICATION);
+        parch_msg_set_address(node_msg, parch_msg_address(msg));
+        parch_msg_send(&node_msg, self->socket);
+    }
     free(key);
 }
 

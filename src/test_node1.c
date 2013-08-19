@@ -16,6 +16,13 @@ int main(int argc, char *argv []) {
         parch_msg_send_connect(parch_node_client(session),
                 (char *) parch_node_service(session), 0, 0, 0);
 
+        // Wait for a connection indication
+        request = parch_msg_recv(parch_node_client(session));
+        assert(request);
+        parch_msg_dump(request);
+        assert(parch_msg_id(request) == PARCH_MSG_CONNECT_INDICATION);
+        parch_msg_destroy(&request);
+
         parch_msg_send_call_request(parch_node_client(session), (char *) "echo", 0, 0, 0, 0);
 
         // Wait for a call acceptance
@@ -62,6 +69,13 @@ int main(int argc, char *argv []) {
         // Connect to the broker
         parch_msg_send_connect(parch_node_client(session),
                 (char *) parch_node_service(session), 0, 0, 0);
+
+        // Wait for a connection indication
+        request = parch_msg_recv(parch_node_client(session));
+        assert(request);
+        parch_msg_dump(request);
+        assert(parch_msg_id(request) == PARCH_MSG_CONNECT_INDICATION);
+        parch_msg_destroy(&request);
 
         // Wait for a call request on my service
         request = parch_msg_recv(parch_node_client(session));

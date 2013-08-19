@@ -38,6 +38,7 @@ Call a peer. Negotiate the type of connection requested.
   <field name = "incoming" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
   <field name = "window" type = "number" size = "1" />
+  <field name = "throughput" type = "number" size = "1" />
 </message>
 
 <message name = "CALL_ACCEPTED" id = "15">
@@ -82,15 +83,17 @@ Client node requests connection to the broker.
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "ACKNOWLEDGE" id = "45">
-Broker tells node that CONNECT or DISCONNECT has been applied.
+<message name = "CONNECT_INDICATION" id = "45">
+Broker tells node that it has been connected.
 </message>
 
 <message name = "DISCONNECT" id = "47">
 Node tells broker that it is disconnecting.
 </message>
 
-<message name = "DISCONNECTED_MODE" id = "49">
- Broker tells node that CONNECT cannot be applied, or that broker is disconnecting node.
+<message name = "DISCONNECT_INDICATION" id = "49">
+ Broker tells node that it has been disconnect
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "diagnostic" type = "number" size = "1" />
 </message>
 </class>

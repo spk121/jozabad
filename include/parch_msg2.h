@@ -20,6 +20,9 @@ parch_msg_t *
 parch_msg_new_clear_request_msg (zframe_t *address, byte cause, byte diagnostic);
 parch_msg_t *
 parch_msg_new_reset_request_msg (zframe_t *address, byte cause, byte diagnostic);
+parch_msg_t *
+parch_msg_new_disconnect_indication_msg (zframe_t *address, byte cause, byte diagnostic);
+
 
 #ifdef	__cplusplus
 }

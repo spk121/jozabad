@@ -16,10 +16,22 @@ typedef enum _diagnostic_t diagnostic_t;
 typedef enum _event_t event_t;
 typedef enum _state_t state_t;
 
+// These mostly come from TABLE 5-7/X.25
 
 enum _clearing_cause_t {
-    remote_procedure_error,
-    local_procedure_error
+    number_busy = 1,
+    out_of_order = 9,
+    remote_procedure_error = 17,
+    // reverse_charging_acceptance_not_subscribed = 25,
+    incompatible_destination = 33,
+    // fast_select_acceptance_not_subscribed = 41,
+    // ship_absent = 57,                  // LOL. This is in X.25, I swear.
+    invalid_facility_request = 3,         // bad CONNECT or CALL_REQUEST parameter
+    access_barred = 11,
+    local_procedure_error = 19,
+    network_congestion = 5,
+    not_obtainable = 13,
+    // roa_out_of_order = 21
 };
 
 // These mostly come from E.1/X.25.  Probably only a handful are still relevant.
@@ -69,8 +81,8 @@ enum _diagnostic_t {
     // Call set-up and call clearing
     err_facility_code_not_allowed,
     err_facility_parameter_not_allowed,
-    err_invalid_y_address,
-    err_invalid_x_address,
+    err_invalid_called_address,
+    err_invalid_calling_address,
     err_incoming_call_barred,
     err_no_logical_channel_available,
     err_call_collision,
@@ -105,10 +117,9 @@ enum _diagnostic_t {
     err_last = err_maintenance_action
 };
 
-
 //  Create a new state engine instance
 CZMQ_EXPORT parch_state_engine_t *
-parch_state_engine_new (broker_t *broker, node_t *node);
+    parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, byte outgoing_barred, byte throughput);
 
 
 //  Destroy a state engine instance

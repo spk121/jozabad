@@ -133,6 +133,10 @@ struct _parch_state_engine_t {
     state_t state; // current state in the state machine
     event_t event; // current event being processed by the state machine
 
+    uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
+    uint8_t outgoing_calls_barred; // when true, all call request from node are ignored.
+    uint8_t throughput_class;
+
     event_t next_event; // next event to be processed by the state machine
     diagnostic_t next_diagnostic; // diagnostic for next event, if required
 
@@ -158,6 +162,8 @@ struct _state_machine_table_element_t {
 //  MACROS
 
 #define MAX_SERVICE_NAME_LEN 128
+#define THROUGHPUT_CLASS_MIN 3
+#define THROUGHPUT_CLASS_MAX 45
 
 #define STATE_ENGINE_VALIDITY_CHECKS(s) \
 do {                                    \
@@ -352,7 +358,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
     },
     [s2_x_call] =
     {
-       // Broker or state-engine initiated events
+        // Broker or state-engine initiated events
         [e_reset] =
         {a_discard, err_none, s1_ready},
         [e_clear] =
@@ -408,7 +414,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
     },
     [s3_y_call] =
     {
-       // Broker or state-engine initiated events
+        // Broker or state-engine initiated events
         [e_reset] =
         {a_discard, err_none, s1_ready},
         [e_clear] =
@@ -464,7 +470,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
     },
     [s4_data] =
     {
-       // Broker or state-engine initiated events
+        // Broker or state-engine initiated events
         [e_reset] =
         {a_reset, err_none, s9_y_reset},
         [e_clear] =
@@ -472,7 +478,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
         [e_x_disconnect] =
@@ -528,7 +534,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
         [e_x_disconnect] =
@@ -585,7 +591,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
         [e_x_disconnect] =
@@ -641,7 +647,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_discard, err_none, s7_y_clear},
         [e_x_disconnect] =
@@ -697,7 +703,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
         [e_x_disconnect] =
@@ -752,7 +758,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
         [e_disconnect] =
         {a_disconnect, err_none, s0_disconnected},
 
-         // Node-initiated events
+        // Node-initiated events
         [e_x_connect] =
         {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
         [e_x_disconnect] =
@@ -802,7 +808,7 @@ static const state_machine_table_element_t state_machine_table[s_max + 1][e_max 
     }
 };
 
-static const char state_names[][16] ={
+static const char state_names[][16] = {
     [s0_disconnected] = "s0_disconnected",
     [s1_ready] = "s1_ready",
     [s2_x_call] = "s2_x_call",
@@ -815,17 +821,63 @@ static const char state_names[][16] ={
     [s9_y_reset] = "s9_y_reset"
 };
 
+static const uint32_t throughput_classes[THROUGHPUT_CLASS_MAX + 1] = {
+    [0] = 192000, // FIXME: the default value should be a config option
+    [3] = 75,
+    [4] = 150,
+    [5] = 300,
+    [6] = 600,
+    [7] = 1200,
+    [8] = 2400,
+    [9] = 4800,
+    [10] = 9600,
+    [11] = 19200,
+    [12] = 48000,
+    [13] = 64000,
+    [14] = 128000,
+    [15] = 192000,
+    [16] = 256000,
+    [17] = 320000,
+    [18] = 384000,
+    [19] = 448000,
+    [20] = 512000,
+    [21] = 576000,
+    [22] = 640000,
+    [23] = 704000,
+    [24] = 768000,
+    [25] = 832000,
+    [26] = 896000,
+    [27] = 960000,
+    [28] = 1024000,
+    [29] = 1088000,
+    [30] = 1152000,
+    [31] = 1216000,
+    [32] = 1280000,
+    [33] = 1344000,
+    [34] = 1408000,
+    [35] = 1472000,
+    [36] = 1536000,
+    [37] = 1600000,
+    [38] = 1664000,
+    [39] = 1728000,
+    [40] = 1792000,
+    [41] = 1856000,
+    [42] = 1920000,
+    [43] = 1984000,
+    [44] = 2048000,
+};
+
 //  ---------------------------------------------------------------------------
 //  DECLARATIONS
 
 int
 s_msg_id_is_valid(int id) __attribute__(());
 static void
-s_state_engine_do_connect(parch_state_engine_t * self);
-static void
 s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) __attribute__((nonnull(1)));
+
 static void
-s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused))) { };
+s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused))) {
+};
 static void
 s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic);
 static void
@@ -834,6 +886,8 @@ static void
 s_state_engine_do_x_call_request(parch_state_engine_t * self) __attribute__((nonnull(1)));
 static void
 state_engine_do_x_clear_request(parch_state_engine_t * self);
+static void
+s_state_engine_do_x_connect(parch_state_engine_t * self);
 static void
 s_state_engine_do_x_disconnect(parch_state_engine_t * self) __attribute__((nonnull(1)));
 static void
@@ -874,9 +928,9 @@ s_msg_id_is_valid(int id) {
             || id == PARCH_MSG_RESET_REQUEST
             || id == PARCH_MSG_RESET_CONFIRMATION
             || id == PARCH_MSG_CONNECT
-            || id == PARCH_MSG_ACKNOWLEDGE
+            || id == PARCH_MSG_CONNECT_INDICATION
             || id == PARCH_MSG_DISCONNECT
-            || id == PARCH_MSG_DISCONNECTED_MODE);
+            || id == PARCH_MSG_DISCONNECT_INDICATION);
 }
 
 static void
@@ -913,17 +967,6 @@ s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic) {
 }
 
 static void
-s_state_engine_do_connect(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // At the state machine, this does the same thing as state_engine_do_connect.
-    // It updates the service.  The difference between the two messages it as
-    // the broker level.
-    char *sname = parch_msg_service(self->request);
-    parch_node_set_service_name(self->node, sname);
-    parch_node_update_service_name_with_broker(self->node);
-}
-
-static void
 s_state_engine_do_x_call_accepted(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y requested a call and X agreed
@@ -944,6 +987,16 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
     // forwarded on to the Y node.
     if (parch_node_call_request(self->node, parch_msg_service(self->request))) {
         parch_msg_t *peer_msg = parch_msg_dup(self->request);
+
+        // CALL NEGOTIATION, STEP 1
+        // When a call request passes through the state engine, it begins
+        // the process of call negotiation.  The state engine may
+        // downgrade some of the requested attributes of the connection
+        // before sending it to the peer.
+
+        // Here in STEP 1, we add the throughput for this node to the message
+        parch_msg_set_throughput(self->throughput_class);
+
         self->state = s2_x_call;
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     } else {
@@ -978,6 +1031,47 @@ state_engine_do_x_clear_request(parch_state_engine_t * self) {
     // The clear request is forwarded on to Y.
     parch_msg_t *reply = parch_msg_dup(self->request);
     s_state_engine_send_msg_to_peer_and_log(self, &reply);
+}
+
+static void
+s_state_engine_do_x_connect(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // At the state machine, this does the same thing as state_engine_do_connect.
+    // It updates the service.  The difference between the two messages it as
+    // the broker level.
+    char *sname = parch_msg_service(self->request);
+    uint8_t incoming = parch_msg_incoming(self->request);
+    uint8_t outgoing = parch_msg_outgoing(self->request);
+    uint8_t throughput = parch_msg_throughput(self->request);
+
+    if (sname == 0 || strlen(sname) == 0 || !is_safe_ascii(sname)) {
+        // A connection has to have a service name
+        zframe_t *addr = parch_node_get_node_address(self->node);
+        parch_msg_t *node_msg = parch_msg_new_disconnect_indication_msg(addr,
+                local_procedure_error,
+                err_invalid_calling_address);
+        s_state_engine_send_msg_to_node_and_log(self, &node_msg);
+        self->state = s0_disconnected;
+    }
+
+    if ((incoming && outgoing)
+            || ((throughput != 0) && (throughput < THROUGHPUT_CLASS_MIN || throughput > THROUGHPUT_CLASS_MAX))) {
+        // A service that prevents both incoming and outgoing messages is not allowed.
+        zframe_t *addr = parch_node_get_node_address(self->node);
+        parch_msg_t *node_msg = parch_msg_new_disconnect_indication_msg(addr,
+                invalid_facility_request,
+                err_facility_parameter_not_allowed);
+        s_state_engine_send_msg_to_node_and_log(self, &node_msg);
+        self->state = s0_disconnected;
+    }
+
+    self->incoming_calls_barred = incoming;
+    self->outgoing_calls_barred = outgoing;
+    self->throughput_class = throughput;
+    parch_node_set_service_name(self->node, sname);
+    parch_node_update_service_name_with_broker(self->node);
+    parch_msg_t *msg = parch_msg_new(PARCH_MSG_CONNECT_INDICATION);
+    s_state_engine_send_msg_to_node_and_log(self, &msg);
 }
 
 static void
@@ -1329,6 +1423,7 @@ state_engine_do_y_reset_confirmation(parch_state_engine_t * self) {
 }
 
 #if 0
+
 static void
 state_engine_do_s0_initialize_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
@@ -1389,6 +1484,7 @@ state_engine_do_s9_y_reset_request_second_timeout(parch_state_engine_t * self) {
 
 }
 #endif
+
 static void
 state_engine_config_self(parch_state_engine_t * self __attribute__((unused))) {
     // state engine is still partly uninitialized here.
@@ -1425,13 +1521,18 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_disconnect(self);
             break;
         case a_x_connect:
-            s_state_engine_do_connect(self);
+            // x_connect is handled by the broker
+            // So we ignore it here.
+            //s_state_engine_do_x_connect(self);
             break;
         case a_x_disconnect:
             s_state_engine_do_x_disconnect(self);
             break;
         case a_x_call_request:
-            s_state_engine_do_x_call_request(self);
+            if (self->outgoing_calls_barred == 0)
+                s_state_engine_do_x_call_request(self);
+            else
+                s_state_engine_log(self, "x call request discarded, outgoing calls barred");
             break;
         case a_x_call_accepted:
             s_state_engine_do_x_call_accepted(self);
@@ -1462,7 +1563,10 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             state_engine_do_y_disconnect(self);
             break;
         case a_y_call_request:
-            state_engine_do_y_call_request(self);
+            if (self->incoming_calls_barred == 0)
+                state_engine_do_y_call_request(self);
+            else
+                s_state_engine_log(self, "y call request discarded, incoming calls barred");
             break;
         case a_y_call_accepted:
             state_engine_do_y_call_accepted(self);
@@ -1575,7 +1679,7 @@ state_machine_dispatch_event(parch_state_engine_t * self) {
 }
 
 parch_state_engine_t *
-parch_state_engine_new(broker_t *broker, node_t * node) {
+parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, byte outgoing_barred, byte throughput) {
     parch_state_engine_t *self = (parch_state_engine_t *) zmalloc(sizeof (parch_state_engine_t));
     self->broker = broker;
     self->node = node;
@@ -1583,6 +1687,9 @@ parch_state_engine_new(broker_t *broker, node_t * node) {
     self->event = e_unspecified;
     self->next_event = e_unspecified;
     self->request = NULL;
+    self->incoming_calls_barred = incoming_barred;
+    self->outgoing_calls_barred = outgoing_barred;
+    self->throughput_class = throughput;
     self->config = zconfig_new("state", NULL);
     state_engine_config_self(self);
 
