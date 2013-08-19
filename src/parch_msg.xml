@@ -15,39 +15,49 @@ GPL3+, bitches
 
 <message name = "DATA" id = "0">
 Binary data message.
-  <field name = "send sequence number" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "4" />
   <field name = "data" type = "frame" />
 </message>
 
 <message name = "RR" id = "1">
 Tells peer the lowest send sequence number that it may send in its DATA packet.
-  <field name = "receive sequence number" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "4" />
 </message>
 
 <message name = "RNR" id = "5">
 Tells peer to stop sending data.
-  <field name = "receive sequence number" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "4" />
 </message>
 
 <!-- message name = "REJ" id = "9" -->
 
 <message name = "CALL_REQUEST" id = "13">
-Call a peer.
-  <field name = "service requested" type = "string" />
+Call a peer. Negotiate the type of connection requested.
+  <field name = "service" type = "string" />
+  <field name = "outgoing" type = "number" size = "1" />
+  <field name = "incoming" type = "number" size = "1" />
+  <field name = "packet" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "1" />
 </message>
 
 <message name = "CALL_ACCEPTED" id = "15">
 Answer the call.
+  <field name = "outgoing" type = "number" size = "1" />
+  <field name = "incoming" type = "number" size = "1" />
+  <field name = "packet" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "1" />
 </message>
 
 <message name = "CLEAR_REQUEST" id = "19">
-Tell the peer to hang up.
+Request call termination
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
 <message name = "CLEAR_CONFIRMATION" id = "23">
-Tell the peer you are hanging up.
+Accept call termination
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
 <message name = "RESET_REQUEST" id = "27">
@@ -58,24 +68,29 @@ Tell the peer to restart flow control
 
 <message name = "RESET_CONFIRMATION" id = "31">
 Tell the peer that we have restarted flow control
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
 <message name = "CONNECT" id = "43">
-Client node requests connection to the broker, and tells it what service it provides.
+Client node requests connection to the broker.
   <field name = "protocol" type = "string" value = "PARCH" />
   <field name = "version" type = "number" size = "1" value = "PARCH_MSG_VERSION" />
-  <field name = "service name" type = "string" />
-  <field name = "connection data" type = "frame" />
+  <field name = "service" type = "string" />
+  <field name = "incoming" type = "number" size = "1" />
+  <field name = "outgoing" type = "number" size = "1" />
+  <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "SERVICE" id = "45">
-Node tells broker to update the name of the service it provides.
-  <field name = "service name" type = "string" />
+<message name = "ACKNOWLEDGE" id = "45">
+Broker tells node that CONNECT or DISCONNECT has been applied.
 </message>
 
 <message name = "DISCONNECT" id = "47">
 Node tells broker that it is disconnecting.
 </message>
 
-
+<message name = "DISCONNECTED_MODE" id = "49">
+ Broker tells node that CONNECT cannot be applied, or that broker is disconnecting node.
+</message>
 </class>

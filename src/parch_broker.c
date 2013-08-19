@@ -225,7 +225,7 @@ s_msg_address_strhex(parch_msg_t *msg) {
 
 static inline char *
 s_msg_service_name_dup(parch_msg_t *msg) {
-    return strdup(parch_msg_service_name(msg));
+    return strdup(parch_msg_service(msg));
 }
 
 static inline zframe_t *
@@ -245,7 +245,7 @@ s_broker_register_node(broker_t *self, parch_msg_t *msg) {
     assert(val);
     val->broker = self;
     val->node_address = zframe_dup(parch_msg_address(msg));
-    val->service_name = strdup(parch_msg_service_name(msg));
+    val->service_name = strdup(parch_msg_service(msg));
     s_node_set_service(val);
     val->engine = parch_state_engine_new(self, val);
     assert(val->engine);
@@ -273,16 +273,8 @@ parch_simple_node_destroy(node_t **self_p) {
     free(self);
 }
 
-static void
-s_node_unregister(node_t *self) {
-    zhash_t *nodes = self->broker->nodes;
-    char *key = zframe_strhex(self->node_address);
-    zhash_delete(nodes, key);
-    free(key);
-}
-
 int
-s_socket_event(zloop_t *loop, zmq_pollitem_t *item, void *arg) {
+s_socket_event(zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item, void *arg) {
     broker_t *self = (broker_t *) arg;
     assert(self);
 
@@ -393,11 +385,6 @@ s_broker_msg_recv(broker_t *self) {
     parch_msg_t *msg;
     msg = parch_msg_recv(self->socket);
     return msg;
-}
-
-static inline char *
-s_msg_target_strhex(parch_msg_t *msg) {
-    return zframe_strhex(parch_msg_connection_data(msg));
 }
 
 static void
@@ -520,7 +507,7 @@ parch_node_disconnect_from_peer(node_t *self) {
     }
 }
 
-int main(int argc, char *argv []) {
+int main(int argc __attribute__((unused)), char *argv [] __attribute__((unused))) {
     int verbose = 1;
     broker_t *self = s_broker_new(verbose, "tcp://*:5555");
     s_broker_destroy(&self);

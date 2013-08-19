@@ -29,16 +29,15 @@
 //  DATA STRUCTURES
 
 enum _action_t {
-
     // These are actions takes by the broker itself.
-    a_error = 0,
-    a_first = a_error,
-    a_discard = 1,
-    a_connect,
-    a_service,
+    a_unspecified = 0,
+    a_discard,
     a_reset,
+    a_clear,
+    a_disconnect,
 
     // These are actions requested by the node
+    a_x_connect,
     a_x_disconnect,
     a_x_call_request,
     a_x_call_accepted,
@@ -76,66 +75,61 @@ enum _action_t {
 };
 
 enum _event_t {
-    no_event = -1,
-    event_first = no_event,
-
-    // Node-initiated events
-    e_x_connect = 0,
-    e_x_service = 1,
-    e_x_disconnect = 2,
-    e_x_call_request = 3,
-    e_x_call_accepted = 4,
-    e_x_clear_request = 5,
-    e_x_clear_confirmation = 6,
-    e_x_data = 7,
-    e_x_rr = 8,
-    e_x_rnr = 9,
-    e_x_reset_request = 10,
-    e_x_reset_confirmation = 11,
-
-    // Peer-initiated events
-    e_y_disconnect = 12,
-    e_y_call_request = 13,
-    e_y_call_accepted = 14,
-    e_y_clear_request = 15,
-    e_y_clear_confirmation = 16,
-    e_y_data = 17,
-    e_y_rr = 18,
-    e_y_rnr = 19,
-    e_y_reset_request = 20,
-    e_y_reset_confirmation = 21,
+    e_unspecified = 0,
+    e_min = e_unspecified,
 
     // Broker or state-engine initiated events
-    e_reset = 22,
-    // e_error = 22,
+    e_reset,
+    e_clear,
+    e_disconnect,
 
-    max_event = e_reset,
-    event_last = e_reset
+    // Node-initiated events
+    e_x_connect,
+    e_x_disconnect,
+    e_x_call_request,
+    e_x_call_accepted,
+    e_x_clear_request,
+    e_x_clear_confirmation,
+    e_x_data,
+    e_x_rr,
+    e_x_rnr,
+    e_x_reset_request,
+    e_x_reset_confirmation,
+
+    // Peer-initiated events
+    e_y_disconnect,
+    e_y_call_request,
+    e_y_call_accepted,
+    e_y_clear_request,
+    e_y_clear_confirmation,
+    e_y_data,
+    e_y_rr,
+    e_y_rnr,
+    e_y_reset_request,
+    e_y_reset_confirmation,
+
+    e_max = e_y_reset_confirmation
 };
 
 enum _state_t {
-    no_state = -1,
-    no_state_change = no_state,
-    state_first = no_state,
-    s0_init = 0,
-    s1_ready = 1,
-    s2_x_call = 2,
-    s3_y_call = 3,
-    s4_data = 4,
-    s5_collision = 5,
-    s6_x_clear = 6,
-    s7_y_clear = 7,
-    s8_x_reset = 8,
-    s9_y_reset = 9,
-    max_state = 9,
-    state_last = s9_y_reset,
+    s_unspecified = 0,
+    s_min = s_unspecified,
+    s0_disconnected,
+    s1_ready,
+    s2_x_call,
+    s3_y_call,
+    s4_data,
+    s5_collision,
+    s6_x_clear,
+    s7_y_clear,
+    s8_x_reset,
+    s9_y_reset,
+    s_max = s9_y_reset,
 };
 
 struct _parch_state_engine_t {
     broker_t *broker; // loopback to the broker that contains this node
     node_t *node; // loopback to the node that contains this state engine
-    //    zframe_t *node_address; // address of node to which this state machine is attached
-    //    char *service_name; // node's public self-identification of what it does
     state_t state; // current state in the state machine
     event_t event; // current event being processed by the state machine
 
@@ -150,7 +144,6 @@ struct _parch_state_engine_t {
     int y_not_ready; // true if we received a RNR from Y
 
     parch_msg_t *request; // current message being processed
-    // parch_msg_t *reply; // current reply message being generated
     zconfig_t *config;
     int stopped;
 };
@@ -177,9 +170,9 @@ do {                                    \
         assert (parch_node_get_service_name(s->node) != NULL); \
         assert (strlen(parch_node_get_service_name(s->node)) < MAX_SERVICE_NAME_LEN); \
         assert (is_safe_ascii(parch_node_get_service_name(s->node))); \
-        assert (s->state >= state_first && s->state <= state_last); \
-        assert (s->event >= event_first && s->event <= event_last); \
-        assert (s->next_event >= event_first && s->next_event <= event_last); \
+        assert (s->state >= s_min && s->state <= s_max); \
+        assert (s->event >= e_min && s->event <= e_max); \
+        assert (s->next_event >= e_min && s->next_event <= e_max); \
         assert (s->x_window <= s->y_sequence_number); \
         assert (s->y_window <= s->x_sequence_number); \
         assert (s->x_not_ready == 0 || s->x_not_ready == 1); \
@@ -199,12 +192,12 @@ typedef struct _state_machine_table_element_t state_machine_table_element_t;
 //  State machine constants
 
 static const char action_names[][21] = {
-    [a_error] = "error",
     [a_discard] = "discard",
-    [a_connect] = "connect",
-    [a_service] = "service",
     [a_reset] = "reset",
+    [a_clear] = "clear",
+    [a_disconnect] = "disconnect",
 
+    [a_x_connect] = "x_connect",
     [a_x_disconnect] = "x_disconnect",
     [a_x_call_request] = "x_call_request",
     [a_x_call_accepted] = "x_call_accepted",
@@ -241,525 +234,576 @@ static const char diagnostic_messages[][50] = {
     [err_packet_type_invalid_for_state_s9] = "invalid packet type for s9_y_reset state"
 };
 
-static const state_machine_table_element_t state_machine_table[max_state + 1][max_event + 1] = {
+static const state_machine_table_element_t state_machine_table[s_max + 1][e_max + 1] = {
     /* S0 Initialize          */
+    [s0_disconnected] =
     {
-        /* e_x_connect            */
-        {a_connect, err_none, s1_ready},
-        /* e_x_service            */
-        {a_service, err_none, no_state},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_accepted      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_clear_request      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_clear_confirmation */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_data               */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_rr                 */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_rnr                */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_reset_request      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_reset_confirmation */
-        {a_x_disconnect, err_none, no_state},
+        // Broker or state-engine initiated events
+        [e_reset] =
+        {a_discard, err_none, s0_disconnected},
+        [e_clear] =
+        {a_discard, err_none, s0_disconnected},
+        [e_disconnect] =
+        {a_discard, err_none, s0_disconnected},
 
-        /* e_y_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_call_request       */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_call_accepted      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_clear_request      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_clear_confirmation */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_data               */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_rr                 */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_rnr                */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_reset_request      */
-        {a_x_disconnect, err_none, no_state},
-        /* e_y_reset_confirmation */
-        {a_x_disconnect, err_none, no_state},
+        // Node-initiated events
+        [e_x_connect] =
+        {a_x_connect, err_none, s1_ready},
+        [e_x_disconnect] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_call_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_call_accepted] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_clear_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_clear_confirmation] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_data] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_rr] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_rnr] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_reset_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_x_reset_confirmation] =
+        {a_discard, err_none, s0_disconnected},
 
-        /* e_reset */
-        {a_discard, err_none, s0_init}
+        // Peer-initiated events
+        [e_y_disconnect] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_call_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_call_accepted] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_clear_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_clear_confirmation] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_data] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_rr] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_rnr] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_reset_request] =
+        {a_discard, err_none, s0_disconnected},
+        [e_y_reset_confirmation] =
+        {a_discard, err_none, s0_disconnected}
     },
+
     /* S1 READY                */
+    [s1_ready] =
     {
-        /* e_x_connect            */
-        {a_connect, err_none, s1_ready},
-        /* e_x_service            */
-        {a_service, err_none, s1_ready},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_x_call_request, err_none, no_state},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_clear_request      */
-        {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        // Broker or state-engine initiated events
+        [e_reset] =
+        {a_discard, err_none, s1_ready},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
 
-        /* e_y_disconnect         */
+        // Node-initiated events
+        [e_x_connect] =
+        {a_discard, err_none, s1_ready},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s0_disconnected},
+        [e_x_call_request] =
+        {a_x_call_request, err_none, s2_x_call},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_clear_request] =
+        {a_x_clear_request, err_none, s6_x_clear},
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
+        [e_y_call_request] =
         {a_y_call_request, err_none, s3_y_call},
-        /* e_y_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_clear_request      */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s1, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s1_ready}
+        [e_y_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_clear_request] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear}
     },
-    /* S2 X CALL                */
+    [s2_x_call] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_clear_request      */
-        {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
+       // Broker or state-engine initiated events
+        [e_reset] =
+        {a_discard, err_none, s1_ready},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
 
-        /* e_y_disconnect         */
+        // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_clear_request] =
+        {a_x_clear_request, err_none, s6_x_clear},
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
+        [e_y_call_request] =
         {a_y_call_request, err_none, s5_collision},
-        /* e_y_call_accepted      */
+        [e_y_call_accepted] =
         {a_y_call_accepted, err_none, s4_data},
-        /* e_y_clear_request      */
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s2, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s2_x_call}
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s2, s7_y_clear}
     },
-    /* S3 y CALL                */
+    [s3_y_call] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
+       // Broker or state-engine initiated events
+        [e_reset] =
+        {a_discard, err_none, s1_ready},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+        // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
         {a_discard, err_none, s5_collision},
-        /* e_x_call_accepted      */
+        [e_x_call_accepted] =
         {a_x_call_accepted, err_none, s4_data},
-        /* e_x_clear_request      */
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
 
-        /* e_y_disconnect         */
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_clear_request      */
+        [e_y_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s3, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s3_y_call}
-
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s3, s7_y_clear}
     },
-    /* S4 data                 */
+    [s4_data] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_x_clear_request      */
+       // Broker or state-engine initiated events
+        [e_reset] =
+        {a_reset, err_none, s9_y_reset},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+         // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_x_data               */
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_x_data] =
         {a_x_data, err_none, s4_data},
-        /* e_x_rr                 */
+        [e_x_rr] =
         {a_x_rr, err_none, s4_data},
-        /* e_x_rnr                */
+        [e_x_rnr] =
         {a_x_rnr, err_none, s4_data},
-        /* e_x_reset_request      */
+        [e_x_reset_request] =
         {a_x_reset, err_none, s8_x_reset},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
 
-        /* e_y_disconnect         */
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_y_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_y_clear_request      */
+        [e_y_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_y_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-        /* e_y_data               */
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
+        [e_y_data] =
         {a_y_data, err_none, s4_data},
-        /* e_y_rr                 */
+        [e_y_rr] =
         {a_y_rr, err_none, s4_data},
-        /* e_y_rnr                */
+        [e_y_rnr] =
         {a_y_rnr, err_none, s4_data},
-        /* e_y_reset_request      */
+        [e_y_reset_request] =
         {a_y_reset, err_none, s9_y_reset},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s4, s7_y_clear},
-
-        /* e_reset */
-        {a_reset, err_none, s4_data}
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s4, s7_y_clear},
     },
-    /* S5 COLLISION             */
+    [s5_collision] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_clear_request      */
+        // Broker or state-engine initiated events
+        [e_reset] =
+        {a_reset, err_none, s9_y_reset},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+         // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
 
-        /* e_y_disconnect         */
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_call_accepted      */
+        [e_y_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_call_accepted] =
         {a_y_call_accepted, err_none, s4_data},
-        /* e_y_clear_request      */
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s5, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s5_collision}
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s5, s7_y_clear},
 
     },
-    /* S6 X CLEAR                */
+    [s6_x_clear] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_clear_request      */
-        {a_discard, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        // Broker or state-engine initiated events
+        [e_reset] =
+        {a_reset, err_none, s9_y_reset},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
 
-        /* e_y_disconnect         */
+         // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_clear_request] =
+        {a_discard, err_none, s6_x_clear},
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
+        [e_y_call_request] =
         {a_discard, err_none, s6_x_clear},
-        /* e_y_call_accepted      */
+        [e_y_call_accepted] =
         {a_discard, err_none, s6_x_clear},
-        /* e_y_clear_request      */
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s1_ready},
-        /* e_y_clear_confirmation */
+        [e_y_clear_confirmation] =
         {a_y_clear_confirmation, err_none, s1_ready},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s6, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s6_x_clear}
-
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s6, s7_y_clear},
     },
     /* S7 Y CLEAR                */
     {
-        /* e_x_connect            */
+        // Broker or state-engine initiated events
+        [e_reset] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_service            */
+        [e_clear] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+         // Node-initiated events
+        [e_x_connect] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_call_accepted      */
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_clear_request      */
+        [e_x_call_accepted] =
+        {a_discard, err_none, s7_y_clear},
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s1_ready},
-        /* e_x_clear_confirmation */
+        [e_x_clear_confirmation] =
         {a_x_clear_confirmation, err_none, s1_ready},
-        /* e_x_data               */
+        [e_x_data] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_rr                 */
+        [e_x_rr] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_rnr                */
+        [e_x_rnr] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_reset_request      */
+        [e_x_reset_request] =
         {a_discard, err_none, s7_y_clear},
-        /* e_x_reset_confirmation */
+        [e_x_reset_confirmation] =
         {a_discard, err_none, s7_y_clear},
 
-        /* e_y_disconnect         */
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
+        [e_y_call_request] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_call_accepted      */
+        [e_y_call_accepted] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_clear_request      */
+        [e_y_clear_request] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
+        [e_y_clear_confirmation] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_data               */
+        [e_y_data] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_rr                 */
+        [e_y_rr] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_rnr                */
+        [e_y_rnr] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_reset_request      */
+        [e_y_reset_request] =
         {a_discard, err_none, s7_y_clear},
-        /* e_y_reset_confirmation */
+        [e_y_reset_confirmation] =
         {a_discard, err_none, s7_y_clear},
-
-        /* e_reset */
-        {a_discard, err_none, s7_y_clear}
-
     },
-    /* S8 X RESET                */
+    [s8_x_reset] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_clear_request      */
+        // Broker or state-engine initiated events
+        [e_reset] =
+        {a_reset, err_none, s9_y_reset},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+         // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s1_ready},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_data               */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_x_reset_request      */
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_data] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_reset_request] =
         {a_discard, err_none, s8_x_reset},
-        /* e_x_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_x_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
 
-        /* e_y_disconnect         */
+        // Peer-initiated events
+        [e_y_disconnect] =
         {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_y_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_y_clear_request      */
+        [e_y_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_y_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_y_clear_request] =
         {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s8, s7_y_clear},
-        /* e_y_data               */
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s8, s7_y_clear},
+        [e_y_data] =
         {a_discard, err_none, s8_x_reset},
-        /* e_y_rr                 */
+        [e_y_rr] =
         {a_discard, err_none, s8_x_reset},
-        /* e_y_rnr                */
+        [e_y_rnr] =
         {a_discard, err_none, s8_x_reset},
-        /* e_y_reset_request      */
+        [e_y_reset_request] =
         {a_y_reset, err_none, s4_data},
-        /* e_y_reset_confirmation */
+        [e_y_reset_confirmation] =
         {a_y_reset_confirmation, err_none, s4_data},
-
-        /* e_reset */
-        {a_discard, err_none, s8_x_reset}
     },
-    /* S9 Y RESET                */
+    [s9_y_reset] =
     {
-        /* e_x_connect            */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_x_service            */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_x_disconnect         */
-        {a_x_disconnect, err_none, no_state},
-        /* e_x_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_x_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_x_clear_request      */
+        [e_reset] =
+        {a_discard, err_none, s9_y_reset},
+        [e_clear] =
+        {a_clear, err_packet_type_invalid_for_state_s1, s7_y_clear},
+        [e_disconnect] =
+        {a_disconnect, err_none, s0_disconnected},
+
+         // Node-initiated events
+        [e_x_connect] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_x_disconnect] =
+        {a_x_disconnect, err_none, s_unspecified},
+        [e_x_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_x_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_x_clear_request] =
         {a_x_clear_request, err_none, s6_x_clear},
-        /* e_x_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_x_data               */
+        [e_x_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_x_data] =
         {a_discard, err_none, s9_y_reset},
-        /* e_x_rr                 */
+        [e_x_rr] =
         {a_discard, err_none, s9_y_reset},
-        /* e_x_rnr                */
+        [e_x_rnr] =
         {a_discard, err_none, s9_y_reset},
-        /* e_x_reset_request      */
+        [e_x_reset_request] =
         {a_x_reset, err_none, s4_data},
-        /* e_x_reset_confirmation */
+        [e_x_reset_confirmation] =
         {a_x_reset_confirmation, err_none, s4_data},
 
-        /* e_y_disconnect         */
-        {a_y_disconnect, err_none, s1_ready},
-        /* e_y_call_request       */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_call_accepted      */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_clear_request      */
-        {a_y_clear_request, err_none, s7_y_clear},
-        /* e_y_clear_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_data               */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_rr                 */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_rnr                */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_reset_request      */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
-        /* e_y_reset_confirmation */
-        {a_error, err_packet_type_invalid_for_state_s9, s7_y_clear},
 
-        /* e_reset */
-        {a_discard, err_none, s9_y_reset}
+
+        // Peer-initiated events
+        [e_y_disconnect] =
+        {a_y_disconnect, err_none, s1_ready},
+        [e_y_call_request] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_call_accepted] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_clear_request] =
+        {a_y_clear_request, err_none, s7_y_clear},
+        [e_y_clear_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_data] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_rr] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_rnr] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_reset_request] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
+        [e_y_reset_confirmation] =
+        {a_clear, err_packet_type_invalid_for_state_s9, s7_y_clear},
     }
 };
 
-static const char state_names[][13] = {
-    [s0_init] = "s0_init",
+static const char state_names[][16] ={
+    [s0_disconnected] = "s0_disconnected",
     [s1_ready] = "s1_ready",
     [s2_x_call] = "s2_x_call",
     [s3_y_call] = "s3_y_call",
@@ -775,41 +819,37 @@ static const char state_names[][13] = {
 //  DECLARATIONS
 
 int
-s_msg_id_is_valid(int id) __attribute__((const));
+s_msg_id_is_valid(int id) __attribute__(());
 static void
-s_state_engine_do_connect(parch_state_engine_t *self);
+s_state_engine_do_connect(parch_state_engine_t * self);
 static void
-s_state_engine_do_error(parch_state_engine_t *self, diagnostic_t diagnostic) __attribute__((nonnull(1)));
+s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) __attribute__((nonnull(1)));
+static void
+s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused))) { };
 static void
 s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic);
 static void
-s_state_engine_do_service(parch_state_engine_t *self) __attribute__((nonnull(1)));
+s_state_engine_do_x_call_accepted(parch_state_engine_t * self) __attribute__((nonnull(1)));
 static void
-s_state_engine_do_x_call_accepted(parch_state_engine_t *self) __attribute__((nonnull(1)));
+s_state_engine_do_x_call_request(parch_state_engine_t * self) __attribute__((nonnull(1)));
 static void
-s_state_engine_do_x_call_request(parch_state_engine_t * const self) __attribute__((nonnull(1)));
+state_engine_do_x_clear_request(parch_state_engine_t * self);
 static void
-state_engine_do_x_clear_request(parch_state_engine_t *self);
+s_state_engine_do_x_disconnect(parch_state_engine_t * self) __attribute__((nonnull(1)));
 static void
-s_state_engine_do_x_disconnect(parch_state_engine_t *self) __attribute__((nonnull(1)));
+s_state_engine_do_x_rnr(parch_state_engine_t * self);
 static void
-s_state_engine_do_x_rnr(parch_state_engine_t *self);
-static void
-s_state_engine_do_x_rr(parch_state_engine_t *self);
+s_state_engine_do_x_rr(parch_state_engine_t * self);
 static void
 s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready);
 static void
-s_state_engine_log(const parch_state_engine_t * const self, char *msg) __attribute__((nonnull(1,2)));
-static void
-s_state_engine_log_send_to_node(const parch_state_engine_t * const self, const parch_msg_t * const msg, diagnostic_t d);
-static void
-s_state_engine_log_send_to_peer(const parch_state_engine_t * const self, const parch_msg_t * const msg, diagnostic_t d);
+s_state_engine_log(parch_state_engine_t * self, char *msg) __attribute__((nonnull(1, 2)));
 static void
 s_state_engine_send_msg_to_node_and_log(parch_state_engine_t *self, parch_msg_t **msg_p);
 static void
 s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t **msg_p);
 static void
-s_state_engine_reset_flow_control(parch_state_engine_t * const self) __attribute__((nonnull(1)));
+s_state_engine_reset_flow_control(parch_state_engine_t * self) __attribute__((nonnull(1)));
 
 
 
@@ -834,65 +874,57 @@ s_msg_id_is_valid(int id) {
             || id == PARCH_MSG_RESET_REQUEST
             || id == PARCH_MSG_RESET_CONFIRMATION
             || id == PARCH_MSG_CONNECT
-            || id == PARCH_MSG_SERVICE
-            || id == PARCH_MSG_DISCONNECT);
+            || id == PARCH_MSG_ACKNOWLEDGE
+            || id == PARCH_MSG_DISCONNECT
+            || id == PARCH_MSG_DISCONNECTED_MODE);
 }
 
 static void
-s_state_engine_do_connect(parch_state_engine_t *self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-
-    // Well, we're in the state engine, so obviously this node
-    // has a state engine, already.
-    // So we need to register its service, which happens in the broker.
-    s_state_engine_do_service(self);
-}
-
-static void
-s_state_engine_do_error(parch_state_engine_t *self, diagnostic_t diagnostic) {
+s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
     zframe_t *addr = parch_node_get_node_address(self->node);
-    parch_msg_t *node_msg = parch_msg_new_clear_request_msg (addr, local_procedure_error, diagnostic);
+    parch_msg_t *node_msg = parch_msg_new_clear_request_msg(addr, local_procedure_error, diagnostic);
     s_state_engine_send_msg_to_node_and_log(self, &node_msg);
 
     node_t *peer = parch_node_get_peer(self->node);
     if (peer) {
-        parch_msg_t *peer_msg = parch_msg_new_clear_request_msg (addr, remote_procedure_error, diagnostic);
+        parch_msg_t *peer_msg = parch_msg_new_clear_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
 }
 
 // This is the state-engine initiated reset request, where it is flagging a flow control problem
 // and requires a reset.  This is different from the node-initiated reset request.
+
 static void
 s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
     zframe_t *addr = parch_node_get_node_address(self->node);
-    parch_msg_t *node_msg = parch_msg_new_reset_request_msg (addr, local_procedure_error, diagnostic);
+    parch_msg_t *node_msg = parch_msg_new_reset_request_msg(addr, local_procedure_error, diagnostic);
     s_state_engine_send_msg_to_node_and_log(self, &node_msg);
 
     node_t *peer = parch_node_get_peer(self->node);
     if (peer) {
-        parch_msg_t *peer_msg = parch_msg_new_reset_request_msg (addr, remote_procedure_error, diagnostic);
+        parch_msg_t *peer_msg = parch_msg_new_reset_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
 }
 
 static void
-s_state_engine_do_service(parch_state_engine_t *self) {
+s_state_engine_do_connect(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // At the state machine, this does the same thing as state_engine_do_connect.
     // It updates the service.  The difference between the two messages it as
     // the broker level.
-    char *sname = parch_msg_service_name(self->request);
+    char *sname = parch_msg_service(self->request);
     parch_node_set_service_name(self->node, sname);
     parch_node_update_service_name_with_broker(self->node);
 }
 
 static void
-s_state_engine_do_x_call_accepted(parch_state_engine_t *self) {
+s_state_engine_do_x_call_accepted(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y requested a call and X agreed
     // Just forward the CALL_ACCEPTED to Y
@@ -903,28 +935,28 @@ s_state_engine_do_x_call_accepted(parch_state_engine_t *self) {
 }
 
 static void
-s_state_engine_do_x_call_request(parch_state_engine_t * const self) {
+s_state_engine_do_x_call_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Tell the broker to connect X to an idle node of the requested service.
 
     // If an idle node for that service is found, a virtual call is
     // made with the idle node becoming Y.  The call request is
     // forwarded on to the Y node.
-    if (parch_node_call_request(self->node, parch_msg_service_requested(self->request))) {
+    if (parch_node_call_request(self->node, parch_msg_service(self->request))) {
         parch_msg_t *peer_msg = parch_msg_dup(self->request);
         self->state = s2_x_call;
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     } else {
         // If an idle node is not found, a clear request is sent to X.
-        s_state_engine_log (self, "no peer available");
-        self->state = no_state_change;
+        s_state_engine_log(self, "no peer available");
+        self->state = s_unspecified;
         self->next_event = e_y_clear_request;
         self->next_diagnostic = err_no_logical_channel_available;
     }
 }
 
 static void
-state_engine_do_x_clear_confirmation(parch_state_engine_t *self) {
+state_engine_do_x_clear_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X has agreed to clear the channel.  So, tell the broker to
     // close the connection to Y and end the virtual call.  Then reset
@@ -940,7 +972,7 @@ state_engine_do_x_clear_confirmation(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_x_clear_request(parch_state_engine_t *self) {
+state_engine_do_x_clear_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // The X node has requested that the connection to Y be cleared.
     // The clear request is forwarded on to Y.
@@ -949,7 +981,7 @@ state_engine_do_x_clear_request(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_x_data(parch_state_engine_t *self) {
+state_engine_do_x_data(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X has sent data for Y.  Verify that the DATA packet has the
     // right sequence number and that it is within Y's transmission
@@ -963,7 +995,7 @@ state_engine_do_x_data(parch_state_engine_t *self) {
 }
 
 static void
-s_state_engine_do_x_disconnect(parch_state_engine_t *self) {
+s_state_engine_do_x_disconnect(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Our node is quitting or dying.  Clean up as fast as possible.
     // Tell the peer we're going to die
@@ -981,8 +1013,9 @@ s_state_engine_do_x_disconnect(parch_state_engine_t *self) {
     parch_node_disconnect_from_service(self->node);
     self->stopped = 1;
 }
+
 static void
-s_state_engine_do_x_rnr(parch_state_engine_t *self) {
+s_state_engine_do_x_rnr(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X has informed that it can't receive any data right now.  Store
     // info about the window and forward the message to Y.
@@ -990,7 +1023,7 @@ s_state_engine_do_x_rnr(parch_state_engine_t *self) {
 }
 
 static void
-s_state_engine_do_x_rr(parch_state_engine_t *self) {
+s_state_engine_do_x_rr(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X had updated its allowed transmission window.  Store info
     // about the window and then forward the message to Y.
@@ -1002,7 +1035,7 @@ s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X had updated its allowed transmission window.  Store info
     // about the window and then forward the message to Y.
-    uint32_t rs = parch_msg_receive_sequence_number(self->request);
+    uint32_t rs = parch_msg_sequence(self->request);
 
     // The node updates the range of packets it will accept.  That
     // range has to be greater than the last range, but, it can't
@@ -1015,16 +1048,16 @@ s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready) {
     } else {
         // We're out of sync, so we reset the connection
         if (not_ready)
-                s_state_engine_log (self, "bad RNR sequence id from node");
+            s_state_engine_log(self, "bad RNR sequence id from node");
         else
-                s_state_engine_log (self, "bad RR sequence id from node");
+            s_state_engine_log(self, "bad RR sequence id from node");
         self->next_event = e_reset;
         self->next_diagnostic = err_invalid_pr;
     }
 }
 
 static void
-state_engine_do_y_disconnect(parch_state_engine_t *self) {
+state_engine_do_y_disconnect(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has requested a disconnect.
     // Forward this on to the node so it knows that its peer has disappeared.
@@ -1035,60 +1068,17 @@ state_engine_do_y_disconnect(parch_state_engine_t *self) {
 }
 
 static void
-s_state_engine_log(const parch_state_engine_t * const self, char *msg) {
+s_state_engine_log(parch_state_engine_t * self, char *msg) {
     if (parch_broker_get_verbose(self->broker)) {
         char *self_addr;
         if (parch_node_get_node_address(self->node) != NULL)
             self_addr = zframe_strhex(parch_node_get_node_address(self->node));
         else
             self_addr = strdup("UNKNOWN");
-            zclock_log("I: [%s] state engine -- %s",
+        zclock_log("I: [%s] state engine -- %s",
                 self_addr,
                 msg);
         free(self_addr);
-    }
-}
-
-static void
-s_state_engine_log_send_to_node(const parch_state_engine_t * const self, const parch_msg_t * const msg, diagnostic_t d) {
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr;
-        if (parch_node_get_node_address(self->node) != NULL)
-            self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        else
-            self_addr = strdup("UNKNOWN");
-        if (d != err_none)
-            zclock_log("I: [%s] state engine -- sending '%s' (%s) to node",
-                self_addr,
-                parch_msg_command(msg),
-                diagnostic_messages[d]);
-        else
-            zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(msg));
-        free(self_addr);
-    }
-}
-
-static void
-s_state_engine_log_send_to_peer(const parch_state_engine_t * const self, const parch_msg_t * const msg, diagnostic_t d) {
-    if (parch_broker_get_verbose(self->broker)) {
-        const node_t * const peer = parch_node_get_peer(self->node);
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        char *peer_addr = zframe_strhex(parch_node_get_node_address(peer));
-        if (d != err_none)
-            zclock_log("I: [%s] state engine -- sending '%s' (%s) to [%s]",
-                self_addr,
-                parch_msg_command(msg),
-                diagnostic_messages[d],
-                peer_addr);
-        else
-            zclock_log("I: [%s] state engine -- sending '%s' to [%s]",
-                self_addr,
-                parch_msg_command(msg),
-                peer_addr);
-        free(self_addr);
-        free(peer_addr);
     }
 }
 
@@ -1122,7 +1112,7 @@ s_state_engine_send_msg_to_node_and_log(parch_state_engine_t *self, parch_msg_t 
 static void
 s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t **msg_p) {
     parch_msg_t *msg = msg_p[0];
-    const node_t * const peer = parch_node_get_peer(self->node);
+    node_t * peer = parch_node_get_peer(self->node);
 
     // Log the sending of the message
     if (parch_broker_get_verbose(self->broker)) {
@@ -1153,7 +1143,7 @@ s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t 
 }
 
 static void
-s_state_engine_reset_flow_control(parch_state_engine_t * const self) {
+s_state_engine_reset_flow_control(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     self->x_sequence_number = 0;
     self->y_sequence_number = 0;
@@ -1166,33 +1156,22 @@ s_state_engine_reset_flow_control(parch_state_engine_t * const self) {
 // ================================================================
 // State machine actions
 
-
-
-
-
-
-
-
-
-
-
-
 static void
-state_engine_do_x_reset_request(parch_state_engine_t *self) {
+state_engine_do_x_reset_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X has requested that data flow control be reset.  Forward the
     // message on to Y.
 }
 
 static void
-state_engine_do_x_reset_confirmation(parch_state_engine_t *self) {
+state_engine_do_x_reset_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y had requested that flow control be reset and X agreed.  Reset
     // the sequence numbers and flow control.
 }
 
 static void
-state_engine_do_y_call_request(parch_state_engine_t *self) {
+state_engine_do_y_call_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y had requested that the broker connect it to an idle node of
     // the requested service, and the broker had determined that this
@@ -1214,7 +1193,7 @@ state_engine_do_y_call_request(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_call_accepted(parch_state_engine_t *self) {
+state_engine_do_y_call_accepted(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X requested a call and Y agreed.
 
@@ -1235,7 +1214,7 @@ state_engine_do_y_call_accepted(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_clear_request(parch_state_engine_t *self) {
+state_engine_do_y_clear_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // The Y node has requested that the connection to X be cleared.
     // The clear request is forwarded on to X.
@@ -1254,7 +1233,7 @@ state_engine_do_y_clear_request(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_clear_confirmation(parch_state_engine_t *self) {
+state_engine_do_y_clear_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has agreed to clear the channel.  So, tell the broker to
     // close the connection to Y and end the virtual call.  Then reset
@@ -1285,7 +1264,7 @@ state_engine_do_y_clear_confirmation(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_data(parch_state_engine_t *self) {
+state_engine_do_y_data(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has sent data for X.  Verify that the DATA packet has the
     // right sequence number and that it is within X's transmission
@@ -1308,21 +1287,21 @@ state_engine_do_y_data(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_rr(parch_state_engine_t *self) {
+state_engine_do_y_rr(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y had updated its allowed transmission window.  Store info
     // about the window and then forward the message to X.
 }
 
 static void
-state_engine_do_y_rnr(parch_state_engine_t *self) {
+state_engine_do_y_rnr(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has informed that it can't receive any data right now.  Store
     // info about the window and forward the message to X.
 }
 
 static void
-state_engine_do_y_reset_request(parch_state_engine_t *self) {
+state_engine_do_y_reset_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has requested that data flow control be reset.  Forward the
     // message on to X.
@@ -1343,74 +1322,75 @@ state_engine_do_y_reset_request(parch_state_engine_t *self) {
 }
 
 static void
-state_engine_do_y_reset_confirmation(parch_state_engine_t *self) {
+state_engine_do_y_reset_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X had requested that flow control be reset and Y agreed.  Reset
     // the sequence numbers and flow control.
 }
 
+#if 0
 static void
-state_engine_do_s0_initialize_timeout(parch_state_engine_t *self) {
+state_engine_do_s0_initialize_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // We've been in S0 for a while without registering.  Disconnect
 }
 
 static void
-state_engine_do_s2_x_call_waiting_timeout(parch_state_engine_t *self) {
+state_engine_do_s2_x_call_waiting_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s3_y_call_waiting_timeout(parch_state_engine_t *self) {
+state_engine_do_s3_y_call_waiting_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s6_x_clear_request_timeout(parch_state_engine_t *self) {
+state_engine_do_s6_x_clear_request_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s7_y_clear_request_first_timeout(parch_state_engine_t *self) {
+state_engine_do_s7_y_clear_request_first_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s7_y_clear_request_second_timeout(parch_state_engine_t *self) {
+state_engine_do_s7_y_clear_request_second_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s8_x_reset_request_first_timeout(parch_state_engine_t *self) {
+state_engine_do_s8_x_reset_request_first_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s8_x_reset_request_second_timeout(parch_state_engine_t *self) {
+state_engine_do_s8_x_reset_request_second_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s9_y_reset_request_first_timeout(parch_state_engine_t *self) {
+state_engine_do_s9_y_reset_request_first_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
 
 static void
-state_engine_do_s9_y_reset_request_second_timeout(parch_state_engine_t *self) {
+state_engine_do_s9_y_reset_request_second_timeout(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
 }
-
+#endif
 static void
-state_engine_config_self(parch_state_engine_t *self) {
+state_engine_config_self(parch_state_engine_t * self __attribute__((unused))) {
     // state engine is still partly uninitialized here.
     // Can't do STATE_ENGINE_VALIDITY_CHECKS(self);
 }
@@ -1420,7 +1400,7 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
     self->event = self->next_event;
-    self->next_event = no_event;
+    self->next_event = e_unspecified;
     self->next_diagnostic = err_none;
 
     state_t state_orig = self->state;
@@ -1432,21 +1412,21 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
     free(node_addr);
     usleep(1);
     switch (action) {
-        case a_error:
-            s_state_engine_do_error(self, diagnostic);
-            break;
+        case a_unspecified:
         case a_discard:
-            break;
-        case a_connect:
-            s_state_engine_do_connect(self);
-            break;
-        case a_service:
-            s_state_engine_do_service(self);
             break;
         case a_reset:
             s_state_engine_do_reset(self, diagnostic);
             break;
-
+        case a_clear:
+            s_state_engine_do_clear(self, diagnostic);
+            break;
+        case a_disconnect:
+            s_state_engine_do_disconnect(self);
+            break;
+        case a_x_connect:
+            s_state_engine_do_connect(self);
+            break;
         case a_x_disconnect:
             s_state_engine_do_x_disconnect(self);
             break;
@@ -1542,7 +1522,7 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
     }
     if (self->stopped)
         return 1;
-    if (next != no_state)
+    if (next != s_unspecified)
         self->state = next;
     if (state_orig != self->state) {
         if (parch_broker_get_verbose(self->broker)) {
@@ -1570,24 +1550,23 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
 }
 
 static int
-state_machine_dispatch_event(parch_state_engine_t *self) {
+state_machine_dispatch_event(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     int done = 0;
-    assert(self->next_event >= e_x_connect && self->next_event <= max_event);
-    while (self->next_event != no_event) {
+    assert(self->next_event >= e_x_connect && self->next_event <= e_max);
+    while (self->next_event != e_unspecified) {
         state_t s = self->state;
         event_t e = self->next_event;
         diagnostic_t d = self->next_diagnostic;
-        assert(s >= s0_init && s <= s9_y_reset);
-        assert(e >= 0 && e <= max_event);
-        const state_machine_table_element_t * const elt = &state_machine_table[s][e];
+        assert(s >= s0_disconnected && s <= s9_y_reset);
+        assert(e >= 0 && e <= e_max);
+        const state_machine_table_element_t * elt = &state_machine_table[s][e];
         if (d != err_none) {
             // Some events, like reset and clear events, override the state machine's generic
             // diagnostic message with something more specific.
             done = state_machine_dispatch(self, elt->action, d, elt->next);
             self->next_diagnostic = err_none;
-        }
-        else
+        } else
             // But usually, we just have a diagnostic message based on the state of the table.
             done = state_machine_dispatch(self, elt->action, elt->diagnostic, elt->next);
 
@@ -1596,13 +1575,13 @@ state_machine_dispatch_event(parch_state_engine_t *self) {
 }
 
 parch_state_engine_t *
-parch_state_engine_new(broker_t *broker, node_t *node) {
+parch_state_engine_new(broker_t *broker, node_t * node) {
     parch_state_engine_t *self = (parch_state_engine_t *) zmalloc(sizeof (parch_state_engine_t));
     self->broker = broker;
     self->node = node;
-    self->state = s0_init;
-    self->event = no_event;
-    self->next_event = no_event;
+    self->state = s0_disconnected;
+    self->event = e_unspecified;
+    self->next_event = e_unspecified;
     self->request = NULL;
     self->config = zconfig_new("state", NULL);
     state_engine_config_self(self);
@@ -1639,7 +1618,7 @@ parch_state_engine_test(bool verbose);
 //  Process message from pipe
 
 int
-parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t *msg) {
+parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t * msg) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
     assert(msg);
@@ -1650,12 +1629,12 @@ parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t *msg) {
     self->request = parch_msg_dup(msg);
     switch (parch_msg_id(msg)) {
         case PARCH_MSG_DATA:
-            assert(parch_msg_send_sequence_number(msg) == self->x_sequence_number);
+            assert(parch_msg_sequence(msg) == self->x_sequence_number);
             self->next_event = e_x_data;
             break;
 
         case PARCH_MSG_RR:
-            assert(parch_msg_receive_sequence_number(msg) >= self->x_window);
+            assert(parch_msg_sequence(msg) >= self->x_window);
             self->next_event = e_x_rr;
             break;
 
@@ -1664,8 +1643,8 @@ parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t *msg) {
             break;
 
         case PARCH_MSG_CALL_REQUEST:
-            assert(parch_msg_service_requested(msg) != NULL);
-            assert(strlen(parch_msg_service_requested(msg)) > 0);
+            assert(parch_msg_service(msg) != NULL);
+            assert(strlen(parch_msg_service(msg)) > 0);
             self->next_event = e_x_call_request;
             break;
 
@@ -1691,10 +1670,6 @@ parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t *msg) {
 
         case PARCH_MSG_CONNECT:
             self->next_event = e_x_connect;
-            break;
-
-        case PARCH_MSG_SERVICE:
-            self->next_event = e_x_service;
             break;
 
         case PARCH_MSG_DISCONNECT:
@@ -1723,12 +1698,12 @@ s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p) {
 
     switch (parch_msg_id(msg)) {
         case PARCH_MSG_DATA:
-            assert(parch_msg_send_sequence_number(msg) == self->y_sequence_number);
+            assert(parch_msg_sequence(msg) == self->y_sequence_number);
             self->next_event = e_y_data;
             break;
 
         case PARCH_MSG_RR:
-            assert(parch_msg_receive_sequence_number(msg) >= self->y_window);
+            assert(parch_msg_sequence(msg) >= self->y_window);
             self->next_event = e_y_rr;
             break;
 
@@ -1737,8 +1712,8 @@ s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p) {
             break;
 
         case PARCH_MSG_CALL_REQUEST:
-            assert(parch_msg_service_requested(msg) != NULL);
-            assert(strlen(parch_msg_service_requested(msg)) > 0);
+            assert(parch_msg_service(msg) != NULL);
+            assert(strlen(parch_msg_service(msg)) > 0);
             self->next_event = e_y_call_request;
             break;
 
