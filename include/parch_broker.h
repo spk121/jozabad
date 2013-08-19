@@ -41,7 +41,7 @@ void *
 parch_broker_get_socket (broker_t *self);
 
 zframe_t *
-parch_node_get_node_address (node_t *self);
+parch_node_get_node_address (node_t const * const self);
 
 node_t *
 parch_node_get_peer (node_t * const self);
@@ -56,7 +56,7 @@ void
 parch_node_set_service_name (node_t *self, char *sname);
 
 void
-parch_node_update_service_name (node_t *node, char *service_name);
+parch_node_update_service_name_with_broker (node_t *node);
 
 void
 parch_node_disconnect_from_service (node_t *self);

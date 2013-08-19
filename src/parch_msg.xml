@@ -26,6 +26,7 @@ Tells peer the lowest send sequence number that it may send in its DATA packet.
 
 <message name = "RNR" id = "5">
 Tells peer to stop sending data.
+  <field name = "receive sequence number" type = "number" size = "4" />
 </message>
 
 <!-- message name = "REJ" id = "9" -->
@@ -49,7 +50,17 @@ Tell the peer to hang up.
 Tell the peer you are hanging up.
 </message>
 
-<message name = "CONNECT" id = "27">
+<message name = "RESET_REQUEST" id = "27">
+Tell the peer to restart flow control
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "diagnostic" type = "number" size = "1" />
+</message>
+
+<message name = "RESET_CONFIRMATION" id = "31">
+Tell the peer that we have restarted flow control
+</message>
+
+<message name = "CONNECT" id = "43">
 Client node requests connection to the broker, and tells it what service it provides.
   <field name = "protocol" type = "string" value = "PARCH" />
   <field name = "version" type = "number" size = "1" value = "PARCH_MSG_VERSION" />
@@ -57,12 +68,12 @@ Client node requests connection to the broker, and tells it what service it prov
   <field name = "connection data" type = "frame" />
 </message>
 
-<message name = "SERVICE" id = "29">
+<message name = "SERVICE" id = "45">
 Node tells broker to update the name of the service it provides.
   <field name = "service name" type = "string" />
 </message>
 
-<message name = "DISCONNECT" id = "31">
+<message name = "DISCONNECT" id = "47">
 Node tells broker that it is disconnecting.
 </message>
 

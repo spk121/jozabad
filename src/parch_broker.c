@@ -71,7 +71,7 @@ parch_node_get_peer(node_t * const self) {
 }
 
 zframe_t *
-parch_node_get_node_address(node_t *self) {
+parch_node_get_node_address(node_t const * const self) {
     return self->node_address;
 }
 
@@ -85,7 +85,9 @@ void
 parch_node_set_service_name(node_t *self, char *sname) {
     assert(self);
     assert(sname);
-    self->service_name = sname;
+    if (self->service_name)
+        free (self->service_name);
+    self->service_name = strdup (sname);
 }
 
 char *
@@ -94,14 +96,13 @@ parch_node_get_service_name(node_t *self) {
 }
 
 void
-parch_node_update_service_name(node_t *node, char *service_name) {
+parch_node_update_service_name_with_broker(node_t *node) {
     assert(node);
-    if (node->service_name && streq(node->service_name, node->service->name))
+    assert(node->service_name);
+
+    if (streq(node->service_name, node->service->name))
         return;
 
-    if (node->service_name)
-        free(node->service_name);
-    node->service_name = strdup(service_name);
     if (node->service) {
         zlist_remove(node->service->idle, node);
         zlist_remove(node->service->busy, node);
@@ -294,7 +295,6 @@ s_socket_event(zloop_t *loop, zmq_pollitem_t *item, void *arg) {
         return 0;
     }
 
-
     char *identity = s_msg_address_strhex(msg);
 
     // Create a state machine for this message, if necessary
@@ -402,7 +402,6 @@ s_msg_target_strhex(parch_msg_t *msg) {
 
 static void
 s_node_mark_busy(node_t *self) {
-    char *self_addr = zframe_strhex(self->node_address);
     zlist_remove(self->service->idle, self);
     // If it is in the busy list, move it to the bottom
     zlist_remove(self->service->busy, self);
@@ -412,7 +411,6 @@ s_node_mark_busy(node_t *self) {
 
 static void
 s_node_mark_idle(node_t *self) {
-    char *self_addr = zframe_strhex(self->node_address);
     zlist_remove(self->service->idle, self);
     zlist_remove(self->service->busy, self);
     zlist_append(self->service->idle, self);

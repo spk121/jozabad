@@ -36,6 +36,12 @@ int main(int argc, char *argv []) {
         assert(parch_msg_id(request) == PARCH_MSG_DATA);
         parch_msg_destroy(&request);
 
+        // Receive a RR in response
+        request = parch_msg_recv(parch_node_client(session));
+        assert(request);
+        parch_msg_dump(request);
+        assert(parch_msg_id(request) == PARCH_MSG_RR);
+        parch_msg_destroy(&request);
 
         // Clear the channel
         parch_msg_send_clear_request(parch_node_client(session), 0, 0);
@@ -77,8 +83,9 @@ int main(int argc, char *argv []) {
         assert(parch_msg_id(request) == PARCH_MSG_DATA);
         parch_msg_destroy(&request);
 
-        // Respond with a data packet
+        // Respond with a data packet and an RR packet
         parch_msg_send_data(parch_node_client(session), 0, zframe_new("DATA BAR", 8));
+        parch_msg_send_rr(parch_node_client(session),0);
 
         // Wait for receive a clear channel request
         request = parch_msg_recv(parch_node_client(session));
@@ -97,7 +104,7 @@ int main(int argc, char *argv []) {
         parch_msg_send_connect(parch_node_client(session),
                 (char *) parch_node_service(session),
                 zframe_new(NULL, 0));
-        parch_msg_send_rnr(parch_node_client(session));
+        parch_msg_send_rnr(parch_node_client(session), 0);
     }
 
     parch_msg_t *msg = parch_msg_recv(parch_node_client(session));

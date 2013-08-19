@@ -24,8 +24,8 @@ parch_msg.c: parch_msg.xml
 test_node: parch_node.o test_node1.o parch_msg.o
 	$(CC) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
 
-parch_broker: lib.o parch_broker.o parch_msg.o parch_state_engine.o
-	$(CC) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
+parch_broker: lib.o parch_broker.o parch_msg.o parch_msg2.o parch_state_engine.o
+	$(CC) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq
 
 clean:
 	-rm test_node parch_broker *.o

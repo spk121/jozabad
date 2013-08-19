@@ -58,6 +58,7 @@ typedef struct _parch_state_engine_t parch_state_engine_t;
 
 //  Classes in the API
 #include "parch_msg.h"
+#include "parch_msg2.h"
 // #include "parch_common.h"
 #include "parch_node.h"
 #include "parch_state_engine.h"
