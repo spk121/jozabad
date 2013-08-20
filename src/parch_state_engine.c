@@ -133,6 +133,7 @@ struct _parch_state_engine_t {
     state_t state; // current state in the state machine
     event_t event; // current event being processed by the state machine
 
+    //
     uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
     uint8_t outgoing_calls_barred; // when true, all call requests from node are ignored.
     uint8_t incoming_data_barred; // when true, all data packets from peer are ignored
@@ -148,16 +149,20 @@ struct _parch_state_engine_t {
     uint8_t negotiation_packet_class;
     uint16_t negotiation_window_size;
 
+    // Coming up...
     event_t next_event; // next event to be processed by the state machine
-    clearing_cause_t next_cause; // error category for next event, if requred
+    clearing_cause_t next_cause; // error category for next event, if required
     diagnostic_t next_diagnostic; // diagnostic for next event, if required
 
+    // Flow control
     uint32_t x_sequence_number; // serial number of last DATA from X
     uint32_t y_sequence_number; // serial number of last DATA from Y
     uint32_t x_window; // serial number of last RR from X for Y
     uint32_t y_window; // serial number of last RR from Y for X
     int x_not_ready; // true if we received a RNR from X
     int y_not_ready; // true if we received a RNR from Y
+    uint64_t _time;
+    float channel_capacity_in_use;
 
     parch_msg_t *request; // current message being processed
     zconfig_t *config;
@@ -1356,6 +1361,11 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
             || packet_classes[parch_msg_packet(msg)] > 128))) {
         // The node only can change the packet size to be between the requested value and 128.
         valid = false;
+    } else if (packet_classes[self->negotiation_packet_class] * 8 * BUCKET_DRAIN_TIME > throughput_classes[self->throughput_class]) {
+        // We use a "leaky bucket" flow control test.  If a forbidden to use a packet size such that a
+        // single packet could send more than BUCKET_DRAIN_TIME's
+        // worth of data in one go,
+        valid = false;
     }
     return valid;
 }
@@ -1400,7 +1410,27 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
         self->next_diagnostic = err_invalid_ps;
         s_state_engine_log(self, "data from peer has invalid send sequence number");
         parch_msg_destroy(&msg);
-    } else {
+    }
+    else {
+        int64_t now = zclock_time();
+        int64_t delta = now - self->_time;
+
+        // A leaky bucky with a 5 second time drain time
+        self->channel_capacity_in_use -= (float) delta / 5000.0f;
+        if (self->channel_capacity_in_use < 0.0)
+            self->channel_capacity_in_use = 0.0;
+        // bytes * (8 bits / byte) * (sec / bit) / (5 sec)
+        self->channel_capacity_in_use += (float)(zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
+
+        if (self->channel_capacity_in_use > 2.0) {
+                self->state = s_unspecified;
+                self->next_event = e_reset;
+                self->next_cause = local_procedure_error;
+                self->next_diagnostic = err_network_congestion;
+                s_state_engine_log(self, "data from peer has exceeded throughput limits");
+                parch_msg_destroy(&msg);
+        }
+
         parch_msg_set_address(msg, parch_node_get_node_address(self->node));
         s_state_engine_send_msg_to_node_and_log(self, &msg);
         self->y_sequence_number++;
@@ -1889,6 +1919,8 @@ parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, by
     self->incoming_calls_barred = incoming_barred;
     self->outgoing_calls_barred = outgoing_barred;
     self->throughput_class = throughput;
+    self->_time = zclock_time ();
+    self->channel_capacity_in_use = 0.0;
     self->config = zconfig_new("state", NULL);
     state_engine_config_self(self);
 

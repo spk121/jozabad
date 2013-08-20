@@ -22,6 +22,7 @@ extern "C" {
 #define PACKET_CLASS_MIN 3            // 16 bytes
 #define PACKET_CLASS_MAX 12           // 4  kbytes
 #define PACKET_CLASS_DEFAULT 7        // 128 bytes
+#define BUCKET_DRAIN_TIME 5.0         // seconds
 
 //  ---------------------------------------------------------------------------
 //  TYPEDEFS
@@ -118,6 +119,7 @@ enum _diagnostic_t {
     // My extensions
     err_incoming_data_barred,
     err_outgoing_data_barred,
+    err_network_congestion,
 
     // Not assigned
     err_not_assigned,
