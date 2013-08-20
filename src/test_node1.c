@@ -23,7 +23,7 @@ int main(int argc, char *argv []) {
         assert(parch_msg_id(request) == PARCH_MSG_CONNECT_INDICATION);
         parch_msg_destroy(&request);
 
-        parch_msg_send_call_request(parch_node_client(session), (char *) "echo", 0, 0, 0, 0);
+        parch_msg_send_call_request(parch_node_client(session), (char *) "echo", 0, 0, 0, 0, 0);
 
         // Wait for a call acceptance
         request = parch_msg_recv(parch_node_client(session));
@@ -86,7 +86,7 @@ int main(int argc, char *argv []) {
         parch_msg_destroy(&request);
 
         // Respond that the call is accepted
-        parch_msg_send_call_accepted(parch_node_client(session), 0, 0, 0, 0);
+        parch_msg_send_call_accepted(parch_node_client(session), 0, 0, 7, 128, 13);
 
         // Wait for a data packet
         request = parch_msg_recv(parch_node_client(session));

@@ -115,6 +115,10 @@ enum _diagnostic_t {
     err_nui_problem,
     err_icrd_problem,
 
+    // My extensions
+    err_incoming_data_barred,
+    err_outgoing_data_barred,
+
     // Not assigned
     err_not_assigned,
 
@@ -129,7 +133,9 @@ enum _diagnostic_t {
     err_temporary_routing_problem,
     err_unknown_called_dnic,
     err_maintenance_action,
-    err_last = err_maintenance_action
+    err_last = err_maintenance_action,
+
+
 };
 
 //  Create a new state engine instance

@@ -29,18 +29,18 @@ parch_msg_new_disconnect_indication_msg(zframe_t *address, byte cause, byte diag
 
 bool
 parch_msg_validate_connect_request(parch_msg_t *self) {
-    bool bad_request = false;
+    bool ok = true;
     if (parch_msg_incoming(self) == 1 && parch_msg_outgoing(self) == 1) {
         // A channel can't bar traffic in both directions
-        bad_request = true;
+        ok = false;
     } else if (parch_msg_throughput(self) < THROUGHPUT_CLASS_MIN || parch_msg_throughput(self) > THROUGHPUT_CLASS_MAX) {
-        bad_request = true;
+        ok = false;
     } else if (parch_msg_packet(self) < PACKET_CLASS_MIN || parch_msg_packet(self) > PACKET_CLASS_MAX) {
-        bad_request = true;
+        ok = false;
     } else if (parch_msg_window(self) < WINDOW_MIN || parch_msg_window(self) > WINDOW_MAX) {
-        bad_request = true;
+        ok = false;
     }
-    return bad_request;
+    return ok;
 }
 
 void

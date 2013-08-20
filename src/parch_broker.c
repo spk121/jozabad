@@ -276,6 +276,8 @@ s_broker_register_node(broker_t *self, parch_msg_t *msg) {
         val->node_address = zframe_dup(parch_msg_address(msg));
         val->service_name = strdup(parch_msg_service(msg));
         s_node_set_service(val);
+        if (throughput == 0)
+            throughput = THROUGHPUT_CLASS_DEFAULT;
         val->engine = parch_state_engine_new(self, val, incoming, outgoing, throughput);
         assert(val->engine);
         int rc = zhash_insert(self->nodes, key, val);
