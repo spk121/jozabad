@@ -37,7 +37,7 @@ Call a peer. Negotiate the type of connection requested.
   <field name = "outgoing" type = "number" size = "1" />
   <field name = "incoming" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
-  <field name = "window" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "2" />
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
@@ -46,7 +46,8 @@ Answer the call.
   <field name = "outgoing" type = "number" size = "1" />
   <field name = "incoming" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
-  <field name = "window" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "2" />
+  <field name = "throughput" type = "number" size = "1" />
 </message>
 
 <message name = "CLEAR_REQUEST" id = "19">

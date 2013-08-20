@@ -22,8 +22,12 @@ parch_msg_t *
 parch_msg_new_reset_request_msg (zframe_t *address, byte cause, byte diagnostic);
 parch_msg_t *
 parch_msg_new_disconnect_indication_msg (zframe_t *address, byte cause, byte diagnostic);
-
-
+bool
+parch_msg_validate_connect_request(parch_msg_t *self);
+void
+parch_msg_apply_defaults_to_connect_request (parch_msg_t *self);
+void
+parch_msg_swap_incoming_and_outgoing(parch_msg_t *self);
 #ifdef	__cplusplus
 }
 #endif

@@ -134,10 +134,20 @@ struct _parch_state_engine_t {
     event_t event; // current event being processed by the state machine
 
     uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
-    uint8_t outgoing_calls_barred; // when true, all call request from node are ignored.
-    uint8_t throughput_class;
+    uint8_t outgoing_calls_barred; // when true, all call requests from node are ignored.
+    uint8_t throughput_class; // The bps at which this connection is throttled (from lookup table)
+    uint8_t packet_class; // The size of the largest allowed packet (from lookup table)
+    uint16_t window_size; // The size of the flow control data window. # of packets allowed w/o confirmation
+
+    // Values for the current call negotiation
+    uint8_t negotiation_incoming_calls_barred;
+    uint8_t negotiation_outgoing_calls_barred;
+    uint8_t negotiation_throughput_class;
+    uint8_t negotiation_packet_class;
+    uint16_t negotiation_window_size;
 
     event_t next_event; // next event to be processed by the state machine
+    clearing_cause_t next_cause; // error category for next event, if requred
     diagnostic_t next_diagnostic; // diagnostic for next event, if required
 
     uint32_t x_sequence_number; // serial number of last DATA from X
@@ -161,9 +171,7 @@ struct _state_machine_table_element_t {
 //  ---------------------------------------------------------------------------
 //  MACROS
 
-#define MAX_SERVICE_NAME_LEN 128
-#define THROUGHPUT_CLASS_MIN 3
-#define THROUGHPUT_CLASS_MAX 45
+
 
 #define STATE_ENGINE_VALIDITY_CHECKS(s) \
 do {                                    \
@@ -191,7 +199,6 @@ do {                                    \
 
 //  ---------------------------------------------------------------------------
 //  TYPEDEFS
-typedef enum _clearing_cause_t clearing_cause_t;
 typedef struct _state_machine_table_element_t state_machine_table_element_t;
 
 //  ---------------------------------------------------------------------
@@ -822,7 +829,6 @@ static const char state_names[][16] = {
 };
 
 static const uint32_t throughput_classes[THROUGHPUT_CLASS_MAX + 1] = {
-    [0] = 192000, // FIXME: the default value should be a config option
     [3] = 75,
     [4] = 150,
     [5] = 300,
@@ -867,11 +873,25 @@ static const uint32_t throughput_classes[THROUGHPUT_CLASS_MAX + 1] = {
     [44] = 2048000,
 };
 
+static const uint32_t packet_classes[] = {
+    [0] = 128,
+    [4] = 16,
+    [5] = 32,
+    [6] = 64,
+    [7] = 128,
+    [8] = 256,
+    [9] = 512,
+    [10] = 1024,
+    [11] = 2048,
+    [12] = 4096
+};
 //  ---------------------------------------------------------------------------
 //  DECLARATIONS
 
 int
 s_msg_id_is_valid(int id) __attribute__(());
+static void
+s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self);
 static void
 s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) __attribute__((nonnull(1)));
 
@@ -904,8 +924,10 @@ static void
 s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t **msg_p);
 static void
 s_state_engine_reset_flow_control(parch_state_engine_t * self) __attribute__((nonnull(1)));
-
-
+static void
+s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
+static bool
+s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
 
 
 
@@ -915,6 +937,15 @@ s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p);
 
 // ================================================================
 // Lowest-level operations for state machine
+
+static void
+s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self) {
+    self->negotiation_incoming_calls_barred = 0;
+    self->negotiation_outgoing_calls_barred = 0;
+    self->negotiation_throughput_class = 0;
+    self->negotiation_packet_class = 0;
+    self->negotiation_window_size = 0;
+}
 
 int
 s_msg_id_is_valid(int id) {
@@ -973,8 +1004,24 @@ s_state_engine_do_x_call_accepted(parch_state_engine_t * self) {
     // Just forward the CALL_ACCEPTED to Y
     parch_msg_t *reply = parch_msg_dup(self->request);
 
-    s_state_engine_send_msg_to_peer_and_log(self, &reply);
-    s_state_engine_reset_flow_control(self);
+    // CALL NEGOTIATION, STEP 3
+
+    // Here in STEP 3, we make sure that the node hasn't cheated
+    // on negotiation by increasing any of the parameters invalidly.
+    parch_msg_apply_defaults_to_connect_request(reply);
+    bool valid = (parch_msg_validate_connect_request(reply) == true
+            && s_state_engine_validate_negotiation_parameters(self, reply) == true);
+    s_state_engine_clear_negotiation_parameters(self);
+    if (!valid) {
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = invalid_facility_request;
+        self->next_diagnostic = err_facility_parameter_not_allowed;
+        parch_msg_destroy(&reply);
+    } else {
+        s_state_engine_send_msg_to_peer_and_log(self, &reply);
+        s_state_engine_reset_flow_control(self);
+    }
 }
 
 static void
@@ -985,7 +1032,14 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
     // If an idle node for that service is found, a virtual call is
     // made with the idle node becoming Y.  The call request is
     // forwarded on to the Y node.
-    if (parch_node_call_request(self->node, parch_msg_service(self->request))) {
+    if (!parch_node_call_request(self->node, parch_msg_service(self->request))) {
+        // If an idle node is not found, a clear request is sent to X.
+        s_state_engine_log(self, "no peer available");
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = number_busy;
+        self->next_diagnostic = err_no_logical_channel_available;
+    } else {
         parch_msg_t *peer_msg = parch_msg_dup(self->request);
 
         // CALL NEGOTIATION, STEP 1
@@ -995,16 +1049,23 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
         // before sending it to the peer.
 
         // Here in STEP 1, we add the throughput for this node to the message
-        parch_msg_set_throughput(self->throughput_class);
+        parch_msg_set_throughput(peer_msg, self->throughput_class);
 
-        self->state = s2_x_call;
-        s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
-    } else {
-        // If an idle node is not found, a clear request is sent to X.
-        s_state_engine_log(self, "no peer available");
-        self->state = s_unspecified;
-        self->next_event = e_y_clear_request;
-        self->next_diagnostic = err_no_logical_channel_available;
+        parch_msg_apply_defaults_to_connect_request(peer_msg);
+
+        if (parch_msg_validate_connect_request(peer_msg)) {
+            self->state = s_unspecified;
+            self->next_event = e_y_clear_request;
+            self->next_cause = invalid_facility_request;
+            self->next_diagnostic = err_facility_parameter_not_allowed;
+            parch_msg_destroy(&peer_msg);
+        } else {
+            // We also store info about the call request.  We'll need it later steps.
+            s_state_engine_store_negotiation_parameters(self, peer_msg);
+
+            self->state = s2_x_call;
+            s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
+        }
     }
 }
 
@@ -1077,13 +1138,23 @@ s_state_engine_do_x_connect(parch_state_engine_t * self) {
 static void
 state_engine_do_x_data(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
-    // X has sent data for Y.  Verify that the DATA packet has the
-    // right sequence number and that it is within Y's transmission
-    // window.  If it is, forward it to Y.  If it isn't, reject it.
     assert(self->request);
     assert(parch_msg_id(self->request) == PARCH_MSG_DATA);
 
     // FIXME: lots of flow control logic goes here
+    // 0. check if this is an incoming-only state. If so, reject it
+    // 1. check the size of the packet, reject it if it is too big
+    // 2. check the sequence of the packet.  Reject it if it is wrong.
+    // 3. check our understanding of the peer's window.  Reject it if the peer
+    //    would reject it.
+    // 4. check the "leaky bucket" estimation of the total data rate.  For now,
+    //    reject it if the data rate is exceeded.  Future feature, queue it up.
+
+
+    // X has sent data for Y.  Verify that the DATA packet has the
+    // right sequence number and that it is within Y's transmission
+    // window.  If it is, forward it to Y.  If it isn't, reject it.
+
     parch_msg_t *reply = parch_msg_dup(self->request);
     s_state_engine_send_msg_to_peer_and_log(self, &reply);
 }
@@ -1247,6 +1318,48 @@ s_state_engine_reset_flow_control(parch_state_engine_t * self) {
     self->y_not_ready = 0;
 }
 
+static void
+s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r) {
+    self->negotiation_incoming_calls_barred = parch_msg_incoming(r);
+    self->negotiation_outgoing_calls_barred = parch_msg_outgoing(r);
+    self->negotiation_throughput_class = parch_msg_throughput(r);
+    self->negotiation_packet_class = parch_msg_packet(r);
+    self->negotiation_window_size = parch_msg_window(r);
+}
+
+static bool
+s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *msg) {
+    bool valid = true;
+    if (self->negotiation_incoming_calls_barred == 1 && parch_msg_incoming(msg) == 0) {
+        // The node's not allow to remove the incoming calls barred flag
+        valid = false;
+    } else if (self->negotiation_outgoing_calls_barred == 1 && parch_msg_outgoing(msg) == 0) {
+        // The node's not allow to remove the outgoing calls barred flag
+        valid = false;
+    } else if (parch_msg_incoming(msg) == 1 && parch_msg_outgoing(msg) == 1) {
+        // A channel can't bar traffic in both directions
+        valid = false;
+    } else if (self->negotiation_throughput_class < parch_msg_throughput(msg)
+            || parch_msg_throughput(msg) < THROUGHPUT_CLASS_MIN) {
+        // The node is not allowed to increase the throughput or set it to one of the
+        valid = false;
+    } else if ((self->negotiation_window_size >= 2 && parch_msg_window(msg) > self->negotiation_window_size)
+            || (self->negotiation_window_size == 1 && parch_msg_window(msg) > 2)) {
+        // The node can't increase the window size.  An exception is when it is 1: in that case
+        // it can be increased only up to 2.
+        valid = false;
+    } else if (((packet_classes[self->negotiation_packet_class] >= 128)
+            && (packet_classes[parch_msg_packet(msg)] > packet_classes[self->negotiation_packet_class]
+            || packet_classes[parch_msg_packet(msg)] < 128))
+            || ((packet_classes[self->negotiation_packet_class] < 128)
+            && (packet_classes[parch_msg_packet(msg)] < packet_classes[self->negotiation_packet_class]
+            || packet_classes[parch_msg_packet(msg)] > 128))) {
+        // The node only can change the packet size to be between the requested value and 128.
+        valid = false;
+    }
+    return valid;
+}
+
 // ================================================================
 // State machine actions
 
@@ -1274,16 +1387,35 @@ state_engine_do_y_call_request(parch_state_engine_t * self) {
 
     // Forward the call request to the X node.
     parch_msg_t *r = parch_msg_dup(self->request);
-    // Make sure it has the return address
-    parch_msg_set_address(r, parch_node_get_node_address(self->node));
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(r));
-        free(self_addr);
+
+    // CALL NEGOTIATION, STEP 2
+    // The state engine may
+    // downgrade some of the requested attributes of the connection
+    // before sending it to the peer.
+
+    // Swap the incoming data only and outgoing data only flags
+    parch_msg_swap_incoming_and_outgoing(r);
+
+    // Here in STEP 2, we reduce the throughput if this node state engine
+    // requires it
+
+    if (parch_msg_throughput(r) > self->throughput_class)
+        parch_msg_set_throughput(r, self->throughput_class);
+
+    if (parch_msg_validate_connect_request(r)) {
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = invalid_facility_request;
+        self->next_diagnostic = err_facility_parameter_not_allowed;
+        parch_msg_destroy(&r);
+    } else {
+        // Store the negotiation values so far for step 3.
+        s_state_engine_store_negotiation_parameters(self, r);
+
+        // Make sure it has the return address
+        parch_msg_set_address(r, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &r);
     }
-    parch_msg_send(&r, parch_broker_get_socket(self->broker));
 }
 
 static void
@@ -1292,19 +1424,31 @@ state_engine_do_y_call_accepted(parch_state_engine_t * self) {
     // X requested a call and Y agreed.
 
     // Forward the call request to the X node.
-    parch_msg_t *r = parch_msg_dup(self->request);
-    // Make sure it has the return address
-    parch_msg_set_address(r, parch_node_get_node_address(self->node));
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(r));
-        free(self_addr);
-    }
-    parch_msg_send(&r, parch_broker_get_socket(self->broker));
+    parch_msg_t *reply = parch_msg_dup(self->request);
 
-    s_state_engine_reset_flow_control(self);
+    // CALL NEGOTIATION, STEP 4
+
+    // Swap the incoming data only and outgoing data only flags
+    parch_msg_swap_incoming_and_outgoing(reply);
+
+    // Here in STEP 4, we make sure that the peer hasn't cheated
+    // on negotiation by increasing any of the parameters invalidly.
+    parch_msg_apply_defaults_to_connect_request(reply);
+    bool valid = (parch_msg_validate_connect_request(reply) == true
+            && s_state_engine_validate_negotiation_parameters(self, reply) == true);
+    s_state_engine_clear_negotiation_parameters(self);
+    if (!valid) {
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = invalid_facility_request;
+        self->next_diagnostic = err_facility_parameter_not_allowed;
+        parch_msg_destroy(&reply);
+    } else {
+        // Make sure it has the return address
+        parch_msg_set_address(reply, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &reply);
+        s_state_engine_reset_flow_control(self);
+    }
 }
 
 static void
