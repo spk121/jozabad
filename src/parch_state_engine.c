@@ -74,6 +74,8 @@ enum _action_t {
     //    s9_y_reset_request_second_timeout,
 };
 
+typedef enum _action_t action_t;
+
 enum _event_t {
     e_unspecified = 0,
     e_min = e_unspecified,
@@ -111,6 +113,8 @@ enum _event_t {
     e_max = e_y_reset_confirmation
 };
 
+typedef enum _event_t event_t;
+
 enum _state_t {
     s_unspecified = 0,
     s_min = s_unspecified,
@@ -126,6 +130,8 @@ enum _state_t {
     s9_y_reset,
     s_max = s9_y_reset,
 };
+
+typedef enum _state_t state_t;
 
 struct _parch_state_engine_t {
     broker_t *broker; // loopback to the broker that contains this node
@@ -191,9 +197,9 @@ do {                                    \
         assert (parch_node_get_service_name(s->node) != NULL); \
         assert (strlen(parch_node_get_service_name(s->node)) < MAX_SERVICE_NAME_LEN); \
         assert (is_safe_ascii(parch_node_get_service_name(s->node))); \
-        assert (s->state >= s_min && s->state <= s_max); \
-        assert (s->event >= e_min && s->event <= e_max); \
-        assert (s->next_event >= e_min && s->next_event <= e_max); \
+        assert (s->state <= s_max); \
+        assert (s->event <= e_max); \
+        assert (s->next_event <= e_max); \
         assert (s->x_window <= s->y_sequence_number); \
         assert (s->y_window <= s->x_sequence_number); \
         assert (s->x_not_ready == 0 || s->x_not_ready == 1); \
@@ -896,54 +902,80 @@ static const uint32_t packet_classes[] = {
 //  DECLARATIONS
 
 int
-s_msg_id_is_valid(int id) __attribute__(());
+s_msg_id_is_valid(int id)
+__attribute__((const));
+
 static void
 s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self);
-static void
-s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) __attribute__((nonnull(1)));
 
 static void
-s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused))) {
-};
+s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused)));
+
 static void
 s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic);
+
 static void
-s_state_engine_do_x_call_accepted(parch_state_engine_t * self) __attribute__((nonnull(1)));
+s_state_engine_do_x_call_accepted(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
 static void
-s_state_engine_do_x_call_request(parch_state_engine_t * self) __attribute__((nonnull(1)));
+s_state_engine_do_x_call_request(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
 static void
 s_state_engine_do_x_clear_request(parch_state_engine_t * self);
+
 static void
-s_state_engine_do_x_disconnect(parch_state_engine_t * self) __attribute__((nonnull(1)));
+s_state_engine_do_x_disconnect(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
 static void
 s_state_engine_do_x_data(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_x_rnr(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_x_rr(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready);
+
 static void
-s_state_engine_log(parch_state_engine_t * self, char *msg) __attribute__((nonnull(1, 2)));
+s_state_engine_log(parch_state_engine_t * self, char *msg)
+__attribute__((nonnull(1, 2)));
+
 static void
 s_state_engine_send_msg_to_node_and_log(parch_state_engine_t *self, parch_msg_t **msg_p);
+
 static void
 s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t **msg_p);
+
 static void
-s_state_engine_reset_flow_control(parch_state_engine_t * self) __attribute__((nonnull(1)));
+s_state_engine_reset_flow_control(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
 static void
 s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
+
 static bool
 s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
+
 static void
 s_state_engine_do_y_data(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_y_rnr(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_y_rr(parch_state_engine_t * self);
+
 static void
 s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready);
-
 
 static int
 s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p);
@@ -991,6 +1023,11 @@ s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) {
         parch_msg_t *peer_msg = parch_msg_new_clear_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
+}
+
+static void
+s_state_engine_do_disconnect(parch_state_engine_t *self) {
+
 }
 
 // This is the state-engine initiated reset request, where it is flagging a flow control problem
@@ -1258,7 +1295,7 @@ s_state_engine_send_msg_to_node_and_log(parch_state_engine_t *self, parch_msg_t 
         diagnostic_t d = err_none;
         char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
         if (parch_msg_id(msg) == PARCH_MSG_CLEAR_REQUEST) {
-            d = parch_msg_diagnostic(msg);
+            d = (diagnostic_t) parch_msg_diagnostic(msg);
         }
         if (d != err_none)
             zclock_log("I: [%s] state engine -- sending '%s' (%s) to node",
@@ -1287,7 +1324,7 @@ s_state_engine_send_msg_to_peer_and_log(parch_state_engine_t *self, parch_msg_t 
         char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
         char *peer_addr = zframe_strhex(parch_node_get_node_address(peer));
         if (parch_msg_id(msg) == PARCH_MSG_CLEAR_REQUEST) {
-            d = parch_msg_diagnostic(msg);
+            d = (diagnostic_t) parch_msg_diagnostic(msg);
         }
         if (d != err_none)
             zclock_log("I: [%s] state engine -- sending '%s' (%s) to [%s]",
@@ -1410,8 +1447,7 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
         self->next_diagnostic = err_invalid_ps;
         s_state_engine_log(self, "data from peer has invalid send sequence number");
         parch_msg_destroy(&msg);
-    }
-    else {
+    } else {
         int64_t now = zclock_time();
         int64_t delta = now - self->_time;
 
@@ -1420,15 +1456,15 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
         if (self->channel_capacity_in_use < 0.0)
             self->channel_capacity_in_use = 0.0;
         // bytes * (8 bits / byte) * (sec / bit) / (5 sec)
-        self->channel_capacity_in_use += (float)(zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
+        self->channel_capacity_in_use += (float) (zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
 
         if (self->channel_capacity_in_use > 2.0) {
-                self->state = s_unspecified;
-                self->next_event = e_reset;
-                self->next_cause = local_procedure_error;
-                self->next_diagnostic = err_network_congestion;
-                s_state_engine_log(self, "data from peer has exceeded throughput limits");
-                parch_msg_destroy(&msg);
+            self->state = s_unspecified;
+            self->next_event = e_reset;
+            self->next_cause = local_procedure_error;
+            self->next_diagnostic = err_network_congestion;
+            s_state_engine_log(self, "data from peer has exceeded throughput limits");
+            parch_msg_destroy(&msg);
         }
 
         parch_msg_set_address(msg, parch_node_get_node_address(self->node));
@@ -1892,7 +1928,7 @@ state_machine_dispatch_event(parch_state_engine_t * self) {
         event_t e = self->next_event;
         diagnostic_t d = self->next_diagnostic;
         assert(s >= s0_disconnected && s <= s9_y_reset);
-        assert(e >= 0 && e <= e_max);
+        assert(e <= e_max);
         const state_machine_table_element_t * elt = &state_machine_table[s][e];
         if (d != err_none) {
             // Some events, like reset and clear events, override the state machine's generic
@@ -1919,7 +1955,7 @@ parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, by
     self->incoming_calls_barred = incoming_barred;
     self->outgoing_calls_barred = outgoing_barred;
     self->throughput_class = throughput;
-    self->_time = zclock_time ();
+    self->_time = zclock_time();
     self->channel_capacity_in_use = 0.0;
     self->config = zconfig_new("state", NULL);
     state_engine_config_self(self);

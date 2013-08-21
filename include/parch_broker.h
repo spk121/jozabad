@@ -23,45 +23,34 @@
     You should have received a copy of the GNU General Public License
     along with this program. If not see http://www.gnu.org/licenses.
     =========================================================================
-*/
+ */
 
 #ifndef __PARCH_BROKER_H_INCLUDE__
 #define __PARCH_BROKER_H_INCLUDE__
 
 typedef struct _broker_t broker_t;
 typedef struct _node_t node_t;
+typedef struct _service_t service_t;
 
 int
-parch_broker_get_verbose (broker_t *self);
-
-int
-parch_node_call_request (node_t *self, char const * const service);
-
+main(int argc __attribute__((unused)), char *argv [] __attribute__((unused)));
 void *
-parch_broker_get_socket (broker_t *self);
-
+parch_broker_get_socket(broker_t *self);
+int
+parch_broker_get_verbose(broker_t *self);
+int
+parch_node_call_request(node_t *self, char const * const service);
+void
+parch_node_disconnect_from_peer(node_t *self);
+void
+parch_node_disconnect_from_service(node_t *self);
 zframe_t *
-parch_node_get_node_address (node_t const * const self);
-
+parch_node_get_node_address(node_t const * const self);
 node_t *
-parch_node_get_peer (node_t * const self);
-
-parch_state_engine_t *
-parch_node_get_state_engine (node_t *self);
-
+parch_node_get_peer(node_t * const self);
 char *
-parch_node_get_service_name (node_t *node);
-
-void
-parch_node_set_service_name (node_t *self, char *sname);
-
-void
-parch_node_update_service_name_with_broker (node_t *node);
-
-void
-parch_node_disconnect_from_service (node_t *self);
-
-void
-parch_node_disconnect_from_peer (node_t *self);
+parch_node_get_service_name(node_t *node);
+parch_state_engine_t *
+parch_node_get_state_engine(node_t *self);
 
 #endif

@@ -26,11 +26,6 @@ extern "C" {
 
 //  ---------------------------------------------------------------------------
 //  TYPEDEFS
-typedef enum _action_t action_t;
-typedef enum _diagnostic_t diagnostic_t;
-typedef enum _clearing_cause_t clearing_cause_t;
-typedef enum _event_t event_t;
-typedef enum _state_t state_t;
 
 // These mostly come from TABLE 5-7/X.25
 
@@ -49,6 +44,8 @@ enum _clearing_cause_t {
     not_obtainable = 13,
     // roa_out_of_order = 21
 };
+
+typedef enum _clearing_cause_t clearing_cause_t;
 
 // These mostly come from E.1/X.25.  Probably only a handful are still relevant.
 enum _diagnostic_t {
@@ -139,6 +136,8 @@ enum _diagnostic_t {
 
 
 };
+
+typedef enum _diagnostic_t diagnostic_t;
 
 //  Create a new state engine instance
 CZMQ_EXPORT parch_state_engine_t *

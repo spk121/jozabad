@@ -5,8 +5,7 @@
  * Created on August 17, 2013, 12:35 PM
  */
 
-#include <string.h>
-#include <stdbool.h>
+#include "../include/parch.h"
 
 bool
 is_safe_ascii(const char * const str) {

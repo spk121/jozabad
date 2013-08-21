@@ -25,8 +25,11 @@
     =========================================================================
 */
 
+
 #ifndef __PARCH_H_INCLUDED__
 #define __PARCH_H_INCLUDED__
+
+#define _GNU_SOURCE
 
 // PARCH version macros for compile-time API detection
 #define PARCH_VERSION_MAJOR 0
@@ -40,8 +43,8 @@
                         MYPROJ_VERSION_MINOR, \
                         MYPROJ_VERSION_PATCH)
 
-#include <string.h>
-#include <stdbool.h>
+
+
 #include <czmq.h>
 #if CZMQ_VERSION < 10402
 #   error "petulant-archer needs CZMQ/1.4.2 or later"
@@ -50,6 +53,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+#include <string.h>
+#include <stdbool.h>
 
 //  Opaque class structures
 typedef struct _parch_state_engine_t parch_state_engine_t;

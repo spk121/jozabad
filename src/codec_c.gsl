@@ -8,7 +8,7 @@
 .output "../include/$(class.name).h"
 /*  =========================================================================
     $(class.name) - $(class.title)
-    
+
     Generated codec header for $(class.name)
     -------------------------------------------------------------------------
     $(string.trim (class->license.):block                                   )
@@ -124,7 +124,7 @@ int
 .   endif
 .endfor
 );
-    
+
 .endfor
 //  Duplicate the $(class.name) message
 $(class.name)_t *
@@ -200,7 +200,7 @@ zhash_t *
     $(class.name)_$(name) ($(class.name)_t *self);
 void
     $(class.name)_set_$(name) ($(class.name)_t *self, zhash_t *$(name));
-    
+
 //  Get/set a value in the $(name) dictionary
 char *
     $(class.name)_$(name)_string ($(class.name)_t *self, char *key, char *default_value);
@@ -251,6 +251,7 @@ int
 @end
 */
 
+#define _GNU_SOURCE
 #include <czmq.h>
 #include "../include/$(class.name).h"
 
@@ -676,7 +677,7 @@ $(class.name)_send ($(class.name)_t **self_p, void *output)
 .       endif
 .   endfor
             break;
-            
+
 .endfor
         default:
             printf ("E: bad message type '%d', not sent\\n", self->id);
@@ -746,7 +747,7 @@ $(class.name)_send ($(class.name)_t **self_p, void *output)
 .       endif
 .   endfor
             break;
-            
+
 .endfor
     }
     //  If we're sending to a ROUTER, we send the address first
@@ -764,7 +765,7 @@ $(class.name)_send ($(class.name)_t **self_p, void *output)
         $(class.name)_destroy (self_p);
         return -1;
     }
-    
+
     //  Now send any frame fields, in order
     switch (self->id) {
 .for class.message where count (field, type = "frame")
@@ -844,7 +845,7 @@ $(class.name)_dup ($(class.name)_t *self)
 {
     if (!self)
         return NULL;
-        
+
     $(class.name)_t *copy = $(class.name)_new (self->id);
     if (self->address)
         copy->address = zframe_dup (self->address);
@@ -963,7 +964,7 @@ $(class.name)_dump ($(class.name)_t *self)
 .       endif
 .   endfor
             break;
-            
+
 .endfor
     }
 }
@@ -1163,7 +1164,7 @@ $(class.name)_$(name)_append ($(class.name)_t *self, char *format, ...)
     assert (string);
     vsnprintf (string, STRING_MAX, format, argptr);
     va_end (argptr);
-    
+
     //  Attach string to list
     if (!self->$(name)) {
         self->$(name) = zlist_new ();
@@ -1306,7 +1307,7 @@ $(class.name)_test (bool verbose)
     void *input = zsocket_new (ctx, ZMQ_ROUTER);
     assert (input);
     zsocket_connect (input, "inproc://selftest");
-    
+
     //  Encode/send/decode and verify each message type
 .for class.message
 
@@ -1333,7 +1334,7 @@ $(class.name)_test (bool verbose)
 .       endif
 .   endfor
     $(class.name)_send (&self, output);
-    
+
     self = $(class.name)_recv (input);
     assert (self);
 .   for field where !defined (value)

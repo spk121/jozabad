@@ -57,3 +57,18 @@ parch_msg_swap_incoming_and_outgoing(parch_msg_t *self) {
     parch_msg_set_incoming(self, parch_msg_outgoing(self));
     parch_msg_set_outgoing(self, tmp);
 }
+
+static inline char *
+s_msg_address_strhex(parch_msg_t *msg) {
+    return zframe_strhex(parch_msg_address(msg));
+}
+
+static inline char *
+s_msg_service_name_dup(parch_msg_t *msg) {
+    return strdup(parch_msg_service(msg));
+}
+
+static inline zframe_t *
+s_msg_address_dup(parch_msg_t *msg) {
+    return zframe_dup(parch_msg_address(msg));
+}
