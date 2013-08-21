@@ -28,17 +28,22 @@ parch_msg_new_disconnect_indication_msg(zframe_t *address, byte cause, byte diag
 }
 
 bool
-parch_msg_validate_connect_request(parch_msg_t *self) {
+parch_msg_validate_connect_request(parch_msg_t *self, diagnostic_t *diag) {
     bool ok = true;
+    *diag = err_none;
     if (parch_msg_incoming(self) == 1 && parch_msg_outgoing(self) == 1) {
         // A channel can't bar traffic in both directions
         ok = false;
+        *diag = err_data_barred;
     } else if (parch_msg_throughput(self) < THROUGHPUT_CLASS_MIN || parch_msg_throughput(self) > THROUGHPUT_CLASS_MAX) {
         ok = false;
+        *diag = err_throughput_out_of_range;
     } else if (parch_msg_packet(self) < PACKET_CLASS_MIN || parch_msg_packet(self) > PACKET_CLASS_MAX) {
         ok = false;
+        *diag = err_packet_size_out_of_range;
     } else if (parch_msg_window(self) < WINDOW_MIN || parch_msg_window(self) > WINDOW_MAX) {
         ok = false;
+        *diag = err_window_size_out_of_range;
     }
     return ok;
 }
@@ -71,4 +76,22 @@ s_msg_service_name_dup(parch_msg_t *msg) {
 static inline zframe_t *
 s_msg_address_dup(parch_msg_t *msg) {
     return zframe_dup(parch_msg_address(msg));
+}
+
+int
+parch_msg_id_is_valid(parch_msg_t *self) {
+    int id = parch_msg_id(self);
+    return (id == PARCH_MSG_DATA
+            || id == PARCH_MSG_RR
+            || id == PARCH_MSG_RNR
+            || id == PARCH_MSG_CALL_REQUEST
+            || id == PARCH_MSG_CALL_ACCEPTED
+            || id == PARCH_MSG_CLEAR_REQUEST
+            || id == PARCH_MSG_CLEAR_CONFIRMATION
+            || id == PARCH_MSG_RESET_REQUEST
+            || id == PARCH_MSG_RESET_CONFIRMATION
+            || id == PARCH_MSG_CONNECT
+            || id == PARCH_MSG_CONNECT_INDICATION
+            || id == PARCH_MSG_DISCONNECT
+            || id == PARCH_MSG_DISCONNECT_INDICATION);
 }

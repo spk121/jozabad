@@ -155,22 +155,6 @@ parch_node_call_request(node_t *self, char const * const service_name) {
     return 1;
 }
 
-static void
-s_node_destroy(node_t **self_p) {
-    node_t *self = self_p[0];
-    if (self->broker)
-        self->broker = NULL;
-    if (self->node_address) {
-        zframe_destroy(&self->node_address);
-        self->node_address = NULL;
-    }
-    if (self->service_name) {
-        free(self->service_name);
-        self->service_name = NULL;
-    }
-    free(self);
-}
-
 void
 parch_node_disconnect_from_peer(node_t *self) {
     assert(self != NULL);
@@ -366,7 +350,6 @@ s_broker_register_node(broker_t *self, parch_msg_t *msg) {
     free(key);
 }
 
-
 //  Lazy constructor that locates a service by name, or creates a new
 //  service if there is no service already with that name.
 static service_t *
@@ -390,6 +373,22 @@ s_broker_require_service(broker_t *self, char *service_name) {
         free(name);
 
     return service;
+}
+
+static void
+s_node_destroy(node_t **self_p) {
+    node_t *self = self_p[0];
+    if (self->broker)
+        self->broker = NULL;
+    if (self->node_address) {
+        zframe_destroy(&self->node_address);
+        self->node_address = NULL;
+    }
+    if (self->service_name) {
+        free(self->service_name);
+        self->service_name = NULL;
+    }
+    free(self);
 }
 
 static void

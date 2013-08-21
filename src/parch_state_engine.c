@@ -204,7 +204,7 @@ do {                                    \
         assert (s->y_window <= s->x_sequence_number); \
         assert (s->x_not_ready == 0 || s->x_not_ready == 1); \
         assert (s->y_not_ready == 0 || s->y_not_ready == 1); \
-        assert (s->request == 0 || s_msg_id_is_valid(parch_msg_id(s->request))); \
+        assert (s->request == 0 || parch_msg_id_is_valid(s->request)); \
         /* assert (s->request == 0 || (parch_msg_address(s->request) != 0)); */ \
         /* assert (s->reply == 0 || is_valid_id(parch_msg_id(s->reply))); */ \
         /* assert (s->reply == 0 || (parch_msg_address(s->reply) != 0)); */ \
@@ -257,7 +257,21 @@ static const char diagnostic_messages[][50] = {
     [err_packet_type_invalid_for_state_s6] = "invalid packet type for s6_x_clear state",
     [err_packet_type_invalid_for_state_s7] = "invalid packet type for s7_y_clear state",
     [err_packet_type_invalid_for_state_s8] = "invalid packet type for s8_x_reset state",
-    [err_packet_type_invalid_for_state_s9] = "invalid packet type for s9_y_reset state"
+    [err_packet_type_invalid_for_state_s9] = "invalid packet type for s9_y_reset state",
+    [err_outgoing_data_barred] = "outgoing data barred",
+    [err_data_barred] = "all data barred",
+    [err_throughput_out_of_range] = "throughput is out of range",
+    [err_packet_size_out_of_range] = "packet size is out of range",
+    [err_window_size_out_of_range] = "window size is out of range",
+    [err_invalid_negotiation__incoming_data_barred] = "invalid incoming data barred negotiation",
+    [err_invalid_negotiation__outgoing_data_barred] = "invalid outgoing data barred negotiation",
+    [err_invalid_negotiation__throughput] = "invalid throughput negotiation",
+    [err_invalid_negotiation__window_size] = "invalid window size negotiation",
+    [err_invalid_negotiation__packet_size] = "invalid packet size negotiation",
+    [err_packet_too_short] = "packet too short",
+    [err_packet_too_long] = "packet_too_long",
+    [err_invalid_ps] = "invalid send sequence number",
+    [err_network_congestion] = "channel capacity exceeded"
 };
 
 static const state_machine_table_element_t state_machine_table[s_max + 1][e_max + 1] = {
@@ -901,19 +915,19 @@ static const uint32_t packet_classes[] = {
 //  ---------------------------------------------------------------------------
 //  DECLARATIONS
 
-int
-s_msg_id_is_valid(int id)
-__attribute__((const));
 
 static void
 s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self);
+
+static void
+s_state_engine_do_disconnect_internal(parch_state_engine_t *self);
 
 static void
 s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic)
 __attribute__((nonnull(1)));
 
 static void
-s_state_engine_do_disconnect(parch_state_engine_t *self __attribute__((unused)));
+s_state_engine_do_disconnect(parch_state_engine_t *self, diagnostic_t diagnostic);
 
 static void
 s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic);
@@ -930,11 +944,20 @@ static void
 s_state_engine_do_x_clear_request(parch_state_engine_t * self);
 
 static void
+s_state_engine_do_x_clear_confirmation(parch_state_engine_t * self);
+
+static void
 s_state_engine_do_x_disconnect(parch_state_engine_t * self)
 __attribute__((nonnull(1)));
 
 static void
 s_state_engine_do_x_data(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_x_reset_confirmation(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_x_reset_request(parch_state_engine_t * self);
 
 static void
 s_state_engine_do_x_rnr(parch_state_engine_t * self);
@@ -946,7 +969,49 @@ static void
 s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready);
 
 static void
-s_state_engine_log(parch_state_engine_t * self, char *msg)
+s_state_engine_do_y_call_accepted(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_call_request(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_clear_confirmation(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_clear_request(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_y_data(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_y_disconnect (parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_reset_confirmation(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_reset_request(parch_state_engine_t * self)
+__attribute__((nonnull(1)));
+
+static void
+s_state_engine_do_y_rnr(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_y_rr(parch_state_engine_t * self);
+
+static void
+s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready);
+
+static bool
+s_state_engine_has_peer(parch_state_engine_t *self);
+
+static void
+s_state_engine_log(parch_state_engine_t * self, const char *text)
 __attribute__((nonnull(1, 2)));
 
 static void
@@ -963,19 +1028,7 @@ static void
 s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
 
 static bool
-s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
-
-static void
-s_state_engine_do_y_data(parch_state_engine_t * self);
-
-static void
-s_state_engine_do_y_rnr(parch_state_engine_t * self);
-
-static void
-s_state_engine_do_y_rr(parch_state_engine_t * self);
-
-static void
-s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready);
+s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r, diagnostic_t *diagnostic);
 
 static int
 s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p);
@@ -993,41 +1046,51 @@ s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self) {
     self->negotiation_window_size = 0;
 }
 
-int
-s_msg_id_is_valid(int id) {
-    return (id == PARCH_MSG_DATA
-            || id == PARCH_MSG_RR
-            || id == PARCH_MSG_RNR
-            || id == PARCH_MSG_CALL_REQUEST
-            || id == PARCH_MSG_CALL_ACCEPTED
-            || id == PARCH_MSG_CLEAR_REQUEST
-            || id == PARCH_MSG_CLEAR_CONFIRMATION
-            || id == PARCH_MSG_RESET_REQUEST
-            || id == PARCH_MSG_RESET_CONFIRMATION
-            || id == PARCH_MSG_CONNECT
-            || id == PARCH_MSG_CONNECT_INDICATION
-            || id == PARCH_MSG_DISCONNECT
-            || id == PARCH_MSG_DISCONNECT_INDICATION);
-}
+// This function is when the broker itself tells the nodes to clear the connection.  This
+// happens when the broker decides that an error has occurred.
 
 static void
 s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
 
+    // Clear tell the node to close its connection.
     zframe_t *addr = parch_node_get_node_address(self->node);
     parch_msg_t *node_msg = parch_msg_new_clear_request_msg(addr, local_procedure_error, diagnostic);
     s_state_engine_send_msg_to_node_and_log(self, &node_msg);
 
-    node_t *peer = parch_node_get_peer(self->node);
-    if (peer) {
+    // Also, tell the peer to close its connection.
+    if (s_state_engine_has_peer(self)) {
         parch_msg_t *peer_msg = parch_msg_new_clear_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
 }
 
-static void
-s_state_engine_do_disconnect(parch_state_engine_t *self) {
+// This action is when the broker itself shuts this node down.
 
+static void
+s_state_engine_do_disconnect(parch_state_engine_t *self, diagnostic_t diagnostic) {
+    zframe_t *addr = parch_node_get_node_address(self->node);
+    parch_msg_t *msg = parch_msg_new_disconnect_indication_msg(addr, local_procedure_error, diagnostic);
+    s_state_engine_send_msg_to_node_and_log(self, &msg);
+
+    // Also, tell the peer that this node is disconnecting
+    if (s_state_engine_has_peer(self)) {
+        zframe_t *addr = parch_node_get_node_address(self->node);
+        parch_msg_t *msg = parch_msg_new_disconnect_indication_msg(addr, remote_procedure_error, diagnostic);
+        s_state_engine_send_msg_to_peer_and_log(self, &msg);
+    }
+
+    // Disconnect
+    s_state_engine_do_disconnect_internal(self);
+}
+
+static void
+s_state_engine_do_disconnect_internal(parch_state_engine_t *self) {
+    s_state_engine_log(self, "disconnect");
+    parch_node_disconnect_from_peer(self->node);
+    s_state_engine_reset_flow_control(self);
+    parch_node_disconnect_from_service(self->node);
+    self->stopped = 1;
 }
 
 // This is the state-engine initiated reset request, where it is flagging a flow control problem
@@ -1041,8 +1104,8 @@ s_state_engine_do_reset(parch_state_engine_t *self, diagnostic_t diagnostic) {
     parch_msg_t *node_msg = parch_msg_new_reset_request_msg(addr, local_procedure_error, diagnostic);
     s_state_engine_send_msg_to_node_and_log(self, &node_msg);
 
-    node_t *peer = parch_node_get_peer(self->node);
-    if (peer) {
+    if (s_state_engine_has_peer(self)) {
+        zframe_t *addr = parch_node_get_node_address(self->node);
         parch_msg_t *peer_msg = parch_msg_new_reset_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
@@ -1060,21 +1123,14 @@ s_state_engine_do_x_call_accepted(parch_state_engine_t * self) {
     // Here in STEP 3, we make sure that the node hasn't cheated
     // on negotiation by increasing any of the parameters invalidly.
     parch_msg_apply_defaults_to_connect_request(reply);
-    bool valid = true;
-    if (parch_msg_validate_connect_request(reply) == false) {
-        s_state_engine_log(self, "invalid call accepted request");
-        valid = false;
-    }
-    if (s_state_engine_validate_negotiation_parameters(self, reply) == false) {
-        s_state_engine_log(self, "invalid call accepted facility parameters");
-        valid = false;
-    }
-    s_state_engine_clear_negotiation_parameters(self);
-    if (!valid) {
+    diagnostic_t diagnostic;
+    if (parch_msg_validate_connect_request(reply, &diagnostic) == false
+            || s_state_engine_validate_negotiation_parameters(self, reply, &diagnostic) == false) {
+        s_state_engine_log(self, diagnostic_messages[diagnostic]);
         self->state = s_unspecified;
-        self->next_event = e_y_clear_request;
+        self->next_event = e_clear;
         self->next_cause = invalid_facility_request;
-        self->next_diagnostic = err_facility_parameter_not_allowed;
+        self->next_diagnostic = diagnostic;
         parch_msg_destroy(&reply);
     } else {
         s_state_engine_send_msg_to_peer_and_log(self, &reply);
@@ -1094,7 +1150,7 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
         // If an idle node is not found, a clear request is sent to X.
         s_state_engine_log(self, "no peer available");
         self->state = s_unspecified;
-        self->next_event = e_y_clear_request;
+        self->next_event = e_clear;
         self->next_cause = number_busy;
         self->next_diagnostic = err_no_logical_channel_available;
     } else {
@@ -1106,17 +1162,20 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
         // downgrade some of the requested attributes of the connection
         // before sending it to the peer.
 
-        // Here in STEP 1, we add the throughput for this node to the message
-        parch_msg_set_throughput(peer_msg, self->throughput_class);
-
+        s_state_engine_clear_negotiation_parameters(self);
         parch_msg_apply_defaults_to_connect_request(peer_msg);
+        // The initiating node may not declare a throughput that is faster
+        // than it can handle.
+        if (parch_msg_throughput(peer_msg) > self->throughput_class)
+            parch_msg_set_throughput(peer_msg, self->throughput_class);
 
-        if (parch_msg_validate_connect_request(peer_msg) == false) {
+        diagnostic_t diagnostic;
+        if (parch_msg_validate_connect_request(peer_msg, &diagnostic) == false) {
             self->state = s_unspecified;
-            self->next_event = e_y_clear_request;
+            self->next_event = e_clear;
             self->next_cause = invalid_facility_request;
-            self->next_diagnostic = err_facility_parameter_not_allowed;
-            s_state_engine_log(self, "invalid call facility parameters from node");
+            self->next_diagnostic = diagnostic;
+            s_state_engine_log(self, diagnostic_messages[diagnostic]);
             parch_msg_destroy(&peer_msg);
         } else {
             // We also store info about the call request.  We'll need it later steps.
@@ -1129,7 +1188,7 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
 }
 
 static void
-state_engine_do_x_clear_confirmation(parch_state_engine_t * self) {
+s_state_engine_do_x_clear_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // X has agreed to clear the channel.  So, tell the broker to
     // close the connection to Y and end the virtual call.  Then reset
@@ -1145,7 +1204,7 @@ state_engine_do_x_clear_confirmation(parch_state_engine_t * self) {
 }
 
 static void
-state_engine_do_x_clear_request(parch_state_engine_t * self) {
+s_state_engine_do_x_clear_request(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // The X node has requested that the connection to Y be cleared.
     // The clear request is forwarded on to Y.
@@ -1161,40 +1220,38 @@ s_state_engine_do_x_data(parch_state_engine_t * self) {
 
     parch_msg_t *msg = parch_msg_dup(self->request);
 
-    if (self->outgoing_data_barred) {
+    if (self->negotiation_outgoing_data_barred) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = access_barred;
         self->next_diagnostic = err_outgoing_data_barred;
-        s_state_engine_log(self, "outgoing data barred");
+        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
         parch_msg_destroy(&msg);
     } else if (zframe_size(parch_msg_data(msg)) == 0) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_packet_too_short;
-        s_state_engine_log(self, "data from node is too short");
+        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
         parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->packet_class]) {
+    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->negotiation_packet_class]) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_packet_too_long;
-        s_state_engine_log(self, "data from node is too long");
+        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
         parch_msg_destroy(&msg);
     } else if (parch_msg_sequence(msg) != self->x_sequence_number) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_invalid_ps;
-        s_state_engine_log(self, "data from node has invalid send sequence number");
+        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
         parch_msg_destroy(&msg);
     } else {
         s_state_engine_send_msg_to_peer_and_log(self, &msg);
         self->x_sequence_number++;
     }
-    // FIXME: check the "leaky bucket" estimation of the total data rate.
-
 }
 
 static void
@@ -1202,19 +1259,32 @@ s_state_engine_do_x_disconnect(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Our node is quitting or dying.  Clean up as fast as possible.
     // Tell the peer we're going to die
-
-    node_t *peer = parch_node_get_peer(self->node);
-    if (peer) {
+    if (s_state_engine_has_peer(self)) {
         parch_msg_t *msg = parch_msg_new(PARCH_MSG_DISCONNECT);
         s_state_engine_send_msg_to_peer_and_log(self, &msg);
     }
 
-    // Disconnect from peer
-    s_state_engine_log(self, "disconnect");
-    parch_node_disconnect_from_peer(self->node);
+    s_state_engine_do_disconnect_internal(self);
+}
+
+static void
+s_state_engine_do_x_reset_confirmation(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // Y had requested that flow control be reset and X agreed.  Reset
+    // the sequence numbers and flow control.
+
+    parch_msg_t *r = parch_msg_dup(self->request);
+    s_state_engine_send_msg_to_peer_and_log(self, &r);
     s_state_engine_reset_flow_control(self);
-    parch_node_disconnect_from_service(self->node);
-    self->stopped = 1;
+}
+
+static void
+s_state_engine_do_x_reset_request(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // X has requested that data flow control be reset.  Forward the
+    // message on to Y.
+    parch_msg_t *msg = parch_msg_dup(self->request);
+    s_state_engine_send_msg_to_peer_and_log(self, &msg);
 }
 
 static void
@@ -1260,19 +1330,260 @@ s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready) {
     }
 }
 
+
+
 static void
-state_engine_do_y_disconnect(parch_state_engine_t * self) {
+s_state_engine_do_y_call_accepted(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // X requested a call and Y agreed.
+
+    // Forward the call request to the X node.
+    parch_msg_t *reply = parch_msg_dup(self->request);
+
+    // CALL NEGOTIATION, STEP 4
+
+    // Swap the incoming data only and outgoing data only flags
+    parch_msg_swap_incoming_and_outgoing(reply);
+
+    // Here in STEP 4, we make sure that the peer hasn't cheated
+    // on negotiation by increasing any of the parameters invalidly.
+    parch_msg_apply_defaults_to_connect_request(reply);
+    diagnostic_t diagnostic;
+    if (parch_msg_validate_connect_request(reply, &diagnostic) == false
+            || s_state_engine_validate_negotiation_parameters(self, reply, &diagnostic) == false) {
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = invalid_facility_request;
+        self->next_diagnostic = diagnostic;
+        s_state_engine_log(self, diagnostic_messages[diagnostic]);
+        parch_msg_destroy(&reply);
+    } else {
+        // Make sure it has the return address
+        parch_msg_set_address(reply, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &reply);
+        s_state_engine_reset_flow_control(self);
+    }
+}
+
+static void
+s_state_engine_do_y_call_request(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // Y had requested that the broker connect it to an idle node of
+    // the requested service, and the broker had determined that this
+    // node is and idle node of that service.  The broker had also
+    // connected this node in a virtual circuit.
+
+    // Forward the call request to the X node.
+    parch_msg_t *r = parch_msg_dup(self->request);
+
+    // CALL NEGOTIATION, STEP 2
+    // The state engine may
+    // downgrade some of the requested attributes of the connection
+    // before sending it to the peer.
+
+    // Swap the incoming data only and outgoing data only flags
+    s_state_engine_clear_negotiation_parameters(self);
+    parch_msg_swap_incoming_and_outgoing(r);
+
+    // Here in STEP 2, we reduce the throughput if this node state engine
+    // requires it
+    if (parch_msg_throughput(r) > self->throughput_class)
+        parch_msg_set_throughput(r, self->throughput_class);
+
+    diagnostic_t diagnostic;
+    if (parch_msg_validate_connect_request(r, &diagnostic) == false) {
+        self->state = s_unspecified;
+        self->next_event = e_y_clear_request;
+        self->next_cause = invalid_facility_request;
+        self->next_diagnostic = diagnostic;
+        s_state_engine_log(self, diagnostic_messages[diagnostic]);
+        parch_msg_destroy(&r);
+    } else {
+        // Store the negotiation values so far for step 3.
+        s_state_engine_store_negotiation_parameters(self, r);
+
+        // Make sure it has the return address
+        parch_msg_set_address(r, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &r);
+    }
+}
+
+static void
+s_state_engine_do_y_clear_request(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // The Y node has requested that the connection to X be cleared.
+    // The clear request is forwarded on to X.
+    parch_msg_t *r = parch_msg_dup(self->request);
+    // Make sure it has the return address
+    parch_msg_set_address(r, parch_node_get_node_address(self->node));
+    s_state_engine_send_msg_to_node_and_log(self, &r);
+    s_state_engine_reset_flow_control(self);
+}
+static void
+s_state_engine_do_y_clear_confirmation(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // Y has agreed to clear the channel.  So, tell the broker to
+    // close the connection to Y and end the virtual call.  Then reset
+    // flow control.
+
+    parch_msg_t *r = parch_msg_dup(self->request);
+
+    // Make sure it has the return address
+    parch_msg_set_address(r, parch_node_get_node_address(self->node));
+    s_state_engine_send_msg_to_node_and_log(self, &r);
+
+    // Disconnect from peer
+    s_state_engine_log(self, "clearing");
+    parch_node_disconnect_from_peer(self->node);
+    s_state_engine_reset_flow_control(self);
+}
+
+static void
+s_state_engine_do_y_reset_request(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // Y has requested that data flow control be reset.  Forward the
+    // message on to X.
+    // Forward the call request to the X node.
+    parch_msg_t *r = parch_msg_dup(self->request);
+    // Make sure it has the return address
+    parch_msg_set_address(r, parch_node_get_node_address(self->node));
+    s_state_engine_send_msg_to_node_and_log(self, &r);
+}
+
+static void
+s_state_engine_do_y_reset_confirmation(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+
+    parch_msg_t *r = parch_msg_dup(self->request);
+    // Make sure it has the return address
+    parch_msg_set_address(r, parch_node_get_node_address(self->node));
+    s_state_engine_send_msg_to_node_and_log(self, &r);
+    s_state_engine_reset_flow_control(self);
+}
+
+static void
+s_state_engine_do_y_data(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // Y has sent data for X.  Verify that the DATA packet has the
+    // right sequence number and that it is within X's transmission
+    // window.  If it is, forward it to X.  If it isn't, reject it.
+
+    assert(self->request);
+    assert(parch_msg_id(self->request) == PARCH_MSG_DATA);
+    parch_msg_t *msg = parch_msg_dup(self->request);
+
+    bool ok = true;
+    if (self->negotiation_incoming_data_barred) {
+        ok = false;
+        self->next_cause = access_barred;
+        self->next_diagnostic = err_incoming_data_barred;
+    } else if (zframe_size(parch_msg_data(msg)) == 0) {
+        ok = false;
+        self->next_cause = local_procedure_error;
+        self->next_diagnostic = err_packet_too_short;
+    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->negotiation_packet_class]) {
+        ok = false;
+        self->next_cause = local_procedure_error;
+        self->next_diagnostic = err_packet_too_long;
+    } else if ((parch_msg_sequence(msg) != self->y_sequence_number)
+            || (parch_msg_sequence(msg) < self->x_window || parch_msg_sequence(msg) > self->x_window + self->window_size)) {
+        ok = false;
+        self->next_cause = local_procedure_error;
+        self->next_diagnostic = err_invalid_ps;
+    }
+
+    if (ok == false) {
+        self->state = s_unspecified;
+        self->next_event = e_reset;
+        s_state_engine_log(self, diagnostic_messages[err_incoming_data_barred]);
+        parch_msg_destroy(&msg);
+    } else {
+        int64_t now = zclock_time();
+        int64_t delta = now - self->_time;
+
+        // A leaky bucky with a 5 second time drain time
+        self->channel_capacity_in_use -= (float) delta / 5000.0f;
+        if (self->channel_capacity_in_use < 0.0)
+            self->channel_capacity_in_use = 0.0;
+        // bytes * (8 bits / byte) * (sec / bit) / (5 sec)
+        self->channel_capacity_in_use += (float) (zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
+
+        if (self->channel_capacity_in_use > 2.0) {
+            self->state = s_unspecified;
+            self->next_event = e_reset;
+            self->next_cause = local_procedure_error;
+            self->next_diagnostic = err_network_congestion;
+            s_state_engine_log(self, diagnostic_messages[err_network_congestion]);
+            parch_msg_destroy(&msg);
+        }
+
+        parch_msg_set_address(msg, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &msg);
+        self->y_sequence_number++;
+    }
+}
+
+static void
+s_state_engine_do_y_disconnect (parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has requested a disconnect.
     // Forward this on to the node so it knows that its peer has disappeared.
-    // Forward the call request to the X node.
     parch_msg_t *r = parch_msg_dup(self->request);
     s_state_engine_reset_flow_control(self);
     s_state_engine_send_msg_to_node_and_log(self, &r);
 }
 
 static void
-s_state_engine_log(parch_state_engine_t * self, char *msg) {
+s_state_engine_do_y_rnr(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    s_state_engine_do_y_rr_internal(self, 1);
+    // Y has informed that it can't receive any data right now.  Store
+    // info about the window and forward the message to X.
+}
+
+static void
+s_state_engine_do_y_rr(parch_state_engine_t * self) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    s_state_engine_do_y_rr_internal(self, 0);
+    // Y had updated its allowed transmission window.  Store info
+    // about the window and then forward the message to X.
+}
+
+static void
+s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready) {
+    STATE_ENGINE_VALIDITY_CHECKS(self);
+    // X had updated its allowed transmission window.  Store info
+    // about the window and then forward the message to Y.
+    uint32_t rs = parch_msg_sequence(self->request);
+
+    // The node updates the range of packets it will accept.  That
+    // range has to be greater than the last range, but, it can't
+    // start later than the next packet expected from the peer.
+    if (rs <= self->y_window || rs > self->x_sequence_number) {
+        self->y_window = rs;
+        self->y_not_ready = not_ready;
+        parch_msg_t *msg = parch_msg_dup(self->request);
+        parch_msg_set_address(msg, parch_node_get_node_address(self->node));
+        s_state_engine_send_msg_to_node_and_log(self, &msg);
+    } else {
+        // We're out of sync, so we reset the connection
+        if (not_ready)
+            s_state_engine_log(self, "bad RNR sequence id from peer");
+        else
+            s_state_engine_log(self, "bad RR sequence id from peer");
+        self->next_event = e_reset;
+        self->next_cause = local_procedure_error;
+        self->next_diagnostic = err_invalid_pr;
+    }
+}
+
+static bool
+s_state_engine_has_peer(parch_state_engine_t *self) {
+    return (parch_node_get_peer(self->node) != NULL);
+}
+
+static void
+s_state_engine_log(parch_state_engine_t * self, const char *text) {
     if (parch_broker_get_verbose(self->broker)) {
         char *self_addr;
         if (parch_node_get_node_address(self->node) != NULL)
@@ -1281,7 +1592,7 @@ s_state_engine_log(parch_state_engine_t * self, char *msg) {
             self_addr = strdup("UNKNOWN");
         zclock_log("I: [%s] state engine -- %s",
                 self_addr,
-                msg);
+                text);
         free(self_addr);
     }
 }
@@ -1370,26 +1681,32 @@ s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_ms
 // Can't make things less restrictive.
 
 static bool
-s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *msg) {
+s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *msg, diagnostic_t *diagnostic) {
     bool valid = true;
+    *diagnostic = err_none;
     if (self->negotiation_incoming_data_barred == 1 && parch_msg_incoming(msg) == 0) {
         // The node's not allow to remove the incoming calls barred flag
         valid = false;
+        *diagnostic = err_invalid_negotiation__incoming_data_barred;
     } else if (self->negotiation_outgoing_data_barred == 1 && parch_msg_outgoing(msg) == 0) {
         // The node's not allow to remove the outgoing calls barred flag
         valid = false;
+        *diagnostic = err_invalid_negotiation__outgoing_data_barred;
     } else if (parch_msg_incoming(msg) == 1 && parch_msg_outgoing(msg) == 1) {
         // A channel can't bar traffic in both directions
         valid = false;
+        *diagnostic = err_data_barred;
     } else if (self->negotiation_throughput_class < parch_msg_throughput(msg)
             || parch_msg_throughput(msg) < THROUGHPUT_CLASS_MIN) {
         // The node is not allowed to increase the throughput or set it to one of the
         valid = false;
+        *diagnostic = err_invalid_negotiation__throughput;
     } else if ((self->negotiation_window_size >= 2 && parch_msg_window(msg) > self->negotiation_window_size)
             || (self->negotiation_window_size == 1 && parch_msg_window(msg) > 2)) {
         // The node can't increase the window size.  An exception is when it is 1: in that case
         // it can be increased only up to 2.
         valid = false;
+        *diagnostic = err_invalid_negotiation__window_size;
     } else if (((packet_classes[self->negotiation_packet_class] >= 128)
             && (packet_classes[parch_msg_packet(msg)] > packet_classes[self->negotiation_packet_class]
             || packet_classes[parch_msg_packet(msg)] < 128))
@@ -1398,6 +1715,7 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
             || packet_classes[parch_msg_packet(msg)] > 128))) {
         // The node only can change the packet size to be between the requested value and 128.
         valid = false;
+        *diagnostic = err_invalid_negotiation__packet_size;
     } else if (packet_classes[self->negotiation_packet_class] * 8 * BUCKET_DRAIN_TIME > throughput_classes[self->throughput_class]) {
         // We use a "leaky bucket" flow control test.  If a forbidden to use a packet size such that a
         // single packet could send more than BUCKET_DRAIN_TIME's
@@ -1407,285 +1725,17 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
     return valid;
 }
 
-static void
-s_state_engine_do_y_data(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // Y has sent data for X.  Verify that the DATA packet has the
-    // right sequence number and that it is within X's transmission
-    // window.  If it is, forward it to X.  If it isn't, reject it.
-
-    assert(self->request);
-    assert(parch_msg_id(self->request) == PARCH_MSG_DATA);
-    parch_msg_t *msg = parch_msg_dup(self->request);
-
-    if (self->incoming_data_barred) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = access_barred;
-        self->next_diagnostic = err_incoming_data_barred;
-        s_state_engine_log(self, "incoming data barred");
-        parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) == 0) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_packet_too_short;
-        s_state_engine_log(self, "data from peer is too short");
-        parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->packet_class]) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_packet_too_long;
-        s_state_engine_log(self, "data from peer is too long");
-        parch_msg_destroy(&msg);
-    } else if ((parch_msg_sequence(msg) != self->y_sequence_number)
-            || (parch_msg_sequence(msg) < self->x_window || parch_msg_sequence(msg) > self->x_window + self->window_size)) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_invalid_ps;
-        s_state_engine_log(self, "data from peer has invalid send sequence number");
-        parch_msg_destroy(&msg);
-    } else {
-        int64_t now = zclock_time();
-        int64_t delta = now - self->_time;
-
-        // A leaky bucky with a 5 second time drain time
-        self->channel_capacity_in_use -= (float) delta / 5000.0f;
-        if (self->channel_capacity_in_use < 0.0)
-            self->channel_capacity_in_use = 0.0;
-        // bytes * (8 bits / byte) * (sec / bit) / (5 sec)
-        self->channel_capacity_in_use += (float) (zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
-
-        if (self->channel_capacity_in_use > 2.0) {
-            self->state = s_unspecified;
-            self->next_event = e_reset;
-            self->next_cause = local_procedure_error;
-            self->next_diagnostic = err_network_congestion;
-            s_state_engine_log(self, "data from peer has exceeded throughput limits");
-            parch_msg_destroy(&msg);
-        }
-
-        parch_msg_set_address(msg, parch_node_get_node_address(self->node));
-        s_state_engine_send_msg_to_node_and_log(self, &msg);
-        self->y_sequence_number++;
-    }
-}
-
-static void
-s_state_engine_do_y_rnr(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    s_state_engine_do_y_rr_internal(self, 1);
-    // Y has informed that it can't receive any data right now.  Store
-    // info about the window and forward the message to X.
-}
-
-static void
-s_state_engine_do_y_rr(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    s_state_engine_do_y_rr_internal(self, 0);
-    // Y had updated its allowed transmission window.  Store info
-    // about the window and then forward the message to X.
-}
-
-static void
-s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // X had updated its allowed transmission window.  Store info
-    // about the window and then forward the message to Y.
-    uint32_t rs = parch_msg_sequence(self->request);
-
-    // The node updates the range of packets it will accept.  That
-    // range has to be greater than the last range, but, it can't
-    // start later than the next packet expected from the peer.
-    if (rs <= self->y_window || rs > self->x_sequence_number) {
-        self->y_window = rs;
-        self->y_not_ready = not_ready;
-        parch_msg_t *msg = parch_msg_dup(self->request);
-        parch_msg_set_address(msg, parch_node_get_node_address(self->node));
-        s_state_engine_send_msg_to_node_and_log(self, &msg);
-    } else {
-        // We're out of sync, so we reset the connection
-        if (not_ready)
-            s_state_engine_log(self, "bad RNR sequence id from peer");
-        else
-            s_state_engine_log(self, "bad RR sequence id from peer");
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_invalid_pr;
-    }
-}
-
 // ================================================================
 // State machine actions
 
-static void
-state_engine_do_x_reset_request(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // X has requested that data flow control be reset.  Forward the
-    // message on to Y.
-}
 
-static void
-state_engine_do_x_reset_confirmation(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // Y had requested that flow control be reset and X agreed.  Reset
-    // the sequence numbers and flow control.
-}
 
-static void
-state_engine_do_y_call_request(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // Y had requested that the broker connect it to an idle node of
-    // the requested service, and the broker had determined that this
-    // node is and idle node of that service.  The broker had also
-    // connected this node in a virtual circuit.
 
-    // Forward the call request to the X node.
-    parch_msg_t *r = parch_msg_dup(self->request);
 
-    // CALL NEGOTIATION, STEP 2
-    // The state engine may
-    // downgrade some of the requested attributes of the connection
-    // before sending it to the peer.
 
-    // Swap the incoming data only and outgoing data only flags
-    parch_msg_swap_incoming_and_outgoing(r);
 
-    // Here in STEP 2, we reduce the throughput if this node state engine
-    // requires it
 
-    if (parch_msg_throughput(r) > self->throughput_class)
-        parch_msg_set_throughput(r, self->throughput_class);
 
-    if (parch_msg_validate_connect_request(r) == false) {
-        self->state = s_unspecified;
-        self->next_event = e_y_clear_request;
-        self->next_cause = invalid_facility_request;
-        self->next_diagnostic = err_facility_parameter_not_allowed;
-        s_state_engine_log(self, "invalid call facility parameters from peer");
-        parch_msg_destroy(&r);
-    } else {
-        // Store the negotiation values so far for step 3.
-        s_state_engine_store_negotiation_parameters(self, r);
-
-        // Make sure it has the return address
-        parch_msg_set_address(r, parch_node_get_node_address(self->node));
-        s_state_engine_send_msg_to_node_and_log(self, &r);
-    }
-}
-
-static void
-state_engine_do_y_call_accepted(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // X requested a call and Y agreed.
-
-    // Forward the call request to the X node.
-    parch_msg_t *reply = parch_msg_dup(self->request);
-
-    // CALL NEGOTIATION, STEP 4
-
-    // Swap the incoming data only and outgoing data only flags
-    parch_msg_swap_incoming_and_outgoing(reply);
-
-    // Here in STEP 4, we make sure that the peer hasn't cheated
-    // on negotiation by increasing any of the parameters invalidly.
-    parch_msg_apply_defaults_to_connect_request(reply);
-    bool valid = (parch_msg_validate_connect_request(reply) == true
-            && s_state_engine_validate_negotiation_parameters(self, reply) == true);
-    s_state_engine_clear_negotiation_parameters(self);
-    if (!valid) {
-        self->state = s_unspecified;
-        self->next_event = e_y_clear_request;
-        self->next_cause = invalid_facility_request;
-        self->next_diagnostic = err_facility_parameter_not_allowed;
-        parch_msg_destroy(&reply);
-    } else {
-        // Make sure it has the return address
-        parch_msg_set_address(reply, parch_node_get_node_address(self->node));
-        s_state_engine_send_msg_to_node_and_log(self, &reply);
-        s_state_engine_reset_flow_control(self);
-    }
-}
-
-static void
-state_engine_do_y_clear_request(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // The Y node has requested that the connection to X be cleared.
-    // The clear request is forwarded on to X.
-    parch_msg_t *r = parch_msg_dup(self->request);
-    // Make sure it has the return address
-    parch_msg_set_address(r, parch_node_get_node_address(self->node));
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(r));
-        free(self_addr);
-    }
-    s_state_engine_reset_flow_control(self);
-    parch_msg_send(&r, parch_broker_get_socket(self->broker));
-}
-
-static void
-state_engine_do_y_clear_confirmation(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // Y has agreed to clear the channel.  So, tell the broker to
-    // close the connection to Y and end the virtual call.  Then reset
-    // flow control.
-
-    parch_msg_t *r = parch_msg_dup(self->request);
-    // Make sure it has the return address
-    parch_msg_set_address(r, parch_node_get_node_address(self->node));
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(r));
-        free(self_addr);
-    }
-    s_state_engine_reset_flow_control(self);
-    parch_msg_send(&r, parch_broker_get_socket(self->broker));
-
-    // Disconnect from peer
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- clearing",
-                self_addr);
-        free(self_addr);
-    }
-    parch_node_disconnect_from_peer(self->node);
-    s_state_engine_reset_flow_control(self);
-}
-
-static void
-state_engine_do_y_reset_request(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // Y has requested that data flow control be reset.  Forward the
-    // message on to X.
-    // Forward the call request to the X node.
-    parch_msg_t *r = parch_msg_dup(self->request);
-
-    if (parch_broker_get_verbose(self->broker)) {
-        char *self_addr = zframe_strhex(parch_node_get_node_address(self->node));
-        zclock_log("I: [%s] state engine -- sending '%s' to node",
-                self_addr,
-                parch_msg_command(r));
-        free(self_addr);
-    }
-
-    // Make sure it has the return address
-    parch_msg_set_address(r, parch_node_get_node_address(self->node));
-    parch_msg_send(&r, parch_broker_get_socket(self->broker));
-}
-
-static void
-state_engine_do_y_reset_confirmation(parch_state_engine_t * self) {
-    STATE_ENGINE_VALIDITY_CHECKS(self);
-    // X had requested that flow control be reset and Y agreed.  Reset
-    // the sequence numbers and flow control.
-}
 
 #if 0
 
@@ -1780,10 +1830,11 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_reset(self, diagnostic);
             break;
         case a_clear:
+            assert(next == s7_y_clear);
             s_state_engine_do_clear(self, diagnostic);
             break;
         case a_disconnect:
-            s_state_engine_do_disconnect(self);
+            s_state_engine_do_disconnect(self, diagnostic);
             break;
         case a_x_connect:
             // x_connect is handled by the broker
@@ -1803,10 +1854,10 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_x_call_accepted(self);
             break;
         case a_x_clear_request:
-            state_engine_do_x_clear_request(self);
+            s_state_engine_do_x_clear_request(self);
             break;
         case a_x_clear_confirmation:
-            state_engine_do_x_clear_confirmation(self);
+            s_state_engine_do_x_clear_confirmation(self);
             break;
         case a_x_data:
             s_state_engine_do_x_data(self);
@@ -1818,29 +1869,29 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_x_rnr(self);
             break;
         case a_x_reset:
-            state_engine_do_x_reset_request(self);
+            s_state_engine_do_x_reset_request(self);
             break;
         case a_x_reset_confirmation:
-            state_engine_do_x_reset_confirmation(self);
+            s_state_engine_do_x_reset_confirmation(self);
             break;
 
         case a_y_disconnect:
-            state_engine_do_y_disconnect(self);
+            s_state_engine_do_y_disconnect(self);
             break;
         case a_y_call_request:
             if (self->incoming_calls_barred == 0)
-                state_engine_do_y_call_request(self);
+                s_state_engine_do_y_call_request(self);
             else
                 s_state_engine_log(self, "y call request discarded, incoming calls barred");
             break;
         case a_y_call_accepted:
-            state_engine_do_y_call_accepted(self);
+            s_state_engine_do_y_call_accepted(self);
             break;
         case a_y_clear_request:
-            state_engine_do_y_clear_request(self);
+            s_state_engine_do_y_clear_request(self);
             break;
         case a_y_clear_confirmation:
-            state_engine_do_y_clear_confirmation(self);
+            s_state_engine_do_y_clear_confirmation(self);
             break;
         case a_y_data:
             s_state_engine_do_y_data(self);
@@ -1852,10 +1903,10 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_y_rnr(self);
             break;
         case a_y_reset:
-            state_engine_do_y_reset_request(self);
+            s_state_engine_do_y_reset_request(self);
             break;
         case a_y_reset_confirmation:
-            state_engine_do_y_reset_confirmation(self);
+            s_state_engine_do_y_reset_confirmation(self);
             break;
 
             //            case s0_initialize_timeout:
