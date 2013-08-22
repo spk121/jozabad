@@ -38,7 +38,7 @@ parch_msg_validate_connect_request(parch_msg_t *self, diagnostic_t *diag) {
     } else if (!parch_throughput_index_validate(parch_msg_throughput(self))) {
         ok = false;
         *diag = err_throughput_out_of_range;
-    } else if (parch_msg_packet(self) < PACKET_CLASS_MIN || parch_msg_packet(self) > PACKET_CLASS_MAX) {
+    } else if (!parch_packet_index_validate(parch_msg_throughput(self))) {
         ok = false;
         *diag = err_packet_size_out_of_range;
     } else if (parch_msg_window(self) < WINDOW_MIN || parch_msg_window(self) > WINDOW_MAX) {
@@ -52,8 +52,7 @@ void
 parch_msg_apply_defaults_to_connect_request(parch_msg_t *self) {
     if (parch_msg_window(self) == 0)
         parch_msg_set_window(self, WINDOW_DEFAULT);
-    if (parch_msg_packet(self) == 0)
-        parch_msg_set_packet(self, PACKET_CLASS_DEFAULT);
+    parch_msg_set_packet(self, parch_packet_index_apply_default(parch_msg_packet(self)));
 }
 
 void

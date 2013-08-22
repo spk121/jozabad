@@ -169,6 +169,8 @@ typedef struct _parch_state_engine_t parch_state_engine_t;
 #include "parch_state_engine.h"
 #include "parch_broker.h"
 #include "parch_throughput.h"
+#include "parch_packet.h"
+#include "parch_window.h"
 
 #ifdef __cplusplus
 }

@@ -142,18 +142,14 @@ struct _parch_state_engine_t {
     //
     uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
     uint8_t outgoing_calls_barred; // when true, all call requests from node are ignored.
-    uint8_t incoming_data_barred; // when true, all data packets from peer are ignored
-    uint8_t outgoing_data_barred; // when true, all data packets from node are ignored
     uint8_t throughput_index; // The bps at which this connection is throttled (from lookup table)
-    uint8_t packet_class; // The size of the largest allowed packet (from lookup table)
-    uint16_t window_size; // The size of the flow control data window. # of packets allowed w/o confirmation
 
     // Values for the current call negotiation
-    uint8_t negotiation_incoming_data_barred;
-    uint8_t negotiation_outgoing_data_barred;
+    uint8_t call_incoming_data_barred;
+    uint8_t call_outgoing_data_barred;
     uint8_t call_throughput_index;
-    uint8_t negotiation_packet_class;
-    uint16_t negotiation_window_size;
+    uint8_t call_packet_index;
+    uint16_t call_window_size;
 
     // Coming up...
     event_t next_event; // next event to be processed by the state machine
@@ -856,19 +852,6 @@ static const char state_names[][16] = {
 };
 
 
-
-static const uint32_t packet_classes[] = {
-    [0] = 128,
-    [4] = 16,
-    [5] = 32,
-    [6] = 64,
-    [7] = 128,
-    [8] = 256,
-    [9] = 512,
-    [10] = 1024,
-    [11] = 2048,
-    [12] = 4096
-};
 //  ---------------------------------------------------------------------------
 //  DECLARATIONS
 
@@ -996,11 +979,11 @@ s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p);
 
 static void
 s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self) {
-    self->negotiation_incoming_data_barred = 0;
-    self->negotiation_outgoing_data_barred = 0;
+    self->call_incoming_data_barred = 0;
+    self->call_outgoing_data_barred = 0;
     self->call_throughput_index = 0;
-    self->negotiation_packet_class = 0;
-    self->negotiation_window_size = 0;
+    self->call_packet_index = 0;
+    self->call_window_size = 0;
 }
 
 // This function is when the broker itself tells the nodes to clear the connection.  This
@@ -1178,7 +1161,7 @@ s_state_engine_do_x_data(parch_state_engine_t * self) {
 
     parch_msg_t *msg = parch_msg_dup(self->request);
 
-    if (self->negotiation_outgoing_data_barred) {
+    if (self->call_outgoing_data_barred) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = access_barred;
@@ -1192,7 +1175,7 @@ s_state_engine_do_x_data(parch_state_engine_t * self) {
         self->next_diagnostic = err_packet_too_short;
         s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
         parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->negotiation_packet_class]) {
+    } else if (zframe_size(parch_msg_data(msg)) > parch_packet_bytes(self->call_packet_index)) {
         self->state = s_unspecified;
         self->next_event = e_reset;
         self->next_cause = local_procedure_error;
@@ -1432,7 +1415,7 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
     parch_msg_t *msg = parch_msg_dup(self->request);
 
     bool ok = true;
-    if (self->negotiation_incoming_data_barred) {
+    if (self->call_incoming_data_barred) {
         ok = false;
         self->next_cause = access_barred;
         self->next_diagnostic = err_incoming_data_barred;
@@ -1440,12 +1423,12 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
         ok = false;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_packet_too_short;
-    } else if (zframe_size(parch_msg_data(msg)) > packet_classes[self->negotiation_packet_class]) {
+    } else if (zframe_size(parch_msg_data(msg)) > parch_packet_bytes(self->call_packet_index)) {
         ok = false;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_packet_too_long;
     } else if ((parch_msg_sequence(msg) != self->y_sequence_number)
-            || (parch_msg_sequence(msg) < self->x_window || parch_msg_sequence(msg) > self->x_window + self->window_size)) {
+            || (parch_msg_sequence(msg) < self->x_window || parch_msg_sequence(msg) > self->x_window + self->call_window_size)) {
         ok = false;
         self->next_cause = local_procedure_error;
         self->next_diagnostic = err_invalid_ps;
@@ -1629,11 +1612,11 @@ s_state_engine_reset_flow_control(parch_state_engine_t * self) {
 
 static void
 s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r) {
-    self->negotiation_incoming_data_barred = parch_msg_incoming(r);
-    self->negotiation_outgoing_data_barred = parch_msg_outgoing(r);
+    self->call_incoming_data_barred = parch_msg_incoming(r);
+    self->call_outgoing_data_barred = parch_msg_outgoing(r);
     self->call_throughput_index = parch_msg_throughput(r);
-    self->negotiation_packet_class = parch_msg_packet(r);
-    self->negotiation_window_size = parch_msg_window(r);
+    self->call_packet_index = parch_msg_packet(r);
+    self->call_window_size = parch_msg_window(r);
 }
 
 // During the negotiation process, each step is only allowed to make things more restrictive.
@@ -1643,11 +1626,11 @@ static bool
 s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *msg, diagnostic_t *diagnostic) {
     bool valid = true;
     *diagnostic = err_none;
-    if (self->negotiation_incoming_data_barred == 1 && parch_msg_incoming(msg) == 0) {
+    if (self->call_incoming_data_barred == 1 && parch_msg_incoming(msg) == 0) {
         // The node's not allow to remove the incoming calls barred flag
         valid = false;
         *diagnostic = err_invalid_negotiation__incoming_data_barred;
-    } else if (self->negotiation_outgoing_data_barred == 1 && parch_msg_outgoing(msg) == 0) {
+    } else if (self->call_outgoing_data_barred == 1 && parch_msg_outgoing(msg) == 0) {
         // The node's not allow to remove the outgoing calls barred flag
         valid = false;
         *diagnostic = err_invalid_negotiation__outgoing_data_barred;
@@ -1659,26 +1642,14 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
         // The node is not allowed to increase the throughput or set it to one of the
         valid = false;
         *diagnostic = err_invalid_negotiation__throughput;
-    } else if ((self->negotiation_window_size >= 2 && parch_msg_window(msg) > self->negotiation_window_size)
-            || (self->negotiation_window_size == 1 && parch_msg_window(msg) > 2)) {
-        // The node can't increase the window size.  An exception is when it is 1: in that case
-        // it can be increased only up to 2.
+    } else if (!parch_window_negotiate(parch_msg_window (msg), self->call_window_size).ok) {
+
         valid = false;
         *diagnostic = err_invalid_negotiation__window_size;
-    } else if (((packet_classes[self->negotiation_packet_class] >= 128)
-            && (packet_classes[parch_msg_packet(msg)] > packet_classes[self->negotiation_packet_class]
-            || packet_classes[parch_msg_packet(msg)] < 128))
-            || ((packet_classes[self->negotiation_packet_class] < 128)
-            && (packet_classes[parch_msg_packet(msg)] < packet_classes[self->negotiation_packet_class]
-            || packet_classes[parch_msg_packet(msg)] > 128))) {
+    } else if (!parch_packet_index_negotiate(parch_msg_packet(msg), self->call_packet_index).ok) {
         // The node only can change the packet size to be between the requested value and 128.
         valid = false;
         *diagnostic = err_invalid_negotiation__packet_size;
-    } else if (packet_classes[self->negotiation_packet_class] * 8 * BUCKET_DRAIN_TIME > parch_throughput_bps(self->throughput_index)) {
-        // We use a "leaky bucket" flow control test.  If a forbidden to use a packet size such that a
-        // single packet could send more than BUCKET_DRAIN_TIME's
-        // worth of data in one go,
-        valid = false;
     }
     return valid;
 }

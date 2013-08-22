@@ -13,12 +13,8 @@ extern "C" {
 //  MACROS
 
 #define MAX_SERVICE_NAME_LEN 128
-#define WINDOW_MIN 1
-#define WINDOW_MAX 32768
-#define WINDOW_DEFAULT 128
-#define PACKET_CLASS_MIN 3            // 16 bytes
-#define PACKET_CLASS_MAX 12           // 4  kbytes
-#define PACKET_CLASS_DEFAULT 7        // 128 bytes
+
+
 #define BUCKET_DRAIN_TIME 5.0         // seconds
 
 //  ---------------------------------------------------------------------------
