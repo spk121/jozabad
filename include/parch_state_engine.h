@@ -13,9 +13,6 @@ extern "C" {
 //  MACROS
 
 #define MAX_SERVICE_NAME_LEN 128
-#define THROUGHPUT_CLASS_MIN 3        // 75 bits/s
-#define THROUGHPUT_CLASS_MAX 45       // 2 Mbits/s
-#define THROUGHPUT_CLASS_DEFAULT 13   // 64 kbits/s
 #define WINDOW_MIN 1
 #define WINDOW_MAX 32768
 #define WINDOW_DEFAULT 128

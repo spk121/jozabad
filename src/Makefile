@@ -67,6 +67,7 @@ parch_broker.i : parch_broker.c
 parch_msg.i : parch_msg.c
 parch_msg2.i : parch_msg2.c
 parch_state_engine.i : parch_state_engine.c
+parch_throughput.i : parch_throughput.c
 parch_node.i : parch_node.c
 test_node1.i : test_node1.c
 
@@ -82,7 +83,7 @@ parch_msg.c: parch_msg.xml codec_c.gsl
 test_node: parch_node.o test_node1.o parch_msg.o
 	$(CC) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
 
-parch_broker: lib.o parch_broker.o parch_msg.o parch_msg2.o parch_state_engine.o
+parch_broker: lib.o parch_broker.o parch_msg.o parch_msg2.o parch_state_engine.o parch_throughput.o
 	$(CC) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq
 
 clean:

@@ -35,7 +35,7 @@ parch_msg_validate_connect_request(parch_msg_t *self, diagnostic_t *diag) {
         // A channel can't bar traffic in both directions
         ok = false;
         *diag = err_data_barred;
-    } else if (parch_msg_throughput(self) < THROUGHPUT_CLASS_MIN || parch_msg_throughput(self) > THROUGHPUT_CLASS_MAX) {
+    } else if (!parch_throughput_index_validate(parch_msg_throughput(self))) {
         ok = false;
         *diag = err_throughput_out_of_range;
     } else if (parch_msg_packet(self) < PACKET_CLASS_MIN || parch_msg_packet(self) > PACKET_CLASS_MAX) {

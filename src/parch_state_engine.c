@@ -144,14 +144,14 @@ struct _parch_state_engine_t {
     uint8_t outgoing_calls_barred; // when true, all call requests from node are ignored.
     uint8_t incoming_data_barred; // when true, all data packets from peer are ignored
     uint8_t outgoing_data_barred; // when true, all data packets from node are ignored
-    uint8_t throughput_class; // The bps at which this connection is throttled (from lookup table)
+    uint8_t throughput_index; // The bps at which this connection is throttled (from lookup table)
     uint8_t packet_class; // The size of the largest allowed packet (from lookup table)
     uint16_t window_size; // The size of the flow control data window. # of packets allowed w/o confirmation
 
     // Values for the current call negotiation
     uint8_t negotiation_incoming_data_barred;
     uint8_t negotiation_outgoing_data_barred;
-    uint8_t negotiation_throughput_class;
+    uint8_t call_throughput_index;
     uint8_t negotiation_packet_class;
     uint16_t negotiation_window_size;
 
@@ -855,50 +855,7 @@ static const char state_names[][16] = {
     [s9_y_reset] = "s9_y_reset"
 };
 
-static const uint32_t throughput_classes[THROUGHPUT_CLASS_MAX + 1] = {
-    [3] = 75,
-    [4] = 150,
-    [5] = 300,
-    [6] = 600,
-    [7] = 1200,
-    [8] = 2400,
-    [9] = 4800,
-    [10] = 9600,
-    [11] = 19200,
-    [12] = 48000,
-    [13] = 64000,
-    [14] = 128000,
-    [15] = 192000,
-    [16] = 256000,
-    [17] = 320000,
-    [18] = 384000,
-    [19] = 448000,
-    [20] = 512000,
-    [21] = 576000,
-    [22] = 640000,
-    [23] = 704000,
-    [24] = 768000,
-    [25] = 832000,
-    [26] = 896000,
-    [27] = 960000,
-    [28] = 1024000,
-    [29] = 1088000,
-    [30] = 1152000,
-    [31] = 1216000,
-    [32] = 1280000,
-    [33] = 1344000,
-    [34] = 1408000,
-    [35] = 1472000,
-    [36] = 1536000,
-    [37] = 1600000,
-    [38] = 1664000,
-    [39] = 1728000,
-    [40] = 1792000,
-    [41] = 1856000,
-    [42] = 1920000,
-    [43] = 1984000,
-    [44] = 2048000,
-};
+
 
 static const uint32_t packet_classes[] = {
     [0] = 128,
@@ -1041,7 +998,7 @@ static void
 s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self) {
     self->negotiation_incoming_data_barred = 0;
     self->negotiation_outgoing_data_barred = 0;
-    self->negotiation_throughput_class = 0;
+    self->call_throughput_index = 0;
     self->negotiation_packet_class = 0;
     self->negotiation_window_size = 0;
 }
@@ -1166,8 +1123,9 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
         parch_msg_apply_defaults_to_connect_request(peer_msg);
         // The initiating node may not declare a throughput that is faster
         // than it can handle.
-        if (parch_msg_throughput(peer_msg) > self->throughput_class)
-            parch_msg_set_throughput(peer_msg, self->throughput_class);
+        uint8_t i = parch_throughput_index_throttle(parch_msg_throughput(peer_msg),
+                                                    self->throughput_index);
+        parch_msg_set_throughput(peer_msg, i);
 
         diagnostic_t diagnostic;
         if (parch_msg_validate_connect_request(peer_msg, &diagnostic) == false) {
@@ -1387,8 +1345,9 @@ s_state_engine_do_y_call_request(parch_state_engine_t * self) {
 
     // Here in STEP 2, we reduce the throughput if this node state engine
     // requires it
-    if (parch_msg_throughput(r) > self->throughput_class)
-        parch_msg_set_throughput(r, self->throughput_class);
+    uint8_t i = parch_throughput_index_throttle(parch_msg_throughput(r),
+                                                self->throughput_index);
+    parch_msg_set_throughput(r, i);
 
     diagnostic_t diagnostic;
     if (parch_msg_validate_connect_request(r, &diagnostic) == false) {
@@ -1506,7 +1465,7 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
         if (self->channel_capacity_in_use < 0.0)
             self->channel_capacity_in_use = 0.0;
         // bytes * (8 bits / byte) * (sec / bit) / (5 sec)
-        self->channel_capacity_in_use += (float) (zframe_size(parch_msg_data(msg)) * 8) / (5.0 * throughput_classes[self->throughput_class]);
+        self->channel_capacity_in_use += (float) (zframe_size(parch_msg_data(msg)) * 8) / (5.0 * parch_throughput_bps(self->throughput_index));
 
         if (self->channel_capacity_in_use > 2.0) {
             self->state = s_unspecified;
@@ -1672,7 +1631,7 @@ static void
 s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r) {
     self->negotiation_incoming_data_barred = parch_msg_incoming(r);
     self->negotiation_outgoing_data_barred = parch_msg_outgoing(r);
-    self->negotiation_throughput_class = parch_msg_throughput(r);
+    self->call_throughput_index = parch_msg_throughput(r);
     self->negotiation_packet_class = parch_msg_packet(r);
     self->negotiation_window_size = parch_msg_window(r);
 }
@@ -1696,8 +1655,7 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
         // A channel can't bar traffic in both directions
         valid = false;
         *diagnostic = err_data_barred;
-    } else if (self->negotiation_throughput_class < parch_msg_throughput(msg)
-            || parch_msg_throughput(msg) < THROUGHPUT_CLASS_MIN) {
+    } else if (!parch_throughput_index_negotiate(parch_msg_throughput(msg), self->call_throughput_index).ok) {
         // The node is not allowed to increase the throughput or set it to one of the
         valid = false;
         *diagnostic = err_invalid_negotiation__throughput;
@@ -1716,7 +1674,7 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
         // The node only can change the packet size to be between the requested value and 128.
         valid = false;
         *diagnostic = err_invalid_negotiation__packet_size;
-    } else if (packet_classes[self->negotiation_packet_class] * 8 * BUCKET_DRAIN_TIME > throughput_classes[self->throughput_class]) {
+    } else if (packet_classes[self->negotiation_packet_class] * 8 * BUCKET_DRAIN_TIME > parch_throughput_bps(self->throughput_index)) {
         // We use a "leaky bucket" flow control test.  If a forbidden to use a packet size such that a
         // single packet could send more than BUCKET_DRAIN_TIME's
         // worth of data in one go,
@@ -2005,7 +1963,7 @@ parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, by
     self->request = NULL;
     self->incoming_calls_barred = incoming_barred;
     self->outgoing_calls_barred = outgoing_barred;
-    self->throughput_class = throughput;
+    self->throughput_index = throughput;
     self->_time = zclock_time();
     self->channel_capacity_in_use = 0.0;
     self->config = zconfig_new("state", NULL);
