@@ -34,6 +34,8 @@ typedef struct _service_t service_t;
 
 int
 main(int argc __attribute__((unused)), char *argv [] __attribute__((unused)));
+void
+parch_broker_add_timer(broker_t *self, size_t delay_in_sec, zloop_fn handler, void *arg);
 void *
 parch_broker_get_socket(broker_t *self);
 int

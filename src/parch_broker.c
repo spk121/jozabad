@@ -92,6 +92,11 @@ int main(int argc __attribute__((unused)), char *argv [] __attribute__((unused))
     return EXIT_SUCCESS;
 }
 
+void
+parch_broker_add_timer(broker_t *self, size_t delay_in_sec, zloop_fn handler, void *arg) {
+    zloop_timer (self->loop, delay_in_sec * 1000, 1, handler, arg);
+}
+
 void *
 parch_broker_get_socket(broker_t *self) {
     return self->socket;
@@ -255,6 +260,11 @@ s_broker_msg_recv(broker_t *self) {
     return msg;
 }
 
+static int
+s_tick_event (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
+    return 0;
+}
+
 // This is the constructor for the main object.
 // N.B. This is singleton.  Should I take advantage of that?
 static broker_t *
@@ -285,7 +295,7 @@ s_broker_new(int verbose, char *endpoint) {
 
     int rc = zloop_poller(self->loop, self->poll_input, s_socket_event, self);
     assert(rc != -1);
-
+    zloop_timer (self->loop, 100000, 0, s_tick_event, NULL);
     zloop_start(self->loop);
 
     zclock_log("I: SVC broker/0.1 is active at %s", endpoint);

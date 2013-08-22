@@ -96,6 +96,7 @@ enum _diagnostic_t {
     // err_toa_npi_address_subscription_facility_not_subscribed_to,
 
     // Time expired
+    err_time_expired_for_x_call_request,
     err_time_expired_for_y_call_request,
     err_time_expired_for_y_clear_request,
     err_time_expired_for_y_reset_request,

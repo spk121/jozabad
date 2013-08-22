@@ -138,16 +138,17 @@ struct _parch_state_engine_t {
     node_t *node; // loopback to the node that contains this state engine
     state_t state; // current state in the state machine
     event_t event; // current event being processed by the state machine
+    uint32_t event_id;  // count of events processed by this state engine
 
     //
     uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
     uint8_t outgoing_calls_barred; // when true, all call requests from node are ignored.
-    uint8_t throughput_index; // The bps at which this connection is throttled (from lookup table)
+    uint8_t throughput_index; // The rate at which this connection is throttled
 
     // Values for the current call negotiation
     uint8_t call_incoming_data_barred;
     uint8_t call_outgoing_data_barred;
-    uint8_t call_throughput_index;
+    uint8_t call_throughput_index; // less than or equal to the ->throughput_index
     uint8_t call_packet_index;
     uint16_t call_window_size;
 
@@ -177,9 +178,18 @@ struct _state_machine_table_element_t {
     state_t next;
 };
 
+struct _timeout_t {
+    parch_state_engine_t *state_engine;
+    uint32_t event_id;
+    uint32_t iteration;
+};
+
+typedef struct _timeout_t timeout_t;
+
 //  ---------------------------------------------------------------------------
 //  MACROS
 
+#define TIMEOUT_T11 (18)   // peer must reply to our call request within TIMEOUT_T11
 
 
 #define STATE_ENGINE_VALIDITY_CHECKS(s) \
@@ -267,7 +277,8 @@ static const char diagnostic_messages[][50] = {
     [err_packet_too_short] = "packet too short",
     [err_packet_too_long] = "packet_too_long",
     [err_invalid_ps] = "invalid send sequence number",
-    [err_network_congestion] = "channel capacity exceeded"
+    [err_network_congestion] = "channel capacity exceeded",
+    [err_time_expired_for_x_call_request] = "timeout for x call request"
 };
 
 static const state_machine_table_element_t state_machine_table[s_max + 1][e_max + 1] = {
@@ -855,6 +866,11 @@ static const char state_names[][16] = {
 //  ---------------------------------------------------------------------------
 //  DECLARATIONS
 
+static event_t
+s_msg_id_x_next_event(int id);
+
+static event_t
+s_msg_id_y_next_event(int id);
 
 static void
 s_state_engine_clear_negotiation_parameters(parch_state_engine_t *self);
@@ -927,7 +943,7 @@ static void
 s_state_engine_do_y_data(parch_state_engine_t * self);
 
 static void
-s_state_engine_do_y_disconnect (parch_state_engine_t * self)
+s_state_engine_do_y_disconnect(parch_state_engine_t * self)
 __attribute__((nonnull(1)));
 
 static void
@@ -967,12 +983,17 @@ __attribute__((nonnull(1)));
 static void
 s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r);
 
+static int
+s_state_engine_timeout_t11_callback (zloop_t *loop, zmq_pollitem_t *item __attribute__((unused)), void *arg);
+
 static bool
 s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r, diagnostic_t *diagnostic);
 
 static int
 s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p);
 
+static int
+state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t diagnostic, state_t next);
 
 // ================================================================
 // Lowest-level operations for state machine
@@ -1094,36 +1115,37 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
         self->next_cause = number_busy;
         self->next_diagnostic = err_no_logical_channel_available;
     } else {
-        parch_msg_t *peer_msg = parch_msg_dup(self->request);
-
         // CALL NEGOTIATION, STEP 1
         // When a call request passes through the state engine, it begins
         // the process of call negotiation.  The state engine may
         // downgrade some of the requested attributes of the connection
         // before sending it to the peer.
-
-        s_state_engine_clear_negotiation_parameters(self);
-        parch_msg_apply_defaults_to_connect_request(peer_msg);
-        // The initiating node may not declare a throughput that is faster
-        // than it can handle.
-        uint8_t i = parch_throughput_index_throttle(parch_msg_throughput(peer_msg),
-                                                    self->throughput_index);
-        parch_msg_set_throughput(peer_msg, i);
-
         diagnostic_t diagnostic;
-        if (parch_msg_validate_connect_request(peer_msg, &diagnostic) == false) {
+        if (parch_msg_validate_connect_request(self->request, &diagnostic) == false) {
             self->state = s_unspecified;
             self->next_event = e_clear;
             self->next_cause = invalid_facility_request;
             self->next_diagnostic = diagnostic;
             s_state_engine_log(self, diagnostic_messages[diagnostic]);
-            parch_msg_destroy(&peer_msg);
         } else {
-            // We also store info about the call request.  We'll need it later steps.
+            parch_msg_t *peer_msg = parch_msg_dup(self->request);
+            parch_msg_apply_defaults_to_connect_request(peer_msg);
+            // The initiating node may not declare a throughput that is faster
+            // than it can handle.
+            uint8_t i = parch_throughput_index_throttle(parch_msg_throughput(peer_msg),
+                    self->throughput_index);
+            parch_msg_set_throughput(peer_msg, i); // We also store info about the call request.  We'll need it later steps.
             s_state_engine_store_negotiation_parameters(self, peer_msg);
 
             self->state = s2_x_call;
             s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
+
+            // The peer needs to reply to this message, else we'll timeout.
+            timeout_t *t = (timeout_t *)zmalloc(sizeof(timeout_t));
+            t->state_engine = self;
+            t->event_id = self->event_id;
+            t->iteration = 0;
+            parch_broker_add_timer (self->broker, TIMEOUT_T11, s_state_engine_timeout_t11_callback, t);
         }
     }
 }
@@ -1159,37 +1181,34 @@ s_state_engine_do_x_data(parch_state_engine_t * self) {
     assert(self->request);
     assert(parch_msg_id(self->request) == PARCH_MSG_DATA);
 
-    parch_msg_t *msg = parch_msg_dup(self->request);
-
+    bool ok = true;
     if (self->call_outgoing_data_barred) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
+        ok = false;
         self->next_cause = access_barred;
         self->next_diagnostic = err_outgoing_data_barred;
-        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
-        parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) == 0) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_packet_too_short;
-        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
-        parch_msg_destroy(&msg);
-    } else if (zframe_size(parch_msg_data(msg)) > parch_packet_bytes(self->call_packet_index)) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_packet_too_long;
-        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
-        parch_msg_destroy(&msg);
-    } else if (parch_msg_sequence(msg) != self->x_sequence_number) {
-        self->state = s_unspecified;
-        self->next_event = e_reset;
-        self->next_cause = local_procedure_error;
-        self->next_diagnostic = err_invalid_ps;
-        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
-        parch_msg_destroy(&msg);
     } else {
+        size_t siz = zframe_size(parch_msg_data(self->request));
+        size_t siz_max = parch_packet_bytes(self->call_packet_index);
+        if (siz == 0) {
+            ok = false;
+            self->next_cause = local_procedure_error;
+            self->next_diagnostic = err_packet_too_short;
+        } else if (siz > siz_max) {
+            ok = false;
+            self->next_cause = local_procedure_error;
+            self->next_diagnostic = err_packet_too_long;
+        } else if (parch_msg_sequence(self->request) != self->x_sequence_number) {
+            ok = false;
+            self->next_cause = local_procedure_error;
+            self->next_diagnostic = err_invalid_ps;
+        }
+    }
+
+    if (ok == false) {
+        self->state = s_unspecified;
+        s_state_engine_log(self, diagnostic_messages[self->next_diagnostic]);
+    } else {
+        parch_msg_t *msg = parch_msg_dup(self->request);
         s_state_engine_send_msg_to_peer_and_log(self, &msg);
         self->x_sequence_number++;
     }
@@ -1254,7 +1273,7 @@ s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready) {
     // The node updates the range of packets it will accept.  That
     // range has to be greater than the last range, but, it can't
     // start later than the next packet expected from the peer.
-    if (rs <= self->x_window || rs > self->y_sequence_number) {
+    if (rs > self->x_window && rs <= self->y_sequence_number) {
         self->x_window = rs;
         self->x_not_ready = not_ready;
         parch_msg_t *msg = parch_msg_dup(self->request);
@@ -1270,8 +1289,6 @@ s_state_engine_do_x_rr_internal(parch_state_engine_t *self, int not_ready) {
         self->next_diagnostic = err_invalid_pr;
     }
 }
-
-
 
 static void
 s_state_engine_do_y_call_accepted(parch_state_engine_t * self) {
@@ -1329,7 +1346,7 @@ s_state_engine_do_y_call_request(parch_state_engine_t * self) {
     // Here in STEP 2, we reduce the throughput if this node state engine
     // requires it
     uint8_t i = parch_throughput_index_throttle(parch_msg_throughput(r),
-                                                self->throughput_index);
+            self->throughput_index);
     parch_msg_set_throughput(r, i);
 
     diagnostic_t diagnostic;
@@ -1361,6 +1378,7 @@ s_state_engine_do_y_clear_request(parch_state_engine_t * self) {
     s_state_engine_send_msg_to_node_and_log(self, &r);
     s_state_engine_reset_flow_control(self);
 }
+
 static void
 s_state_engine_do_y_clear_confirmation(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
@@ -1466,7 +1484,7 @@ s_state_engine_do_y_data(parch_state_engine_t * self) {
 }
 
 static void
-s_state_engine_do_y_disconnect (parch_state_engine_t * self) {
+s_state_engine_do_y_disconnect(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
     // Y has requested a disconnect.
     // Forward this on to the node so it knows that its peer has disappeared.
@@ -1501,7 +1519,7 @@ s_state_engine_do_y_rr_internal(parch_state_engine_t *self, int not_ready) {
     // The node updates the range of packets it will accept.  That
     // range has to be greater than the last range, but, it can't
     // start later than the next packet expected from the peer.
-    if (rs <= self->y_window || rs > self->x_sequence_number) {
+    if (rs > self->y_window && rs <= self->x_sequence_number) {
         self->y_window = rs;
         self->y_not_ready = not_ready;
         parch_msg_t *msg = parch_msg_dup(self->request);
@@ -1619,6 +1637,17 @@ s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_ms
     self->call_window_size = parch_msg_window(r);
 }
 
+// This is the timeout timer for when we send CALL_REQUEST to the peer
+static int
+s_state_engine_timeout_t11_callback (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
+    timeout_t *t = (timeout_t *) arg;
+    if (t->state_engine->event_id == t->event_id) {
+        // We're still stuck on this event
+        state_machine_dispatch(t->state_engine, a_clear, err_time_expired_for_x_call_request, s7_y_clear);
+    }
+    return 0;
+}
+
 // During the negotiation process, each step is only allowed to make things more restrictive.
 // Can't make things less restrictive.
 
@@ -1642,7 +1671,7 @@ s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch
         // The node is not allowed to increase the throughput or set it to one of the
         valid = false;
         *diagnostic = err_invalid_negotiation__throughput;
-    } else if (!parch_window_negotiate(parch_msg_window (msg), self->call_window_size).ok) {
+    } else if (!parch_window_negotiate(parch_msg_window(msg), self->call_window_size).ok) {
 
         valid = false;
         *diagnostic = err_invalid_negotiation__window_size;
@@ -1751,6 +1780,7 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             action_names[action], state_names[self->state]);
     free(node_addr);
     usleep(1);
+    self->event_id ++;
     switch (action) {
         case a_unspecified:
         case a_discard:
@@ -1766,9 +1796,7 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
             s_state_engine_do_disconnect(self, diagnostic);
             break;
         case a_x_connect:
-            // x_connect is handled by the broker
-            // So we ignore it here.
-            //s_state_engine_do_x_connect(self);
+            // x_connect is handled by the broker.
             break;
         case a_x_disconnect:
             s_state_engine_do_x_disconnect(self);
@@ -1901,14 +1929,13 @@ state_machine_dispatch(parch_state_engine_t *self, action_t action, diagnostic_t
 static int
 state_machine_dispatch_event(parch_state_engine_t * self) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
-    int done = 0;
     assert(self->next_event >= e_x_connect && self->next_event <= e_max);
-    while (self->next_event != e_unspecified) {
+
+    int done = 0;
+    while (self->next_event != e_unspecified && done == 0) {
         state_t s = self->state;
         event_t e = self->next_event;
         diagnostic_t d = self->next_diagnostic;
-        assert(s >= s0_disconnected && s <= s9_y_reset);
-        assert(e <= e_max);
         const state_machine_table_element_t * elt = &state_machine_table[s][e];
         if (d != err_none) {
             // Some events, like reset and clear events, override the state machine's generic
@@ -1930,6 +1957,7 @@ parch_state_engine_new(broker_t *broker, node_t * node, byte incoming_barred, by
     self->node = node;
     self->state = s0_disconnected;
     self->event = e_unspecified;
+    self->event_id = 0;
     self->next_event = e_unspecified;
     self->request = NULL;
     self->incoming_calls_barred = incoming_barred;
@@ -1972,64 +2000,14 @@ parch_state_engine_test(bool verbose);
 //  Process message from pipe
 
 int
-parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t * msg) {
+parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t *msg) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
-
     assert(msg);
 
     if (self->request)
         parch_msg_destroy(&self->request);
-    assert(self->request == NULL);
     self->request = parch_msg_dup(msg);
-    switch (parch_msg_id(msg)) {
-        case PARCH_MSG_DATA:
-            assert(parch_msg_sequence(msg) == self->x_sequence_number);
-            self->next_event = e_x_data;
-            break;
-
-        case PARCH_MSG_RR:
-            assert(parch_msg_sequence(msg) >= self->x_window);
-            self->next_event = e_x_rr;
-            break;
-
-        case PARCH_MSG_RNR:
-            self->next_event = e_x_rnr;
-            break;
-
-        case PARCH_MSG_CALL_REQUEST:
-            assert(parch_msg_service(msg) != NULL);
-            assert(strlen(parch_msg_service(msg)) > 0);
-            self->next_event = e_x_call_request;
-            break;
-
-        case PARCH_MSG_CALL_ACCEPTED:
-            self->next_event = e_x_call_accepted;
-            break;
-
-        case PARCH_MSG_CLEAR_REQUEST:
-            self->next_event = e_x_clear_request;
-            break;
-
-        case PARCH_MSG_CLEAR_CONFIRMATION:
-            self->next_event = e_x_clear_confirmation;
-            break;
-
-        case PARCH_MSG_RESET_REQUEST:
-            self->next_event = e_x_reset_request;
-            break;
-
-        case PARCH_MSG_RESET_CONFIRMATION:
-            self->next_event = e_x_reset_confirmation;
-            break;
-
-        case PARCH_MSG_CONNECT:
-            self->next_event = e_x_connect;
-            break;
-
-        case PARCH_MSG_DISCONNECT:
-            self->next_event = e_x_disconnect;
-            break;
-    }
+    self->next_event = s_msg_id_x_next_event(parch_msg_id(msg));
     int done = state_machine_dispatch_event(self);
 
     STATE_ENGINE_VALIDITY_CHECKS(self);
@@ -2039,9 +2017,9 @@ parch_state_engine_x_message(parch_state_engine_t *self, parch_msg_t * msg) {
 static int
 s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p) {
     STATE_ENGINE_VALIDITY_CHECKS(self);
-
+    assert(msg_p);
+    assert(msg_p[0]);
     parch_msg_t *msg = msg_p[0];
-    self->request = parch_msg_dup(msg);
 
     if (parch_broker_get_verbose(self->broker)) {
         char * const self_addr = zframe_strhex(parch_node_get_node_address(self->node));
@@ -2050,51 +2028,107 @@ s_state_engine_y_message(parch_state_engine_t *self, parch_msg_t **msg_p) {
         parch_msg_dump(msg);
     }
 
-    switch (parch_msg_id(msg)) {
-        case PARCH_MSG_DATA:
-            assert(parch_msg_sequence(msg) == self->y_sequence_number);
-            self->next_event = e_y_data;
-            break;
-
-        case PARCH_MSG_RR:
-            assert(parch_msg_sequence(msg) >= self->y_window);
-            self->next_event = e_y_rr;
-            break;
-
-        case PARCH_MSG_RNR:
-            self->next_event = e_y_rnr;
-            break;
-
-        case PARCH_MSG_CALL_REQUEST:
-            assert(parch_msg_service(msg) != NULL);
-            assert(strlen(parch_msg_service(msg)) > 0);
-            self->next_event = e_y_call_request;
-            break;
-
-        case PARCH_MSG_CALL_ACCEPTED:
-            self->next_event = e_y_call_accepted;
-            break;
-
-        case PARCH_MSG_CLEAR_REQUEST:
-            self->next_event = e_y_clear_request;
-            break;
-
-        case PARCH_MSG_CLEAR_CONFIRMATION:
-            self->next_event = e_y_clear_confirmation;
-            break;
-
-        case PARCH_MSG_RESET_REQUEST:
-            self->next_event = e_y_reset_request;
-            break;
-
-        case PARCH_MSG_RESET_CONFIRMATION:
-            self->next_event = e_y_reset_confirmation;
-            break;
-        case PARCH_MSG_DISCONNECT:
-            self->next_event = e_y_disconnect;
-            break;
-    }
+    self->request = parch_msg_dup(msg);
+    self->next_event = s_msg_id_y_next_event(parch_msg_id(msg));
     int done = state_machine_dispatch_event(self);
     parch_msg_destroy(msg_p);
     return done;
 }
+
+static event_t
+s_msg_id_x_next_event(int id) {
+    event_t ret;
+    switch (id) {
+        case PARCH_MSG_DATA:
+            ret = e_x_data;
+            break;
+
+        case PARCH_MSG_RR:
+            ret = e_x_rr;
+            break;
+
+        case PARCH_MSG_RNR:
+            ret = e_x_rnr;
+            break;
+
+        case PARCH_MSG_CALL_REQUEST:
+            ret = e_x_call_request;
+            break;
+
+        case PARCH_MSG_CALL_ACCEPTED:
+            ret = e_x_call_accepted;
+            break;
+
+        case PARCH_MSG_CLEAR_REQUEST:
+            ret = e_x_clear_request;
+            break;
+
+        case PARCH_MSG_CLEAR_CONFIRMATION:
+            ret = e_x_clear_confirmation;
+            break;
+
+        case PARCH_MSG_RESET_REQUEST:
+            ret = e_x_reset_request;
+            break;
+
+        case PARCH_MSG_RESET_CONFIRMATION:
+            ret = e_x_reset_confirmation;
+            break;
+
+        case PARCH_MSG_CONNECT:
+            ret = e_x_connect;
+            break;
+
+        case PARCH_MSG_DISCONNECT:
+            ret = e_x_disconnect;
+            break;
+    }
+    return ret;
+}
+
+static event_t
+s_msg_id_y_next_event(int id) {
+    event_t ret;
+    switch (id) {
+        case PARCH_MSG_DATA:
+            ret = e_y_data;
+            break;
+
+        case PARCH_MSG_RR:
+            ret = e_y_rr;
+            break;
+
+        case PARCH_MSG_RNR:
+            ret = e_y_rnr;
+            break;
+
+        case PARCH_MSG_CALL_REQUEST:
+            ret = e_y_call_request;
+            break;
+
+        case PARCH_MSG_CALL_ACCEPTED:
+            ret = e_y_call_accepted;
+            break;
+
+        case PARCH_MSG_CLEAR_REQUEST:
+            ret = e_y_clear_request;
+            break;
+
+        case PARCH_MSG_CLEAR_CONFIRMATION:
+            ret = e_y_clear_confirmation;
+            break;
+
+        case PARCH_MSG_RESET_REQUEST:
+            ret = e_y_reset_request;
+            break;
+
+        case PARCH_MSG_RESET_CONFIRMATION:
+            ret = e_y_reset_confirmation;
+            break;
+        case PARCH_MSG_DISCONNECT:
+            ret = e_y_disconnect;
+            break;
+    }
+    return ret;
+}
+

@@ -83,10 +83,12 @@ int main(int argc, char *argv []) {
         parch_msg_dump(request);
         assert(parch_msg_id(request) == PARCH_MSG_CALL_REQUEST);
         assert(streq(parch_msg_service(request), "echo"));
-        parch_msg_destroy(&request);
+
 
         // Respond that the call is accepted
-        parch_msg_send_call_accepted(parch_node_client(session), 0, 0, 7, 128, 13);
+        parch_msg_send_call_accepted(parch_node_client(session), 0, 0, parch_msg_packet(request), parch_msg_window(request), parch_msg_throughput(request));
+
+        parch_msg_destroy(&request);
 
         // Wait for a data packet
         request = parch_msg_recv(parch_node_client(session));

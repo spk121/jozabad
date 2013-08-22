@@ -41,7 +41,7 @@ parch_msg_validate_connect_request(parch_msg_t *self, diagnostic_t *diag) {
     } else if (!parch_packet_index_validate(parch_msg_throughput(self))) {
         ok = false;
         *diag = err_packet_size_out_of_range;
-    } else if (parch_msg_window(self) < WINDOW_MIN || parch_msg_window(self) > WINDOW_MAX) {
+    } else if (!parch_window_validate(parch_msg_window(self))) {
         ok = false;
         *diag = err_window_size_out_of_range;
     }
