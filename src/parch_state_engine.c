@@ -5,7 +5,7 @@
     Copyright (c) <year> - <company name> - <website>
     Copyright other contributors as noted in the AUTHORS file.
 
-    This file is part of <project name>, <description>
+    This file is part of <project name>, <descriptio>
     <website>
 
     This is free software; you can redistribute it and/or modify it under
@@ -139,6 +139,7 @@ struct _parch_state_engine_t {
     state_t state; // current state in the state machine
     event_t event; // current event being processed by the state machine
     uint32_t event_id;  // count of events processed by this state engine
+    uint32_t timeout_count;
 
     //
     uint8_t incoming_calls_barred; // when true, all incoming call request from peer are ignored
@@ -189,7 +190,9 @@ typedef struct _timeout_t timeout_t;
 //  ---------------------------------------------------------------------------
 //  MACROS
 
-#define TIMEOUT_T11 (18)   // peer must reply to our call request within TIMEOUT_T11
+#define TIMEOUT_T11 (18)   // node must reply to our call request within TIMEOUT_T11
+#define TIMEOUT_T13 (6)
+#define TIMEOUT_T21 (20)   // peer must reply to our call request within TIMEOUT_T21
 
 
 #define STATE_ENGINE_VALIDITY_CHECKS(s) \
@@ -985,6 +988,10 @@ s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_ms
 
 static int
 s_state_engine_timeout_t11_callback (zloop_t *loop, zmq_pollitem_t *item __attribute__((unused)), void *arg);
+static int
+s_state_engine_timeout_t13_callback (zloop_t *loop, zmq_pollitem_t *item __attribute__((unused)), void *arg);
+static int
+s_state_engine_timeout_t21_callback (zloop_t *loop, zmq_pollitem_t *item __attribute__((unused)), void *arg);
 
 static bool
 s_state_engine_validate_negotiation_parameters(parch_state_engine_t *self, parch_msg_t *r, diagnostic_t *diagnostic);
@@ -1024,6 +1031,12 @@ s_state_engine_do_clear(parch_state_engine_t *self, diagnostic_t diagnostic) {
         parch_msg_t *peer_msg = parch_msg_new_clear_request_msg(addr, remote_procedure_error, diagnostic);
         s_state_engine_send_msg_to_peer_and_log(self, &peer_msg);
     }
+            // The peer needs to reply to this message, else we'll timeout.
+            timeout_t *t = (timeout_t *)zmalloc(sizeof(timeout_t));
+            t->state_engine = self;
+            t->event_id = self->event_id;
+            t->iteration = self->timeout_count;
+            parch_broker_add_timer (self->broker, TIMEOUT_T13, s_state_engine_timeout_t13_callback, t);
 }
 
 // This action is when the broker itself shuts this node down.
@@ -1145,7 +1158,7 @@ s_state_engine_do_x_call_request(parch_state_engine_t * self) {
             t->state_engine = self;
             t->event_id = self->event_id;
             t->iteration = 0;
-            parch_broker_add_timer (self->broker, TIMEOUT_T11, s_state_engine_timeout_t11_callback, t);
+            parch_broker_add_timer (self->broker, TIMEOUT_T21, s_state_engine_timeout_t21_callback, t);
         }
     }
 }
@@ -1364,6 +1377,13 @@ s_state_engine_do_y_call_request(parch_state_engine_t * self) {
         // Make sure it has the return address
         parch_msg_set_address(r, parch_node_get_node_address(self->node));
         s_state_engine_send_msg_to_node_and_log(self, &r);
+
+            // The node needs to reply to this message, else we'll timeout.
+            timeout_t *t = (timeout_t *)zmalloc(sizeof(timeout_t));
+            t->state_engine = self;
+            t->event_id = self->event_id;
+            t->iteration = 0;
+            parch_broker_add_timer (self->broker, TIMEOUT_T11, s_state_engine_timeout_t11_callback, t);
     }
 }
 
@@ -1637,7 +1657,7 @@ s_state_engine_store_negotiation_parameters(parch_state_engine_t *self, parch_ms
     self->call_window_size = parch_msg_window(r);
 }
 
-// This is the timeout timer for when we send CALL_REQUEST to the peer
+// This is the timeout timer for when we send CALL_REQUEST to the node
 static int
 s_state_engine_timeout_t11_callback (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
     timeout_t *t = (timeout_t *) arg;
@@ -1647,6 +1667,48 @@ s_state_engine_timeout_t11_callback (zloop_t *loop __attribute__((unused)), zmq_
     }
     return 0;
 }
+
+// This is the timeout timer for when we send CLEAR_REQUEST to the node
+static int
+s_state_engine_timeout_t13_callback (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
+    timeout_t *t = (timeout_t *) arg;
+    if (t->state_engine->event_id == t->event_id) {
+        // We're still stuck on this event
+        if (t->iteration == 0)
+                state_machine_dispatch(t->state_engine, a_clear, err_time_expired_for_x_call_request, s7_y_clear);
+        else
+                state_machine_dispatch(t->state_engine, a_disconnect, err_none, s0_disconnected);
+        t->state_engine->timeout_count ++;
+    }
+    return 0;
+}
+
+// This is the timeout timer for when we send CALL_REQUEST to the peer
+static int
+s_state_engine_timeout_t21_callback (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
+    timeout_t *t = (timeout_t *) arg;
+    if (t->state_engine->event_id == t->event_id) {
+        // We're still stuck on this event
+        state_machine_dispatch(t->state_engine, a_clear, err_time_expired_for_x_call_request, s7_y_clear);
+    }
+    return 0;
+}
+
+#if 0
+// This is the timeout timer for when we send RESET_REQUEST to the peer
+static int
+s_state_engine_timeout_t22_callback (zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item __attribute__((unused)), void *arg) {
+    timeout_t *t = (timeout_t *) arg;
+    if (t->state_engine->event_id == t->event_id) {
+        // We're still stuck on this event
+        if (t->state_engine->n_timeout == 0)
+            state_machine_dispatch(t->state_engine, a_reset, err_time_expired_for_x_call_request, s9_y_reset);
+        else
+            state_machine_dispatch(t->state_engine, a_clear, err_time_expired_for_x_call_request, s7_y_clear);
+    }
+    return 0;
+}
+#endif
 
 // During the negotiation process, each step is only allowed to make things more restrictive.
 // Can't make things less restrictive.

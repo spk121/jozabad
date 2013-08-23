@@ -295,7 +295,7 @@ s_broker_new(int verbose, char *endpoint) {
 
     int rc = zloop_poller(self->loop, self->poll_input, s_socket_event, self);
     assert(rc != -1);
-    zloop_timer (self->loop, 100000, 0, s_tick_event, NULL);
+    // zloop_timer (self->loop, 100000, 0, s_tick_event, NULL);
     zloop_start(self->loop);
 
     zclock_log("I: SVC broker/0.1 is active at %s", endpoint);
