@@ -1,4 +1,10 @@
+# temp files
+*~
+tmp*
+
 # Object files
+*.gch
+*.pch
 *.o
 
 # Libraries
