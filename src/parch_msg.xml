@@ -34,8 +34,7 @@ Tells peer to stop sending data.
 <message name = "CALL_REQUEST" id = "13">
 Call a peer. Negotiate the type of connection requested.
   <field name = "service" type = "string" />
-  <field name = "outgoing" type = "number" size = "1" />
-  <field name = "incoming" type = "number" size = "1" />
+  <field name = "directionality" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
   <field name = "window" type = "number" size = "2" />
   <field name = "throughput" type = "number" size = "1" />
@@ -43,8 +42,7 @@ Call a peer. Negotiate the type of connection requested.
 
 <message name = "CALL_ACCEPTED" id = "15">
 Answer the call.
-  <field name = "outgoing" type = "number" size = "1" />
-  <field name = "incoming" type = "number" size = "1" />
+  <field name = "directionality" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
   <field name = "window" type = "number" size = "2" />
   <field name = "throughput" type = "number" size = "1" />
@@ -79,13 +77,14 @@ Client node requests connection to the broker.
   <field name = "protocol" type = "string" value = "PARCH" />
   <field name = "version" type = "number" size = "1" value = "PARCH_MSG_VERSION" />
   <field name = "service" type = "string" />
-  <field name = "incoming" type = "number" size = "1" />
-  <field name = "outgoing" type = "number" size = "1" />
+  <field name = "directionality" type = "number" size = "1" />
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
 <message name = "CONNECT_INDICATION" id = "45">
 Broker tells node that it has been connected.
+  <field name = "directionality" type = "number" size = "1" />
+  <field name = "throughput" type = "number" size = "1" />
 </message>
 
 <message name = "DISCONNECT" id = "47">
