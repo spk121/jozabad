@@ -1,4 +1,5 @@
-#include "../include/parch_throughput.h"
+#include "../include/throughput.h"
+#include "../include/diagnostic.h"
 
 static const uint32_t throughput_classes[THROUGHPUT_INDEX_MAX + 1] = {
     [3] = 75,
@@ -50,9 +51,15 @@ parch_throughput_index_validate(uint8_t i)
 {
     if (i == 0)
         return true;
-    else if (i >= THROUGHPUT_INDEX_MIN || i <= THROUGHPUT_INDEX_MAX)
-        return true;
-    return false;
+    else if (i < THROUGHPUT_INDEX_MIN) {
+        diagnostic = d_throughput_index_too_small;
+        return false;
+    }
+    else if (i > THROUGHPUT_INDEX_MAX) {
+        diagnostic = d_throughput_index_too_large;
+        return false;
+    }
+    return true;
 }
 
 uint8_t
@@ -78,24 +85,19 @@ parch_throughput_index_throttle(uint8_t request, uint8_t limit)
 }
 
 // During a negotiation, you can only reduce the throughput.
-parch_throughput_negotiation_t
+bool
 parch_throughput_index_negotiate(uint8_t request, uint8_t current)
 {
     assert (parch_throughput_index_validate(request));
     assert (parch_throughput_index_validate(current));
 
-    parch_throughput_negotiation_t ret;
     uint8_t request2 = parch_throughput_index_apply_default(request);
     uint8_t current2 = parch_throughput_index_apply_default(current);
     if (request2 > current2) {
-        ret.ok = false;
-        ret.index = current2;
+        diagnostic = d_throughput_index_invalid_negotiation;
+        return false;
     }
-    else {
-        ret.ok = true;
-        ret.index = request2;
-    }
-    return ret;
+    return true;
 }
 
 uint32_t

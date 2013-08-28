@@ -12,24 +12,23 @@
 extern "C" {
 #endif
 
-#define WINDOW_MIN 1
-#define WINDOW_MAX 32768
-#define WINDOW_DEFAULT 2
-#define WINDOW_NOMINAL 2
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-typedef struct _window_negotiation {
-    bool ok;
-    uint32_t size;
-} parch_window_negotiation_t;
+#define WINDOW_MIN 1U
+#define WINDOW_MAX 32768U
+#define WINDOW_DEFAULT 2U
+#define WINDOW_NOMINAL 2U
 
 bool
-parch_window_validate(uint32_t i);
-uint32_t
-parch_window_apply_default(uint32_t i);
-uint32_t
-parch_window_throttle(uint32_t request, uint32_t limit);
-parch_window_negotiation_t
-parch_window_negotiate(uint32_t request, uint32_t current);
+parch_window_validate(uint16_t i);
+uint16_t
+parch_window_apply_default(uint16_t i);
+uint16_t
+parch_window_throttle(uint16_t request, uint16_t limit);
+bool
+parch_window_negotiate(uint16_t request, uint16_t current);
 
 #ifdef	__cplusplus
 }

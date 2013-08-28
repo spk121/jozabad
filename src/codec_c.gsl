@@ -83,6 +83,33 @@
 extern "C" {
 #endif
 
+//  Structure of our class
+
+struct _$(class.name)_t {
+    zframe_t *address;          //  Address of peer if any
+    int id;                     //  $(class.name) message ID
+    byte *needle;               //  Read/write pointer for serialization
+    byte *ceiling;              //  Valid upper limit for read pointer
+.for class.field
+.   if type = "number"
+    $(ctype) $(name);
+.   elsif type = "octets"
+    byte $(name) [$(size)];
+.   elsif type = "string"
+    char *$(name);
+.   elsif type = "strings"
+    zlist_t *$(name);
+.   elsif type = "raw"
+    uint8_t *$(name);
+.   elsif type = "dictionary"
+    zhash_t *$(name);
+    size_t $(name)_bytes;       //  Size of dictionary content
+.   elsif type = "frame"
+    zframe_t *$(name);
+.   endif
+.endfor
+};
+
 //  Opaque class structure
 typedef struct _$(class.name)_t $(class.name)_t;
 
@@ -255,32 +282,7 @@ int
 #include <czmq.h>
 #include "../include/$(class.name).h"
 
-//  Structure of our class
 
-struct _$(class.name)_t {
-    zframe_t *address;          //  Address of peer if any
-    int id;                     //  $(class.name) message ID
-    byte *needle;               //  Read/write pointer for serialization
-    byte *ceiling;              //  Valid upper limit for read pointer
-.for class.field
-.   if type = "number"
-    $(ctype) $(name);
-.   elsif type = "octets"
-    byte $(name) [$(size)];
-.   elsif type = "string"
-    char *$(name);
-.   elsif type = "strings"
-    zlist_t *$(name);
-.   elsif type = "raw"
-    uint8_t *$(name);
-.   elsif type = "dictionary"
-    zhash_t *$(name);
-    size_t $(name)_bytes;       //  Size of dictionary content
-.   elsif type = "frame"
-    zframe_t *$(name);
-.   endif
-.endfor
-};
 
 //  --------------------------------------------------------------------------
 //  Network data encoding macros

@@ -14,7 +14,7 @@ int main(int argc, char *argv []) {
 
         // This is the client side of test 1
         parch_msg_send_connect(parch_node_client(session),
-                (char *) parch_node_service(session), 0, 0, 0);
+                (char *) parch_node_service(session), 0, 0);
 
         // Wait for a connection indication
         request = parch_msg_recv(parch_node_client(session));
@@ -23,7 +23,7 @@ int main(int argc, char *argv []) {
         assert(parch_msg_id(request) == PARCH_MSG_CONNECT_INDICATION);
         parch_msg_destroy(&request);
 
-        parch_msg_send_call_request(parch_node_client(session), (char *) "echo", 0, 0, 0, 0, 0);
+        parch_msg_send_call_request(parch_node_client(session), (char *) "echo", 0, 0, 0, 0);
 
         // Wait for a call acceptance
         request = parch_msg_recv(parch_node_client(session));
@@ -68,7 +68,7 @@ int main(int argc, char *argv []) {
 
         // Connect to the broker
         parch_msg_send_connect(parch_node_client(session),
-                (char *) parch_node_service(session), 0, 0, 0);
+                (char *) parch_node_service(session), 0, 0);
 
         // Wait for a connection indication
         request = parch_msg_recv(parch_node_client(session));
@@ -86,7 +86,7 @@ int main(int argc, char *argv []) {
 
 
         // Respond that the call is accepted
-        parch_msg_send_call_accepted(parch_node_client(session), 0, 0, parch_msg_packet(request), parch_msg_window(request), parch_msg_throughput(request));
+        parch_msg_send_call_accepted(parch_node_client(session), 0, parch_msg_packet(request), parch_msg_window(request), parch_msg_throughput(request));
 
         parch_msg_destroy(&request);
 
@@ -116,7 +116,7 @@ int main(int argc, char *argv []) {
     } else if (argc > 1 && streq(argv[1], "C2")) {
         // This is the client side of test 2
         parch_msg_send_connect(parch_node_client(session),
-                (char *) parch_node_service(session), 0, 0, 0);
+                (char *) parch_node_service(session), 0, 0);
         parch_msg_send_rnr(parch_node_client(session), 0);
     }
 

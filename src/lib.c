@@ -4,8 +4,38 @@
  *
  * Created on August 17, 2013, 12:35 PM
  */
+#include <czmq.h>
+#include "../include/lib.h"
 
-#include "../include/parch.h"
+zctx_t *
+zctx_new_or_die (void) {
+    zctx_t *c = zctx_new();
+    if (c == NULL) {
+        zclock_log("failed to create a ZeroMQ context");
+        exit(1);
+    }
+    return c;
+}
+
+void *
+zsocket_new_or_die(zctx_t *ctx, int type) {
+    void *sock = zsocket_new(ctx, type);
+    if (sock == NULL) {
+        zclock_log("failed to create a new ZeroMQ socket");
+        exit(1);
+    }
+    return sock;
+}
+
+zloop_t *
+zloop_new_or_die(void) {
+    zloop_t *L = zloop_new();
+    if (L == NULL) {
+        zclock_log("failed to create a new ZeroMQ main loop");
+        exit (1);
+    }
+    return L;
+}
 
 bool
 is_safe_ascii(const char * const str) {

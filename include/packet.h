@@ -12,15 +12,14 @@
 extern "C" {
 #endif
 
-#define PACKET_INDEX_MIN 3            // 16 bytes
+#include <stdbool.h>
+#include <assert.h>
+#include <stdint.h>
+
+#define PACKET_INDEX_MIN 4            // 16 bytes
 #define PACKET_INDEX_MAX 12           // 4  kbytes
 #define PACKET_INDEX_DEFAULT 7        // 128 bytes
 #define PACKET_INDEX_NOMINAL 7
-
-typedef struct _packet_negotiation {
-    bool ok;
-    uint8_t index;
-} parch_packet_negotiation_t;
 
 bool
 parch_packet_index_validate(uint8_t i);
@@ -30,10 +29,12 @@ uint8_t
 parch_packet_index_throttle(uint8_t request, uint8_t limit);
 uint8_t
 parch_packet_index_throttle(uint8_t request, uint8_t limit);
-parch_packet_negotiation_t
+bool
 parch_packet_index_negotiate(uint8_t request, uint8_t current);
 uint32_t
 parch_packet_bytes(uint8_t i);
+void
+lcn_packet_max_size_store_init(void);
 #ifdef	__cplusplus
 }
 #endif
