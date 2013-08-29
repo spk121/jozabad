@@ -8,11 +8,11 @@
 #ifndef PARCH_DIAGNOSTIC_H
 #define	PARCH_DIAGNOSTIC_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#define DIAGNOSTIC_NAME_MAX_LEN (40)
 
-enum _diagnostic_t {
+typedef enum _diagnostic_t {
+    d_unknown,
+    d_action_invalid,
     d_data_packet_not_in_window,
     d_data_packet_out_of_order,
     d_data_packet_too_large,
@@ -30,15 +30,15 @@ enum _diagnostic_t {
     d_window_invalid_negotiation,
     d_window_too_large,
     d_window_too_small,
-};
+    d_last = d_window_too_small,
+} diagnostic_t;
 
-typedef enum _diagnostic_t diagnostic_t;
+extern const char diagnostic_names[d_last + 1][DIAGNOSTIC_NAME_MAX_LEN + 1];
 
 extern diagnostic_t diagnostic;
 
-#ifdef	__cplusplus
-}
-#endif
+char const * const
+    name(diagnostic_t a);
 
 #endif	/* PARCH_DIAGNOSTIC_H */
 

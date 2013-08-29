@@ -1,4 +1,4 @@
-<class name = "parch_msg" signature = "1" title = "transport for Switched Virtual Call messages">
+<class name = "msg" signature = "1" title = "transport for Switched Virtual Call messages">
 This is the Switched Virtual Call protocol version 1
 <license>
 GPL3+, bitches
@@ -24,14 +24,12 @@ Tells peer the lowest send sequence number that it may send in its DATA packet.
   <field name = "sequence" type = "number" size = "4" />
 </message>
 
-<message name = "RNR" id = "5">
+<message name = "RNR" id = "2">
 Tells peer to stop sending data.
   <field name = "sequence" type = "number" size = "4" />
 </message>
 
-<!-- message name = "REJ" id = "9" -->
-
-<message name = "CALL_REQUEST" id = "13">
+<message name = "CALL_REQUEST" id = "3">
 Call a peer. Negotiate the type of connection requested.
   <field name = "service" type = "string" />
   <field name = "directionality" type = "number" size = "1" />
@@ -40,7 +38,7 @@ Call a peer. Negotiate the type of connection requested.
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "CALL_ACCEPTED" id = "15">
+<message name = "CALL_ACCEPTED" id = "4">
 Answer the call.
   <field name = "directionality" type = "number" size = "1" />
   <field name = "packet" type = "number" size = "1" />
@@ -48,52 +46,64 @@ Answer the call.
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "CLEAR_REQUEST" id = "19">
+<message name = "CLEAR_REQUEST" id = "5">
 Request call termination
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
-<message name = "CLEAR_CONFIRMATION" id = "23">
+<message name = "CLEAR_CONFIRMATION" id = "6">
 Accept call termination
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
-<message name = "RESET_REQUEST" id = "27">
+<message name = "RESET_REQUEST" id = "7">
 Tell the peer to restart flow control
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
-<message name = "RESET_CONFIRMATION" id = "31">
+<message name = "RESET_CONFIRMATION" id = "8">
 Tell the peer that we have restarted flow control
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
-<message name = "CONNECT" id = "43">
+<message name = "CONNECT" id = "9">
 Client node requests connection to the broker.
-  <field name = "protocol" type = "string" value = "PARCH" />
-  <field name = "version" type = "number" size = "1" value = "PARCH_MSG_VERSION" />
+  <field name = "protocol" type = "string" value = "~SVC" />
+  <field name = "version" type = "number" size = "1" value = "MSG_VERSION" />
   <field name = "service" type = "string" />
   <field name = "directionality" type = "number" size = "1" />
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "CONNECT_INDICATION" id = "45">
+<message name = "CONNECT_INDICATION" id = "10">
 Broker tells node that it has been connected.
   <field name = "directionality" type = "number" size = "1" />
   <field name = "throughput" type = "number" size = "1" />
 </message>
 
-<message name = "DISCONNECT" id = "47">
+<message name = "DISCONNECT" id = "11">
 Node tells broker that it is disconnecting.
 </message>
 
-<message name = "DISCONNECT_INDICATION" id = "49">
+<message name = "DISCONNECT_INDICATION" id = "12">
  Broker tells node that it has been disconnect
   <field name = "cause" type = "number" size = "1" />
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
+
+<message name = "COUNT" id = "13" />
+
+<!-- message name = "REJ" id = "3" -->
+
+<!-- message name = "INTERRUPT" id = "10" -->
+<!-- message name = "INTERRUPT_CONFIRMATION id = "11" -->
+
+<!-- message name = "DIAGNOSTIC" id = "12" -->
+<!-- message name = "RESTART_REQUEST" id = "13" -->
+<!-- message name = "RESTART_CONFIRMATION id = "14" -->
+
 </class>

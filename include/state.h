@@ -8,13 +8,9 @@
 #ifndef PARCH_STATE_H
 #define	PARCH_STATE_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+#define STATE_NAME_MAX_LEN (24)
 
-#include <stdbool.h>
-
-enum _state_t {
+typedef enum _state_t {
     state_ready,
     state_x_call_request,
     state_y_call_request,
@@ -25,20 +21,16 @@ enum _state_t {
     state_x_reset_request,
     state_y_reset_request,
 
-    state_min = state_ready,
-    state_max = state_y_reset_request,
-};
+    state_last = state_y_reset_request,
+} state_t;
 
-typedef enum _state_t state_t;
+extern const char state_names[state_last + 1][STATE_NAME_MAX_LEN + 1];
 
-extern const char state_names[][25];
+char const * const
+    name(state_t a);
 
 bool
-parch_state_validate(state_t i);
-
-#ifdef	__cplusplus
-}
-#endif
+validate(state_t i);
 
 #endif	/* PARCH_STATE_H */
 

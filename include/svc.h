@@ -8,12 +8,6 @@
 #ifndef SVC_H
 #define	SVC_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-#define _GNU_SOURCE
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -28,16 +22,12 @@ extern "C" {
 #include "diagnostic.h"
 #include "direction.h"
 #include "flow.h"
-#include "parch_msg.h"
+#include "msg.h"
 #include "packet.h"
 #include "state.h"
 #include "throughput.h"
 #include "window.h"
 #include "poll.h"
     
-#ifdef	__cplusplus
-}
-#endif
-
 #endif	/* SVC_H */
 

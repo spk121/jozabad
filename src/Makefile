@@ -10,7 +10,7 @@ INCLUDES = \
     ../include/packet.h \
     ../include/poll.h \
     ../include/state.h \
-    ../include/parch_msg.h \
+    ../include/msg.h \
     ../include/throughput.h \
     ../include/window.h
 
@@ -25,7 +25,7 @@ SRC = action.o \
     packet.o \
     poll.o \
     state.o \
-    parch_msg.o \
+    msg.o \
     throughput.o \
     window.o \
 
@@ -41,7 +41,7 @@ CPPFLAGS = \
     -pedantic \
     -std=c99
 
-CFLAGS = \
+CXXFLAGS = \
     $(CPPFLAGS) \
     -fstrict-aliasing \
     -fstrict-overflow \
@@ -68,7 +68,7 @@ CFLAGS = \
 #    -fmudflapth \
 
 
-CC = gcc
+CXX = g++
 # CC = /home/mike/studio/SolarisStudio12.3-linux-x86-bin/solarisstudio12.3/bin/cc
 # CC = /usr/lib/clang-analyzer/scan-build/ccc-analyzer
 # CFLAGS = -std=c99  -Wall -Wextra -g -O0
@@ -102,71 +102,71 @@ all: broker test_node
 ################################################3
 # source files
 
-parch_msg.c: parch_msg.xml codec_c.gsl
-../include/parch_msg.h: parch_msg.xml codec_c.gsl
+msg.c: parch_msg.xml codec_c.gsl
+../include/msg.h: parch_msg.xml codec_c.gsl
 	./generate
 
 ################################################3
 # header files
 
 ../include/svc.h.gch : ../include/svc.h $(INCLUDES)
-	$(CC) $(CFLAGS) $<
+	$(CXX) $(CXXFLAGS) $<
 
 ################################################3
 # object files
 
-action.o : action.c ../include/svc.h.gch
-	$(CC) $(CFLAGS) -c -o $@ $<
+action.o : action.cpp ../include/svc.h.gch
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 channel.o : channel.c
-	$(CC) $(CFLAGS) -Wno-missing-field-initializers -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $<
 
 connections.o : connections.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-diagnostic.o : diagnostic.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+diagnostic.o : diagnostic.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 main.o : main.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 lib.o : lib.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 direction.o : direction.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 flow.o : flow.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Auto-generated file would have too many warnings if warnings were enabled.
 parch_msg.o : parch_msg.c
-	$(CC) -c -o $@ $<
+	$(CXX) -c -o $@ $<
 
 packet.o : packet.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 poll.o : poll.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-state.o : state.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+state.o : state.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-throughput.o : throughput.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+throughput.o : throughput.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 window.o : window.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 ################################################3
 # executable files
 
 
 test_node: parch_node.o test_node1.o parch_msg.o
-	$(CC) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
+	$(CXX) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
 
 broker: $(OBJ)
-	$(CC) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq
+	$(CXX) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq
 
 clean:
 	-rm ../include/svc.h.gch
@@ -176,5 +176,5 @@ clean:
 .PHONY: check-syntax
 
 check-syntax:
-	$(CC) -Wall -Wextra -pedantic -fsyntax-only $(SRCS) $(ISRCS)
+	$(CXX) -Wall -Wextra -pedantic -fsyntax-only $(SRCS) $(ISRCS)
 
