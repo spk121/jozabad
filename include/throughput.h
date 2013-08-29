@@ -8,7 +8,6 @@
 #ifndef PARCH_THROUGHPUT_H
 #define	PARCH_THROUGHPUT_H
 
-#include <stdbool.h>
 #include <assert.h>
 #include <stdint.h>
 

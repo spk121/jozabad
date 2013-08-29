@@ -8,6 +8,8 @@
 #ifndef PARCH_WINDOW_H
 #define	PARCH_WINDOW_H
 
+#include <cstdint>
+
 #define WINDOW_MIN 1U
 #define WINDOW_MAX 32768U
 #define WINDOW_DEFAULT 2U

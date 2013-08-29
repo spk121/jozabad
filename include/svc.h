@@ -8,9 +8,8 @@
 #ifndef SVC_H
 #define	SVC_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
+#include <cstdint>
+#include <cstring>
 
 #include <czmq.h>
 

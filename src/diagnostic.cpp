@@ -24,7 +24,7 @@ extern const char diagnostic_names[d_last + 1][DIAGNOSTIC_NAME_MAX_LEN + 1] = {
     "D_WINDOW_TOO_SMALL"
 };
 
-char const * const name(diagnostic_t d) {
+char const *name(diagnostic_t d) {
     return diagnostic_names[d];
 }
     

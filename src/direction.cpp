@@ -42,7 +42,7 @@ negotiate(direction_t request, direction_t current) {
     return true;
 }
 
-char const * const
+char const *
 name(direction_t i)
 {
     assert(validate(i));

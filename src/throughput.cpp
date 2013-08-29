@@ -136,7 +136,7 @@ throttle(throughput_t request, throughput_t limit)
     return limit2;
 }
 
-char const * const
+char const *
 name(throughput_t i) {
     assert (validate (i));
     return throughput_names[i];

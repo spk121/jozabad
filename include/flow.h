@@ -8,6 +8,8 @@
 #ifndef PARCH_FLOW_H
 #define	PARCH_FLOW_H
 
+#include <cstdint>
+
 struct _flow_t {
     uint16_t x_send_sequence;
     uint16_t y_send_sequence;

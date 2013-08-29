@@ -1,5 +1,5 @@
 #include <cassert>
-#include <cinttypes>
+#include <cstdint>
 
 #include "../include/packet.h"
 #include "../include/diagnostic.h"
@@ -25,7 +25,7 @@ const char packet_names[p_last + 1][PACKET_NAME_MAX_LEN] = {
     "4 Kbytes"
 };
 
-char const * const
+char const *
 name(packet_t i)
 {
     assert(validate(i));

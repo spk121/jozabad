@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include "../include/flow.h"
 #include "../include/window.h"
 
@@ -21,9 +23,9 @@ init ()
 }
 
 bool
-sequence_in_x_window(flow_t *f, uint16_t sequence);
+sequence_in_x_window(flow_t *f, uint16_t sequence) {
     uint32_t s = sequence;
-    uint32_t lwe = f->lower_window_edge;
+	uint32_t lwe = f->x_lower_window_edge;
     uint32_t ws = f->window_size;
     if (s >= lwe && s < lwe + ws)
         return true;

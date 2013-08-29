@@ -10,7 +10,7 @@ const char state_names[state_last + 1][STATE_NAME_MAX_LEN + 1] = {
     "STATE_Y_RESET_REQUEST"
 };
 
-char const * const
+char const *
 name (state_t i) {
     assert (validate(i));
     return state_names[i];
