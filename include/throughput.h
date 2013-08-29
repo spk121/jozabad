@@ -67,11 +67,11 @@ typedef enum _throughput_t {
     t_dsl_upload_tier_2 = t_768kbps,
     t_last = t_2048kbps
 } throughput_t;
-    
+
 extern const char throughput_names[t_last + 1][THROUGHPUT_NAME_MAX_LEN + 1];
 extern const uint32_t throughput_bps[t_last + 1];
 
-char const * const
+char const *
 name(throughput_t i);
 bool
     validate(throughput_t i);

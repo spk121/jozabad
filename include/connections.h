@@ -8,29 +8,47 @@
 #ifndef CONNECTIONS_H
 #define	CONNECTIONS_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #include <czmq.h>
-#include "parch_msg.h"
+#include <map>
+#include <string>
+#include <memory>
 
-#define CONNECTIONS_MIN 1
-#define CONNECTIONS_MAX 256
+using namespace std;
 
 #include "direction.h"
+#include "throughput.h"
+#include "name.h"
+#include "msg.h"
 
-struct _connection_t {
-    char *key; // the string hash of the ZeroMQ address frame
+
+#define DNAME_LENGTH_MAX 16
+#define DNAME_COUNT (4*26)
+
+class Connection {
+ public:
+    uint16_t id;
     zframe_t *address; // The ZeroMQ address frame of the worker
-    char dname[16]; // The name of the worker in debug messages
-    char name[41]; // The name of the worker. Null-terminated string.
-    uint8_t throughput_index; // An index indicating the maximum bits/sec allowed
-    uint8_t busy; // When true, this connection is on a call
+    char name[NAME_LENGTH_MAX]; // The name of the worker. Null-terminated string.
+    throughput_t throughput;
     direction_t direction;
+    uint8_t busy; // When true, this connection is on a call
+    Connection (zframe_t *address, const char *name, throughput_t t, direction_t d);
+    char const *dname();
+    ~Connection ();
 };
-typedef struct _connection_t connection_t;
 
+#define CONNECTIONS_MAX (256)
+
+class ConnectionStore {
+ public:
+    std::map<string, Connection *> store;
+    ConnectionStore();
+    Connection* find_worker(const char *key);
+    void connect(const char *key, msg_t *msg);
+    void connection_msg_send(const char *key, msg_t **msg);
+};
+
+#if 0
 struct _connection_store_t {
     const int min;
     const int max;
@@ -62,9 +80,6 @@ void
 connection_disconnect(connection_store_t *c, const char *key);
 const char *
 dname(const char *key);
-#ifdef	__cplusplus
-}
 #endif
-
 #endif	/* CONNECTIONS_H */
 

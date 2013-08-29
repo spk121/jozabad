@@ -1,5 +1,5 @@
-#include "../include/svc.h"
-
+#include "../include/channel.h"
+#include "../include/log.h"
 
 channel_store_t channel_store = {CHANNELS_MAGIC, CHANNELS_MIN, CHANNELS_MAX, 0};
 

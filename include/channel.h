@@ -8,10 +8,6 @@
 #ifndef CHANNEL_H
 #define	CHANNEL_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #include <czmq.h>
 #include <stdint.h>
 #include "../include/parch_msg.h"
@@ -59,9 +55,6 @@ void
 channel_store_add_channel (channel_store_t *c, const char *x_key, const char *y_key);
 void
 channel_store_remove_channel (channel_store_t *c, int id);
-#ifdef	__cplusplus
-}
-#endif
 
 #endif	/* CHANNEL_H */
 

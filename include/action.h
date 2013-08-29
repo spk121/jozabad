@@ -48,7 +48,7 @@ typedef enum _action_t {
     a_y_rnr,
     a_y_reset,
     a_y_reset_confirmation,
-    a_last = a_y_reset_confirmation,
+    a_last = a_y_reset_confirmation
 
     //    s0_initialize_timeout,
     //    s2_x_call_waiting_timeout,
@@ -66,7 +66,7 @@ extern const char action_names[(size_t) a_last + 1][ACTION_NAME_MAX_LEN + 1];
 extern const action_t x_action_table[(size_t)state_last + 1][MSG_COUNT];
 extern const action_t y_action_table[(size_t)state_last + 1][MSG_COUNT];
 
-char const * const
+char const *
     name(action_t a);
 
 bool

@@ -8,13 +8,6 @@
 #ifndef PARCH_FLOW_H
 #define	PARCH_FLOW_H
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-#include <stdbool.h>
-#include <stdint.h>
-
 struct _flow_t {
     uint16_t x_send_sequence;
     uint16_t y_send_sequence;
@@ -30,15 +23,11 @@ typedef struct _flow_t flow_t;
 #define PACKET_SEQUENCE_MODULO 32768
 
 flow_t
-flow_reset(flow_t f);
+reset(flow_t f);
 flow_t
-flow_init(void);
+init(void);
 bool
 flow_sequence_in_range(uint16_t sequence, uint16_t lower_window_edge, uint16_t window_size);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif	/* PARCH_FLOW_H */
 

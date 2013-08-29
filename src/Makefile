@@ -7,6 +7,7 @@ INCLUDES = \
     ../include/flow.h \
     ../include/lib.h \
     ../include/log.h \
+    ../include/name.h \
     ../include/packet.h \
     ../include/poll.h \
     ../include/state.h \
@@ -14,32 +15,31 @@ INCLUDES = \
     ../include/throughput.h \
     ../include/window.h
 
-SRC = action.o \
-    channel.o \
-    connections.o \
-    flow.o \
-    diagnostic.o \
-    direction.o \
-    lib.o \
-    main.o \
-    packet.o \
-    poll.o \
-    state.o \
-    msg.o \
-    throughput.o \
-    window.o \
+SRC = action.cpp \
+    connections.cpp \
+    channel.cpp \
+    flow.cpp \
+    diagnostic.cpp \
+    direction.cpp \
+    lib.cpp \
+    main.cpp \
+    packet.cpp \
+    poll.cpp \
+    state.cpp \
+    msg.cpp \
+    throughput.cpp \
+    window.cpp \
 
 #ISRC := $(patsubst %.c,%.o,$(SRC))
 
-OBJ := $(patsubst %.c,%.o,$(SRC))
+OBJ := $(patsubst %.cpp,%.o,$(SRC))
 
 CPPFLAGS = \
     -I/usr/local/include \
     -Wall \
     -Wunused-macros \
     -Wendif-labels \
-    -pedantic \
-    -std=c99
+    -pedantic
 
 CXXFLAGS = \
     $(CPPFLAGS) \
@@ -49,10 +49,9 @@ CXXFLAGS = \
     -ggdb3 \
     -march=native \
     -O2 \
-    -std=c99 \
+    -std=c++11 \
     -Wall \
     -Warray-bounds \
-    -Wc++-compat \
     -Wcast-align \
     -Wno-cast-qual \
     -Wextra \
@@ -70,7 +69,7 @@ CXXFLAGS = \
 
 CXX = g++
 # CC = /home/mike/studio/SolarisStudio12.3-linux-x86-bin/solarisstudio12.3/bin/cc
-# CC = /usr/lib/clang-analyzer/scan-build/ccc-analyzer
+# CXX = /usr/lib/clang-analyzer/scan-build/ccc-analyzer
 # CFLAGS = -std=c99  -Wall -Wextra -g -O0
 
 # compile the data but tell the compiler to separate the code into
@@ -78,7 +77,10 @@ CXX = g++
 # functions, classes, and external variables by using the following
 # two compiler flags:
 
-CFLAGS += -fdata-sections -ffunction-sections
+ifeq (CXX, g++)
+CXXFLAGS += -std=c++11
+CXXFLAGS += -fdata-sections -ffunction-sections
+endif
 
 LDFLAGS_LARGE = --verbose -Wl,-L/usr/local/lib
 LDFLAGS_MEDIUM = -Wl,--gc-sections --verbose
@@ -109,19 +111,19 @@ msg.c: parch_msg.xml codec_c.gsl
 ################################################3
 # header files
 
-../include/svc.h.gch : ../include/svc.h $(INCLUDES)
-	$(CXX) $(CXXFLAGS) $<
+#../include/svc.h.gch : ../include/svc.h $(INCLUDES)
+#	$(CXX) $(CXXFLAGS) $<
 
 ################################################3
 # object files
 
-action.o : action.cpp ../include/svc.h.gch
+action.o : action.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-channel.o : channel.c
+channel.o : channel.cpp
 	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $<
 
-connections.o : connections.c
+connections.o : connections.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 diagnostic.o : diagnostic.cpp
@@ -133,17 +135,20 @@ main.o : main.c
 lib.o : lib.c
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-direction.o : direction.c
+direction.o : direction.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 flow.o : flow.c
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Auto-generated file would have too many warnings if warnings were enabled.
-parch_msg.o : parch_msg.c
+msg.o : msg.c
 	$(CXX) -c -o $@ $<
 
-packet.o : packet.c
+name.o : name.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+packet.o : packet.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 poll.o : poll.c

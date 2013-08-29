@@ -306,7 +306,7 @@ const action_t y_action_table[state_last + 1][MSG_COUNT] = {
     }
 };
 
-char const * const
+char const *
 name(action_t a) {
     assert (validate (a));
     return action_names[(size_t) a];

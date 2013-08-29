@@ -19,6 +19,8 @@ typedef enum _diagnostic_t {
     d_data_packet_too_small,
     d_direction_invalid,
     d_direction_invalid_negotiation,
+    d_name_invalid_character,
+    d_name_too_long,
     d_packet_index_invalid_negotiation,
     d_packet_index_too_large,
     d_packet_index_too_small,
@@ -30,14 +32,14 @@ typedef enum _diagnostic_t {
     d_window_invalid_negotiation,
     d_window_too_large,
     d_window_too_small,
-    d_last = d_window_too_small,
+    d_last = d_window_too_small
 } diagnostic_t;
 
 extern const char diagnostic_names[d_last + 1][DIAGNOSTIC_NAME_MAX_LEN + 1];
 
 extern diagnostic_t diagnostic;
 
-char const * const
+char const *
     name(diagnostic_t a);
 
 #endif	/* PARCH_DIAGNOSTIC_H */

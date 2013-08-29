@@ -21,12 +21,12 @@ typedef enum _state_t {
     state_x_reset_request,
     state_y_reset_request,
 
-    state_last = state_y_reset_request,
+    state_last = state_y_reset_request
 } state_t;
 
 extern const char state_names[state_last + 1][STATE_NAME_MAX_LEN + 1];
 
-char const * const
+char const *
     name(state_t a);
 
 bool

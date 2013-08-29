@@ -1,120 +1,104 @@
-#include "../include/svc.h"
+#include <string>
+#include <memory>
+#include "../include/connections.h"
+#include "../include/msg.h"
+#include "../include/log.h"
+#include "../include/poll.h"
 
-connection_store_t connection_store = {CONNECTIONS_MIN, CONNECTIONS_MAX, 0};
-static int dindex = 0;
-static char dnames[][16] = {
-    "Anthony",
-    "Brock",
-    "Casey",
-    "Dorotha",
-    "Estelle",
-    "Flora",
-    "Garry",
-    "Hector",
-    "Iago",
-    "Jasmin",
-    "Katelin",
-    "Laura",
-    "Margot",
-    "Nanette",
-    "Orpheus",
-    "Paul",
-    "Quentin",
-    "Rasheeda",
-    "Sage",
-    "Terry",
-    "Ursula",
-    "Vonnie",
-    "William",
-    "Xander",
-    "Yukiko",
+using namespace std;
+
+// The DNAMES are used in log messages, because hex addresses are hard
+// to keep straight.
+static int iter = 0;
+static char dnames[DNAME_COUNT][DNAME_LENGTH_MAX] = {
+
+    "Anthony", "Brock", "Casey", "Dorotha", "Estelle", "Flora",
+    "Garry", "Hector", "Iago", "Jasmin", "Kenji", "Laura", "Margot",
+    "Nanette", "Orpheus", "Paul", "Quentin", "Rasheeda", "Sage",
+    "Tuan", "Ursula", "Vonnie", "William", "Xander", "Yukiko",
     "Zachariah",
-    "Arlene",
-    "Bethann",
-    "Camellia",
-    "Danuta",
-    "Emmaline",
-    "Floretta",
-    "Gayle",
-    "Hollie",
-    "Jeane",
-    "Kathrin",
-    "Laurie",
-    "Marianela",
-    "Nichole",
-    "Rana",
-    "Shara",
-    "Toni",
-    "Vallie",
-    "Yanira",
-    "Ava",
-    "Beula",
-    "Buddy",
-    "Carol",
-    "Daren",
-    "Enriqueta",
-    "Francoise",
-    "Georgann",
-    "Jeanetta",
-    "Keenan",
-    "Leia",
-    "Marie",
-    "Rebecca",
-    "Sharyn",
-    "Trish",
-    "Velvet",
-    "Versie",
-    "Vickey",
-    "Carolynn",
-    "Dick",
-    "Donte",
-    "Errol",
-    "Frederic",
-    "Giuseppe",
-    "Jeannette",
-    "Keesha",
-    "Lelah",
-    "Matt",
-    "Reynalda",
-    "Sherill",
-    "Chanelle",
-    "Frederica",
-    "Joye",
-    "Kimbra",
-    "Lena",
-    "Myrl",
-    "Rich",
-    "Steven",
-    "Cherish",
-    "Cinderella",
-    "Cindie",
-    "Clyde",
-    "Contessa",
-    "Cordelia",
-    "Cyndi",
-    "Julienne",
-    "Kera",
-    "Leonila",
-    "Lourdes",
-    "Lida",
-    "Merlyn",
-    "Milford",
-    "Mindy",
-    "Rick",
-    "Rod",
-    "Romona",
-    "Ronald",
-    "Roselee",
-    "Shonda",
-    "Solange",
+
+    "Arlene", "Bethann", "Camellia", "Danuta", "Emmaline", "Floretta",
+    "Gayle", "Hollie", "Isaac", "Jeane", "Kathrine", "Laurie",
+    "Marianela", "Nichole", "Oleta", "Priscilla", "Quartus", "Rana",
+    "Shara", "Toni", "Ulysses", "Vallie", "Walt", "Xerxes",
+    "Yehoyada", "Zephaniah",
+
+    "Ava", "Beula", "Carol", "Daren", "Enriqueta", "Francoise",
+    "Georgann", "Haggai", "Ira", "Jeanetta", "Keenan", "Leia",
+    "Marie", "Noah", "Obadiah", "Peter", "Quirinius", "Rebecca",
+    "Sharyn", "Trish", "Uzziah", "Velvet", "Wayland", "Xerces",
+    "Yessica", "Zero",
+
+    "Adam", "Bessie", "Carlos", "Donte", "Errol", "Frederic",
+    "Giuseppe", "Hai", "Irene", "Jeannette", "Keesha", "Lelah",
+    "Matt", "Nestor", "Oleta", "Pamela", "Queenie", "Reynalda",
+    "Sherill", "Thomas", "Uriel", "Victor", "Weston", "Xibiah",
+    "Yoav", "Zara"
+
 };
 
-void
-connection_store_init(connection_store_t *c) {
-    memset(c->connections, 0, sizeof (c->connections));
-    c->count = 1;
+Connection::Connection (zframe_t *a, const char *n, throughput_t t, direction_t d) {
+    assert (validate (n));
+    address = zframe_dup (a);
+    id = iter ++;
+    strcpy(name, n);
+    throughput = t;
+    direction = d;
 }
 
+char const *
+Connection::dname() {
+    return dnames[id % DNAME_COUNT];
+}
+
+Connection::~Connection () {
+    zframe_destroy(&address);
+}
+
+ConnectionStore::ConnectionStore () {
+}
+
+Connection*
+ConnectionStore::find_worker(const char *key) {
+    // assert (store.count(key) > 0);
+    string s;
+
+    return store[key];
+}
+
+void
+ConnectionStore::connect(const char *key, msg_t *msg) {
+    int c = store.count(key);
+    if (c == 0) {
+        zframe_t *address = msg_address(msg);
+        char *name = msg_service(msg);
+        throughput_t throughput = (throughput_t) msg_throughput(msg);
+        direction_t direction = (direction_t) msg_directionality(msg);
+
+        store.insert (pair<string, Connection *>(key, new Connection(address, name, throughput, direction)));
+        NOTE("adding %s as connection %s", key, store[key]->dname());
+        NOTE("%d connections exist", store.size());
+
+        msg_t *reply = msg_new(MSG_CONNECT_INDICATION);
+        msg_set_throughput(reply, throughput);
+        msg_set_directionality(reply, direction);
+        msg_set_service(reply, name);
+        connection_msg_send(key, &reply);
+    }
+}
+
+void
+ConnectionStore::connection_msg_send(const char *key, msg_t **msg) {
+    // Note that this message may not have an address frame yet
+
+    Connection *w = find_worker(key);
+    msg_set_address(*msg, w->address);
+    INFO("sending '%s' to %s", msg_command(*msg), w->dname());
+    msg_send(msg, sock);
+}
+
+#if 0
 uint16_t
 connection_store_find_worker(connection_store_t *c, const char *key) {
     bool found = false;
@@ -151,32 +135,6 @@ connection_store_find_worker_by_name(connection_store_t *c, const char *name, co
     return 0;
 }
 
-void
-connection_connect(connection_store_t *c, const char *key, parch_msg_t *msg) {
-    int i = connection_store_find_worker(c, key);
-    if (i == 0) {
-        char *name = parch_msg_service(msg);
-        uint8_t throughput = parch_msg_throughput(msg);
-        direction_t direction = parch_msg_directionality(msg);
-        throughput = parch_throughput_index_throttle(throughput, THROUGHPUT_INDEX_MAX);
-        direction = parch_direction_throttle(direction, direction_bidirectional);
-        c->connections[c->count].key = strdup(key);
-        c->connections[c->count].address = zframe_dup(parch_msg_address(msg));
-        strncpy(c->connections[c->count].dname, dnames[dindex++], 16);
-        strncpy(c->connections[c->count].name, name, 40);
-        c->connections[c->count].throughput_index = throughput;
-        c->connections[c->count].direction = direction;
-        NOTE("adding %s as connection %s", key, c->connections[c->count].dname);
-        c->count++;
-        NOTE("%d connections exist", c->count);
-
-        parch_msg_t *reply = parch_msg_new(PARCH_MSG_CONNECT_INDICATION);
-        parch_msg_set_throughput(reply, throughput);
-        parch_msg_set_directionality(reply, direction);
-        parch_msg_set_service(reply, name);
-        connection_msg_send(c, key, &reply);
-    }
-}
 
 const char *
 dname(const char *key) {
@@ -203,31 +161,31 @@ connection_disconnect(connection_store_t *c, const char *key) {
 }
 
 void
-connection_msg_send(connection_store_t *c, const char *key, parch_msg_t **msg) {
+connection_msg_send(connection_store_t *c, const char *key, msg_t **msg) {
     // Note that this message may not have an address frame yet
 
     int i = connection_store_find_worker(c, key);
     if (i > 0) {
-        parch_msg_set_address(*msg, c->connections[i].address);
-        INFO("sending '%s' to %s", parch_msg_command(*msg), dname(key));
-        parch_msg_send(msg, sock);
+        msg_set_address(*msg, c->connections[i].address);
+        INFO("sending '%s' to %s", msg_command(*msg), dname(key));
+        msg_send(msg, sock);
     }
     else {
-        WARN("failed to send %s to %s - worker not found", parch_msg_command(*msg), key);
+        WARN("failed to send %s to %s - worker not found", msg_command(*msg), key);
     }
 }
 
 void
-connection_dispatch(connection_store_t *c, const char *key, parch_msg_t *msg) {
+connection_dispatch(connection_store_t *c, const char *key, msg_t *msg) {
     // This dispatcher is for messages from already-registered workers
     // that aren't connected to peers.  Thus the only valid messages
     // are DISCONNECT and CALL_REQUEST
-    int msg_id = parch_msg_id(msg);
-    if (msg_id == PARCH_MSG_DISCONNECT) {
+    int msg_id = msg_id(msg);
+    if (msg_id == MSG_DISCONNECT) {
         connection_disconnect(c, key);
-    } else if (msg_id == PARCH_MSG_CALL_REQUEST) {
+    } else if (msg_id == MSG_CALL_REQUEST) {
         // Look for a peer key
-        uint16_t y = connection_store_find_worker_by_name(c, parch_msg_service(msg), key);
+        uint16_t y = connection_store_find_worker_by_name(c, msg_service(msg), key);
         if (y == 0) {
             // No available worker found.  Send a clear request.
         } else {
@@ -303,3 +261,4 @@ void add_to_worker_directory(char *key, zframe_t *address, const char *service, 
 }
 #endif
 
+#endif
