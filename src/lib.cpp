@@ -38,7 +38,7 @@ zloop_new_or_die(void) {
 }
 
 bool
-is_safe_ascii(const char * const str) {
+is_safe_ascii(const char *str) {
     bool safe = true;
     size_t len = strlen(str);
     for (size_t i = 0; i < len; i++) {

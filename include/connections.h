@@ -8,7 +8,7 @@
 #ifndef CONNECTIONS_H
 #define	CONNECTIONS_H
 
-#include <czmq.h>
+#include <zmq.h>
 #include <map>
 #include <string>
 #include <memory>
@@ -17,8 +17,8 @@ using namespace std;
 
 #include "direction.h"
 #include "throughput.h"
-#include "name.h"
-#include "msg.h"
+//#include "name.h"
+//#include "msg.h"
 
 
 #define DNAME_LENGTH_MAX 16
@@ -32,6 +32,7 @@ class Connection {
     throughput_t throughput;
     direction_t direction;
     uint8_t busy; // When true, this connection is on a call
+
     Connection (zframe_t *address, const char *name, throughput_t t, direction_t d);
     char const *dname();
     ~Connection ();
@@ -47,6 +48,8 @@ class ConnectionStore {
     void connect(const char *key, msg_t *msg);
     void connection_msg_send(const char *key, msg_t **msg);
 };
+
+ConnectionStore connection_store;
 
 #if 0
 struct _connection_store_t {

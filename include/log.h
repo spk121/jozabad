@@ -9,7 +9,7 @@
 #define	LOG_H
 
 extern int loglevel;
-#define ERROR(...) do {if (loglevel >= 1) zclock_log("E: " __VA_ARGS__);} while(0)
+#define ERR(...) do {if (loglevel >= 1) zclock_log("E: " __VA_ARGS__);} while(0)
 #define WARN(...) do {if (loglevel >= 2) zclock_log("W: "  __VA_ARGS__);} while(0)
 #define INFO(...) do {if (loglevel >= 3) zclock_log("I: "  __VA_ARGS__);} while(0)
 #define NOTE(...) do {if (loglevel >= 4) zclock_log("N: "  __VA_ARGS__);} while(0)

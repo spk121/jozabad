@@ -1,4 +1,7 @@
-#include "../include/svc.h"
+#include "../include/channel.h"
+#include "../include/connections.h"
+#include "../include/lib.h"
+#include "../include/log.h"
 
 static zctx_t *ctx;
 void *sock;
@@ -6,7 +9,7 @@ static zloop_t *loop;
 static zmq_pollitem_t poll_input = {NULL, 0, ZMQ_POLLIN, 0};
 
 static int
-s_recv(zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item, void *arg);
+s_recv(zloop_t *loop, zmq_pollitem_t *item, void *arg);
 
 void poll_init(bool verbose, char *endpoint) {
     //  Initialize broker state
@@ -21,26 +24,31 @@ void poll_init(bool verbose, char *endpoint) {
 }
 
 static int
-s_recv(zloop_t *loop __attribute__((unused)), zmq_pollitem_t *item, void *arg) {
+s_recv(zloop_t *loop, zmq_pollitem_t *item, void *arg) {
     if (!(item->revents & ZMQ_POLLIN))
         return 0;
 
-    parch_msg_t *msg;
-    msg = parch_msg_recv(sock);
+    msg_t *msg;
+    msg = msg_recv(sock);
     if (msg == NULL) {
-        zclock_log("I: received malformed message");
+        WARN("W: received malformed message");
         return 0;
     }
 
-    char *key = zframe_strhex (parch_msg_address(msg));
-    INFO("received %s from %s", parch_msg_command(msg), dname(key));
-    int channel_id = channel_store_find_worker (&channel_store, key);
-    int connection_id = connection_store_find_worker (&connection_store, key);
+	ConnectionStore connection_store;
 
-    if (channel_id != 0) {
+    char *key = zframe_strhex (msg_address(msg));
+    INFO("received %s from %s", msg_command(msg), dname(key));
+    Channel* channel = channel_store.find_channel(key);
+	Connection* worker = connection_store.find_worker(key);
+
+    if (channel != NULL) {
         // Step 1: if msg comes from a worker in a logical channel, we let the
         // state engine dispatch it.
-        INFO("handling off %s to channel %s/%s", parch_msg_command(msg), dname(channel_store.channels[channel_id].x_key), dname(channel_store.channels[channel_id].y_key));
+		INFO("handling off %s to channel %s/%s", parch_msg_command(msg),
+			connection_store.find_worker(channel->x_key)->dname
+			connection_store.find_worker(channel->y_key)->dname);
+		
         channel_store.channels[channel_id] = channel_dispatch (channel_store.channels[channel_id], msg);
         if (channel_store.channels[channel_id].state == state_ready) {
             channel_store_remove_channel (&channel_store, channel_id);

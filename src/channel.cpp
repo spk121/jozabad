@@ -1,7 +1,6 @@
+#include "../include/action.h"
 #include "../include/channel.h"
 #include "../include/log.h"
-
-channel_store_t channel_store = {CHANNELS_MAGIC, CHANNELS_MIN, CHANNELS_MAX, 0};
 
 void
 channel_store_init(channel_store_t *c)
@@ -455,20 +454,20 @@ do_y_rr (channel_t c, uint16_t seq) {
 //////////////////////////
 
 
-channel_t
-channel_dispatch (channel_t c, const parch_msg_t *msg) {
+Channel
+channel_dispatch (Channel c, const msg_t *msg) {
     assert(c.x_key);
     assert(c.y_key);
     state_t state_orig = c.state;
 
-    char *key = zframe_strhex(parch_msg_address(msg));
+    char *key = zframe_strhex(msg_address(msg));
     bool is_y = strcmp(key, c.y_key) == 0;
 
     action_t a;
     if (is_y)
-        a = y_action_table[c.state][parch_msg_id(msg)];
+        a = y_action_table[c.state][msg_id(msg)];
     else
-        a = x_action_table[c.state][parch_msg_id(msg)];
+        a = x_action_table[c.state][msg_id(msg)];
     INFO("%s dispatching %s in %s", dname(key), action_names[a], state_names[c.state]);
     free (key);
     key = NULL;
