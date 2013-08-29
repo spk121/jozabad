@@ -1,6 +1,6 @@
 # Jozabad
 
-Jozabad is a broker and a client library that implements a custom hub-and-spoke communcation protocol.  Each node that attaches to 
+Jozabad is a broker and a client library that implements a custom hub-and-spoke communcation protocol.
 
 The basic goals of the protocol are these:
 
@@ -16,4 +16,5 @@ The name "Jozabad" refers to a talented archer that fought with the biblical Kin
 
 ## References
 
-* Jozabad is inspired by the ITU's X.25 protocol: specifically its message types and state machine.  It is not a true implementation of X.25 over TCP.
+* Jozabad is inspired by the ITU's X.25 protocol: specifically its message types and state machine.  It is not a true implementation of X.25 over TCP, which is known as XOT.
+* It uses ZeroMQ sockets to reduce book-keeping.
