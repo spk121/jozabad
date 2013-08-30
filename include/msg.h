@@ -57,6 +57,8 @@
     COUNT - This is the Switched Virtual Call protocol version 1
 */
 
+#include <cstdint>
+
 #define MSG_VERSION                         1
 
 #define MSG_DATA                            0

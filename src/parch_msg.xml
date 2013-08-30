@@ -15,18 +15,18 @@ GPL3+, bitches
 
 <message name = "DATA" id = "0">
 Binary data message.
-  <field name = "sequence" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "2" />
   <field name = "data" type = "frame" />
 </message>
 
 <message name = "RR" id = "1">
 Tells peer the lowest send sequence number that it may send in its DATA packet.
-  <field name = "sequence" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "2" />
 </message>
 
 <message name = "RNR" id = "2">
 Tells peer to stop sending data.
-  <field name = "sequence" type = "number" size = "4" />
+  <field name = "sequence" type = "number" size = "2" />
 </message>
 
 <message name = "CALL_REQUEST" id = "3">

@@ -283,6 +283,7 @@ int
 */
 
 #define _GNU_SOURCE
+#include <cstdint>
 #include <czmq.h>
 #include "../include/$(class.name).h"
 

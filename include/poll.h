@@ -12,7 +12,6 @@
 extern "C" {
 #endif
 
-#include <stdbool.h>
 extern void *sock;
 
 void

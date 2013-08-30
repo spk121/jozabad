@@ -29,7 +29,7 @@ using namespace std;
 
 class Connection {
  public:
-    uint16_t id;
+    int id;
     zframe_t *address; // The ZeroMQ address frame of the worker
     char name[NAME_LENGTH_MAX]; // The name of the worker. Null-terminated string.
     throughput_t throughput;
