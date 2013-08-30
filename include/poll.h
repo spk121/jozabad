@@ -16,7 +16,7 @@ extern "C" {
 extern void *sock;
 
 void
-poll_init(bool verbose, char *endpoint);
+poll_init(bool verbose, const char *endpoint);
 void
 poll_start (void);
 #if 0

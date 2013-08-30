@@ -30,6 +30,7 @@ flow_t
 init(void);
 bool
 flow_sequence_in_range(uint16_t sequence, uint16_t lower_window_edge, uint16_t window_size);
-
+bool
+sequence_in_x_window(flow_t f, uint16_t sequence);
 #endif	/* PARCH_FLOW_H */
 

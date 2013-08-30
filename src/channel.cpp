@@ -1,55 +1,66 @@
 #include "../include/action.h"
 #include "../include/channel.h"
 #include "../include/log.h"
+#include "../include/diagnostic.h"
+#include "../include/connections.h"
+#include "../include/flow.h"
 
-void
-channel_store_init(channel_store_t *c)
-{
-    NOTE("initializing channel_store");
-    memset (c->channels, 0, sizeof (c->channels));
-    c->count = 1;
-}
+channel_store_t channel_store;
 
-uint16_t
-channel_store_find_worker (channel_store_t *c, const char *key)
-{
-    NOTE("searching for %s in channel_store", dname(key));
+Channel *
+find_channel(channel_store_t* p_channel_store, const char *key, const char *dname) {
     int found = 0;
-    int i = c->min;
-    while (i < c->count) {
-        if (strcmp(c->channels[i].x_key, key) == 0) {
+    Channel* ch = (Channel*) NULL;
+    for (auto it = p_channel_store->begin();
+         it != p_channel_store->end();
+         ++ it) {
+        if (strcmp((*it)->x_key, key) == 0) {
             found = 1;
+            ch = *it;
             break;
         }
-        if (strcmp(c->channels[i].y_key, key) == 0) {
+        else if (strcmp((*it)->y_key, key) == 0) {
             found = 2;
+            ch = *it;
             break;
         }
-        i ++;
     }
-    if (found) {
-        if (found == 1)
-            NOTE("found %s as X in channel_store", dname(key));
-        else if (found == 2)
-            NOTE("found %s as Y in channel_store", dname(key));
-        return i;
+    if (found == 0) {
+        NOTE("did not find %s in channel_store", dname);
     }
-    NOTE("did not find %s in channel_store", dname(key));
-    return 0;
+    else if (found == 1) {
+        NOTE("found %s as X in channel_store", dname);
+    }
+    else if (found == 2) {
+        NOTE("found %s as Y in channel_store", dname);
+    }
+    else
+        abort();
+    return ch;
 }
 
 void
-channel_store_add_channel (channel_store_t *c, const char *x_key, const char *y_key) {
-    INFO ("connecting %s/%s as channel", dname(x_key), dname(y_key));
-    c->channels[c->count].state = state_ready;
-    c->channels[c->count].x_key = strdup(x_key);
-    c->channels[c->count].y_key = strdup(y_key);
-    c->channels[c->count].throughput_index = 0;
-    c->channels[c->count].window_size = 0;
-    c->channels[c->count].packet_size_index = 0;
-    c->count ++;
+add_channel (channel_store_t* store, const char *x_key, const char *x_dname,
+             const char *y_key, const char *y_dname) {
+    INFO ("connecting %s/%s as channel", x_dname, y_dname);
+    Channel *ch = new Channel(x_key, y_key);
+    store->push_back(ch);
 }
 
+void
+remove_channel (channel_store_t* cs, Channel* c, const char* xdn, const char* ydn) {
+    INFO ("removing channel %s/%s", xdn, ydn);
+    for (auto it = cs->begin();
+         it != cs->end();
+         ++ it) {
+        if (strcmp((*it)->x_key, c->x_key) == 0 && strcmp((*it)->y_key, c->y_key) == 0) {
+            cs->erase(it);
+            break;
+        }
+    }
+}
+
+#if 0
 void
 channel_store_remove_channel (channel_store_t *c, int id) {
     INFO ("removing channel %s/%s", dname(c->channels[id].x_key), dname(c->channels[id].y_key));
@@ -59,15 +70,16 @@ channel_store_remove_channel (channel_store_t *c, int id) {
         memcpy(&c->channels[id], &c->channels[id+1], (c->count - id - 1) * sizeof(channel_t));
     c->count --;
 }
+#endif
 
-static channel_t
-do_clear (channel_t c) {
-    parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic(x_msg, diagnostic);
+static Channel
+do_clear (Channel c) {
+    msg_t *x_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic(x_msg, diagnostic);
     connection_msg_send (&connection_store, c.x_key, &x_msg);
 
-    parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic (y_msg, diagnostic);
+    msg_t *y_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic (y_msg, diagnostic);
     connection_msg_send (&connection_store, c.y_key, &y_msg);
 
     c.state = state_y_clear_request;
@@ -75,14 +87,14 @@ do_clear (channel_t c) {
 }
 
 // Forced shutdown of both ends of a connection.  Is this necessary?
-static channel_t
-do_disconnect (channel_t c) {
-    parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_DISCONNECT_INDICATION);
-    parch_msg_set_diagnostic(x_msg, diagnostic);
+static Channel
+do_disconnect (Channel c) {
+    msg_t *x_msg = msg_new(MSG_DISCONNECT_INDICATION);
+    msg_set_diagnostic(x_msg, diagnostic);
     connection_msg_send (&connection_store, c.x_key, &x_msg);
 
-    parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_DISCONNECT_INDICATION);
-    parch_msg_set_diagnostic (y_msg, diagnostic);
+    msg_t *y_msg = msg_new(MSG_DISCONNECT_INDICATION);
+    msg_set_diagnostic (y_msg, diagnostic);
     connection_msg_send (&connection_store, c.y_key, &y_msg);
 
     connection_disconnect(&connection_store, c.x_key);
@@ -92,52 +104,52 @@ do_disconnect (channel_t c) {
     return c;
 }
 
-static channel_t
-do_reset (channel_t c, diagnostic_t d) {
-    parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_RESET_REQUEST);
-    parch_msg_set_diagnostic(x_msg, d);
+static Channel
+do_reset (Channel c, diagnostic_t d) {
+    msg_t *x_msg = msg_new(MSG_RESET_REQUEST);
+    msg_set_diagnostic(x_msg, d);
     connection_msg_send (&connection_store, c.x_key, &x_msg);
 
-    parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_RESET_REQUEST);
-    parch_msg_set_diagnostic (y_msg, d);
+    msg_t *y_msg = msg_new(MSG_RESET_REQUEST);
+    msg_set_diagnostic (y_msg, d);
     connection_msg_send (&connection_store, c.y_key, &y_msg);
 
-    c.flow = flow_reset(c.flow);
+    c.flow = reset(c.flow);
     c.state = state_y_reset_request;
     return c;
 }
 
-static channel_t
-do_x_call_collision (channel_t c) {
+static Channel
+do_x_call_collision (Channel c) {
     c.state = state_call_collision;
     return c;
 }
 
-static channel_t
-do_x_call_request (channel_t c, parch_msg_t *msg) {
+static Channel
+do_x_call_request (Channel c, const msg_t *msg) {
     // Validate the facilities requests
-    if (!parch_packet_index_validate (c.packet_size_index)) {
+    if (!validate (c.packet_size_index)) {
         c = do_clear(c);
     }
-    else if (!parch_window_validate(c.window_size)) {
+    else if (!window_validate(c.window_size)) {
         c = do_clear(c);
     }
-    else if (!parch_throughput_index_validate(c.throughput_index)) {
+    else if (!validate(c.throughput_index)) {
         c = do_clear(c);
     }
     else {
         // Throttle the facilities requests
         // FIXME: we should be throttling these with configuration options
-        c.packet_size_index = parch_packet_index_throttle(c.packet_size_index, PACKET_INDEX_MAX);
-        c.window_size = parch_window_throttle(c.window_size, WINDOW_MAX);
-        c.throughput_index = parch_throughput_index_throttle(c.throughput_index, THROUGHPUT_INDEX_MAX);
+        c.packet_size_index = throttle(c.packet_size_index, p_last);
+        c.window_size = window_throttle(c.window_size, WINDOW_MAX);
+        c.throughput_index = throttle(c.throughput_index, t_last);
 
         // Forward the call request to Y
-        parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_CALL_REQUEST);
-        parch_msg_set_service(y_msg, parch_msg_service(msg));
-        parch_msg_set_packet (y_msg, c.packet_size_index);
-        parch_msg_set_window (y_msg, c.window_size);
-        parch_msg_set_throughput (y_msg, c.throughput_index);
+        msg_t *y_msg = msg_new(MSG_CALL_REQUEST);
+        msg_set_service(y_msg, msg_const_service(msg));
+        msg_set_packet (y_msg, c.packet_size_index);
+        msg_set_window (y_msg, c.window_size);
+        msg_set_throughput (y_msg, c.throughput_index);
         connection_msg_send (&connection_store, c.y_key, &y_msg);
 
         // Set the state to X CALL
@@ -145,12 +157,12 @@ do_x_call_request (channel_t c, parch_msg_t *msg) {
     }
     return c;
 }
-static channel_t
-do_x_clear_confirmation (channel_t c, diagnostic_t d) {
+static Channel
+do_x_clear_confirmation (Channel c, uint8_t d) {
     // Y originally request a clear.  It was forwarded to X.  X has responded.
     // Forward the confirmation to Y
-     parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_CLEAR_CONFIRMATION);
-     parch_msg_set_diagnostic(y_msg, d);
+     msg_t *y_msg = msg_new(MSG_CLEAR_CONFIRMATION);
+     msg_set_diagnostic(y_msg, d);
      connection_msg_send (&connection_store, c.y_key, &y_msg);
 
     // Clear this connection
@@ -159,25 +171,26 @@ do_x_clear_confirmation (channel_t c, diagnostic_t d) {
     return c;
 }
 
-static channel_t
-do_x_clear_request (channel_t c, uint8_t diagnostic) {
+static Channel
+do_x_clear_request (Channel c, uint8_t diagnostic) {
     // Forward the clear request on to Y
-    parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic(y_msg, diagnostic);
+    msg_t *y_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic(y_msg, diagnostic);
     connection_msg_send (&connection_store, c.y_key, &y_msg);
     // Change state
     c.state = state_x_clear_request;
     return c;
 }
 
-static channel_t
-do_x_data (channel_t c, uint16_t seq, zframe_t *data)
+static Channel
+do_x_data (Channel c, uint16_t seq, const zframe_t *data)
 {
     // We received a data packet from X. Validate it and forward it to Y.
-    if (zframe_size(data) == 0) {
+    size_t siz = zframe_size((zframe_t *)data);
+    if (siz == 0) {
         return do_reset(c, d_data_packet_too_small);
     }
-    else if (zframe_size(data) > parch_packet_bytes(c.packet_size_index)) {
+    else if (siz > bytes(c.packet_size_index)) {
         return do_reset(c, d_data_packet_too_large);
     }
     else if (seq != c.flow.x_send_sequence) {
@@ -187,9 +200,9 @@ do_x_data (channel_t c, uint16_t seq, zframe_t *data)
         return do_reset(c, d_data_packet_not_in_window);
     }
     else {
-        parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_DATA);
-        parch_msg_set_sequence(y_msg, seq);
-        parch_msg_set_data(y_msg, zframe_dup(data));
+        msg_t *y_msg = msg_new(MSG_DATA);
+        msg_set_sequence(y_msg, seq);
+        msg_set_data(y_msg, zframe_dup((zframe_t *) data));
         connection_msg_send (&connection_store, c.y_key, &y_msg);
 
         c.flow.x_send_sequence ++;
@@ -198,11 +211,11 @@ do_x_data (channel_t c, uint16_t seq, zframe_t *data)
     abort ();
 }
 
-static channel_t
-do_x_disconnect (channel_t c) {
+static Channel
+do_x_disconnect (Channel c) {
     // Inform the peer we're going down
-    parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic (y_msg, diagnostic);
+    msg_t *y_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic (y_msg, diagnostic);
     connection_msg_send (&connection_store, c.y_key, &y_msg);
 
     // Shut down X
@@ -212,11 +225,11 @@ do_x_disconnect (channel_t c) {
     c.state = state_ready;
     return c;
 }
-static channel_t
-do_x_reset (channel_t c, diagnostic_t d) {
+static Channel
+do_x_reset (Channel c, uint8_t d) {
     // Forward reset request to Y
-     parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_RESET_REQUEST);
-     parch_msg_set_diagnostic(y_msg, d);
+     msg_t *y_msg = msg_new(MSG_RESET_REQUEST);
+     msg_set_diagnostic(y_msg, d);
      connection_msg_send (&connection_store, c.y_key, &y_msg);
 
      // Change state
@@ -224,24 +237,24 @@ do_x_reset (channel_t c, diagnostic_t d) {
      return c;
 }
 
-static channel_t
-do_x_reset_confirmation (channel_t c, diagnostic_t d) {
+static Channel
+do_x_reset_confirmation (Channel c, uint8_t d) {
     // Received a reset confirmation from X
     // Forward to Y
-     parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_RESET_CONFIRMATION);
-     parch_msg_set_diagnostic(y_msg, d);
+     msg_t *y_msg = msg_new(MSG_RESET_CONFIRMATION);
+     msg_set_diagnostic(y_msg, d);
      connection_msg_send (&connection_store, c.y_key, &y_msg);
 
      // Change state
      c.state = state_data_transfer;
 
      // reset flow control
-     c.flow = flow_reset(c.flow);
+     c.flow = reset(c.flow);
      return c;
 }
 
-static channel_t
-do_x_rnr (channel_t c, uint16_t seq) {
+static Channel
+do_x_rnr (Channel c, uint16_t seq) {
   // The new window has to overlap or be immediately above
   if (!flow_sequence_in_range(seq, c.flow.x_lower_window_edge, c.flow.window_size + 1)) {
       return do_x_reset (c, d_window_edge_out_of_range);
@@ -250,16 +263,16 @@ do_x_rnr (channel_t c, uint16_t seq) {
   else if (!flow_sequence_in_range(c.flow.y_send_sequence, seq, c.flow.window_size + 1)) {
       return do_x_reset (c, d_window_edge_out_of_range);
   }
-  parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_RNR);
-  parch_msg_set_sequence(y_msg, seq);
+  msg_t *y_msg = msg_new(MSG_RNR);
+  msg_set_sequence(y_msg, seq);
   connection_msg_send (&connection_store, c.y_key, &y_msg);
 
   c.flow.x_lower_window_edge = seq;
   return c;
 }
 
-static channel_t
-do_x_rr (channel_t c, uint16_t seq) {
+static Channel
+do_x_rr (Channel c, uint16_t seq) {
   // The new window has to overlap or be immediately above
   if (!flow_sequence_in_range(seq, c.flow.x_lower_window_edge, c.flow.window_size + 1)) {
       return do_x_reset (c, d_window_edge_out_of_range);
@@ -268,8 +281,8 @@ do_x_rr (channel_t c, uint16_t seq) {
   else if (!flow_sequence_in_range(c.flow.y_send_sequence, seq, c.flow.window_size + 1)) {
       return do_x_reset (c, d_window_edge_out_of_range);
   }
-  parch_msg_t *y_msg = parch_msg_new(PARCH_MSG_RR);
-  parch_msg_set_sequence(y_msg, seq);
+  msg_t *y_msg = msg_new(MSG_RR);
+  msg_set_sequence(y_msg, seq);
   connection_msg_send (&connection_store, c.y_key, &y_msg);
 
   c.flow.x_lower_window_edge = seq;
@@ -278,37 +291,37 @@ do_x_rr (channel_t c, uint16_t seq) {
 
 
 /////////////////////////
-static channel_t
-do_y_call_collision (channel_t c) {
+static Channel
+do_y_call_collision (Channel c) {
     c.state = state_call_collision;
     return c;
 }
 
-static channel_t
-do_y_call_accepted (channel_t c, parch_msg_t *msg) {
+static Channel
+do_y_call_accepted (Channel c) {
     // Validate the facilities requests
-    if (!parch_packet_index_validate (c.packet_size_index)) {
+    if (!validate (c.packet_size_index)) {
         c = do_clear(c);
     }
-    else if (!parch_window_validate(c.window_size)) {
+    else if (!window_validate(c.window_size)) {
         c = do_clear(c);
     }
-    else if (!parch_throughput_index_validate(c.throughput_index)) {
+    else if (!validate(c.throughput_index)) {
         c = do_clear(c);
     }
     else {
         // Throttle the facilities requests
         // FIXME: we should be throttling these with configuration options
-        c.packet_size_index = parch_packet_index_throttle(c.packet_size_index, PACKET_INDEX_MAX);
-        c.window_size = parch_window_throttle(c.window_size, WINDOW_MAX);
-        c.throughput_index = parch_throughput_index_throttle(c.throughput_index, THROUGHPUT_INDEX_MAX);
+        c.packet_size_index = throttle(c.packet_size_index, p_last);
+        c.window_size = window_throttle(c.window_size, WINDOW_MAX);
+        c.throughput_index = throttle(c.throughput_index, t_last);
 
         // Forward the call accepted to X
-        parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_CALL_ACCEPTED);
-        // parch_msg_set_service(x_msg, strdup(parch_msg_service(msg)));
-        parch_msg_set_packet (x_msg, c.packet_size_index);
-        parch_msg_set_window (x_msg, c.window_size);
-        parch_msg_set_throughput (x_msg, c.throughput_index);
+        msg_t *x_msg = msg_new(MSG_CALL_ACCEPTED);
+        // msg_set_service(x_msg, strdup(msg_service(msg)));
+        msg_set_packet (x_msg, c.packet_size_index);
+        msg_set_window (x_msg, c.window_size);
+        msg_set_throughput (x_msg, c.throughput_index);
         connection_msg_send (&connection_store, c.x_key, &x_msg);
 
         // Set the state to X CALL
@@ -316,12 +329,12 @@ do_y_call_accepted (channel_t c, parch_msg_t *msg) {
     }
     return c;
 }
-static channel_t
-do_y_clear_confirmation (channel_t c, diagnostic_t d) {
+static Channel
+do_y_clear_confirmation (Channel c, uint8_t d) {
     // Y originally request a clear.  It was forwarded to X.  X has responded.
     // Forward the confirmation to Y
-     parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_CLEAR_CONFIRMATION);
-     parch_msg_set_diagnostic(x_msg, d);
+     msg_t *x_msg = msg_new(MSG_CLEAR_CONFIRMATION);
+     msg_set_diagnostic(x_msg, d);
      connection_msg_send (&connection_store, c.x_key, &x_msg);
 
     // Clear this connection
@@ -329,26 +342,27 @@ do_y_clear_confirmation (channel_t c, diagnostic_t d) {
     return c;
 }
 
-static channel_t
-do_y_clear_request (channel_t c, uint8_t diagnostic) {
+static Channel
+do_y_clear_request (Channel c, uint8_t diagnostic) {
     // Forward the clear request on to Y
-    parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic(x_msg, diagnostic);
+    msg_t *x_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic(x_msg, diagnostic);
     connection_msg_send (&connection_store, c.x_key, &x_msg);
     // Change state
     c.state = state_x_clear_request;
     return c;
 }
 
-static channel_t
-do_y_data (channel_t c, uint16_t seq, zframe_t *data)
+static Channel
+do_y_data (Channel c, uint16_t seq, const zframe_t *data)
 {
     // We received a data packet from X. Validate it and forward it to Y.
-    if (zframe_size(data) == 0) {
+    size_t siz = zframe_size((zframe_t *)data);
+    if (siz == 0) {
         WARN("y data packet #%d too small", seq);
         return do_reset(c, d_data_packet_too_small);
     }
-    else if (zframe_size(data) > parch_packet_bytes(c.packet_size_index)) {
+    else if (siz > bytes(c.packet_size_index)) {
         WARN("y data packet #%d too large", seq);
         return do_reset(c, d_data_packet_too_large);
     }
@@ -361,9 +375,9 @@ do_y_data (channel_t c, uint16_t seq, zframe_t *data)
         return do_reset(c, d_data_packet_not_in_window);
     }
     else {
-        parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_DATA);
-        parch_msg_set_sequence(x_msg, seq);
-        parch_msg_set_data(x_msg, zframe_dup(data));
+        msg_t *x_msg = msg_new(MSG_DATA);
+        msg_set_sequence(x_msg, seq);
+        msg_set_data(x_msg, zframe_dup((zframe_t *) data));
         connection_msg_send (&connection_store, c.x_key, &x_msg);
 
         c.flow.y_send_sequence ++;
@@ -372,11 +386,11 @@ do_y_data (channel_t c, uint16_t seq, zframe_t *data)
     abort ();
 }
 
-static channel_t
-do_y_disconnect (channel_t c) {
+static Channel
+do_y_disconnect (Channel c) {
     // Inform the peer we're going down
-    parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_CLEAR_REQUEST);
-    parch_msg_set_diagnostic (x_msg, diagnostic);
+    msg_t *x_msg = msg_new(MSG_CLEAR_REQUEST);
+    msg_set_diagnostic (x_msg, diagnostic);
     connection_msg_send (&connection_store, c.x_key, &x_msg);
 
     // Shut down X
@@ -386,11 +400,11 @@ do_y_disconnect (channel_t c) {
     c.state = state_ready;
     return c;
 }
-static channel_t
-do_y_reset (channel_t c, diagnostic_t d) {
+static Channel
+do_y_reset (Channel c, uint8_t d) {
     // Forward reset request to Y
-     parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_RESET_REQUEST);
-     parch_msg_set_diagnostic(x_msg, d);
+     msg_t *x_msg = msg_new(MSG_RESET_REQUEST);
+     msg_set_diagnostic(x_msg, d);
      connection_msg_send (&connection_store, c.x_key, &x_msg);
 
      // Change state
@@ -398,24 +412,24 @@ do_y_reset (channel_t c, diagnostic_t d) {
      return c;
 }
 
-static channel_t
-do_y_reset_confirmation (channel_t c, diagnostic_t d) {
+static Channel
+do_y_reset_confirmation (Channel c, uint8_t d) {
     // Received a reset confirmation from X
     // Forward to Y
-     parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_RESET_CONFIRMATION);
-     parch_msg_set_diagnostic(x_msg, d);
+     msg_t *x_msg = msg_new(MSG_RESET_CONFIRMATION);
+     msg_set_diagnostic(x_msg, d);
      connection_msg_send (&connection_store, c.x_key, &x_msg);
 
      // Change state
      c.state = state_data_transfer;
 
      // reset flow control
-     c.flow = flow_reset(c.flow);
+     c.flow = reset(c.flow);
      return c;
 }
 
-static channel_t
-do_y_rnr (channel_t c, uint16_t seq) {
+static Channel
+do_y_rnr (Channel c, uint16_t seq) {
   // The new window has to overlap or be immediately above
   if (!flow_sequence_in_range(seq, c.flow.x_lower_window_edge, c.flow.window_size + 1)) {
       return do_y_reset (c, d_window_edge_out_of_range);
@@ -424,16 +438,16 @@ do_y_rnr (channel_t c, uint16_t seq) {
   else if (!flow_sequence_in_range(c.flow.y_send_sequence, seq, c.flow.window_size + 1)) {
       return do_y_reset (c, d_window_edge_out_of_range);
   }
-  parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_RNR);
-  parch_msg_set_sequence(x_msg, seq);
+  msg_t *x_msg = msg_new(MSG_RNR);
+  msg_set_sequence(x_msg, seq);
   connection_msg_send (&connection_store, c.x_key, &x_msg);
 
   c.flow.x_lower_window_edge = seq;
   return c;
 }
 
-static channel_t
-do_y_rr (channel_t c, uint16_t seq) {
+static Channel
+do_y_rr (Channel c, uint16_t seq) {
   // The new window has to overlap or be immediately above
   if (!flow_sequence_in_range(seq, c.flow.x_lower_window_edge, c.flow.window_size + 1)) {
       return do_y_reset (c, d_window_edge_out_of_range);
@@ -442,8 +456,8 @@ do_y_rr (channel_t c, uint16_t seq) {
   else if (!flow_sequence_in_range(c.flow.y_send_sequence, seq, c.flow.window_size + 1)) {
       return do_y_reset (c, d_window_edge_out_of_range);
   }
-  parch_msg_t *x_msg = parch_msg_new(PARCH_MSG_RR);
-  parch_msg_set_sequence(x_msg, seq);
+  msg_t *x_msg = msg_new(MSG_RR);
+  msg_set_sequence(x_msg, seq);
   connection_msg_send (&connection_store, c.x_key, &x_msg);
 
   c.flow.x_lower_window_edge = seq;
@@ -455,20 +469,21 @@ do_y_rr (channel_t c, uint16_t seq) {
 
 
 Channel
-channel_dispatch (Channel c, const msg_t *msg) {
+channel_dispatch (Channel c, const char *x_dname, const char *y_dname, const msg_t *msg) {
     assert(c.x_key);
     assert(c.y_key);
     state_t state_orig = c.state;
 
-    char *key = zframe_strhex(msg_address(msg));
+    char *key = zframe_strhex((zframe_t *) msg_const_address(msg));
     bool is_y = strcmp(key, c.y_key) == 0;
 
     action_t a;
     if (is_y)
-        a = y_action_table[c.state][msg_id(msg)];
+        a = y_action_table[c.state][msg_const_id(msg)];
     else
-        a = x_action_table[c.state][msg_id(msg)];
-    INFO("%s dispatching %s in %s", dname(key), action_names[a], state_names[c.state]);
+        a = x_action_table[c.state][msg_const_id(msg)];
+    INFO("%s/%s dispatching %s in %s", x_dname, y_dname,
+            action_names[a], state_names[c.state]);
     free (key);
     key = NULL;
     switch (a) {
@@ -505,25 +520,25 @@ channel_dispatch (Channel c, const msg_t *msg) {
             c = do_x_call_collision (c);
             break;
         case a_x_clear_request:
-            c = do_x_clear_request (c, parch_msg_diagnostic(msg));
+            c = do_x_clear_request (c, msg_const_diagnostic(msg));
             break;
         case a_x_clear_confirmation:
-            c = do_x_clear_confirmation (c, parch_msg_diagnostic (msg));
+            c = do_x_clear_confirmation (c, msg_const_diagnostic (msg));
             break;
         case a_x_data:
-            c = do_x_data (c, parch_msg_sequence(msg), parch_msg_data(msg));
+            c = do_x_data (c, msg_const_sequence(msg), msg_const_data(msg));
             break;
         case a_x_rr:
-            c = do_x_rr (c, parch_msg_sequence(msg));
+            c = do_x_rr (c, msg_const_sequence(msg));
             break;
         case a_x_rnr:
-            c = do_x_rnr (c, parch_msg_sequence(msg));
+            c = do_x_rnr (c, msg_const_sequence(msg));
             break;
         case a_x_reset:
-            c = do_x_reset (c, parch_msg_diagnostic(msg));
+            c = do_x_reset (c, msg_const_diagnostic(msg));
             break;
         case a_x_reset_confirmation:
-            c = do_x_reset_confirmation(c, parch_msg_diagnostic(msg));
+            c = do_x_reset_confirmation(c, msg_const_diagnostic(msg));
             break;
 
         // case a_y_connect:
@@ -535,31 +550,31 @@ channel_dispatch (Channel c, const msg_t *msg) {
             abort ();
             break;
         case a_y_call_accepted:
-            c = do_y_call_accepted (c, msg);
+            c = do_y_call_accepted (c);
             break;
         case a_y_call_collision:
             c = do_y_call_collision (c);
             break;
         case a_y_clear_request:
-            c = do_y_clear_request (c, parch_msg_diagnostic(msg));
+            c = do_y_clear_request (c, msg_const_diagnostic(msg));
             break;
         case a_y_clear_confirmation:
-            c = do_y_clear_confirmation (c, parch_msg_diagnostic (msg));
+            c = do_y_clear_confirmation (c, msg_const_diagnostic (msg));
             break;
         case a_y_data:
-            c = do_y_data (c, parch_msg_sequence(msg), parch_msg_data(msg));
+            c = do_y_data (c, msg_const_sequence(msg), msg_const_data(msg));
             break;
         case a_y_rr:
-            c = do_y_rr (c, parch_msg_sequence(msg));
+            c = do_y_rr (c, msg_const_sequence(msg));
             break;
         case a_y_rnr:
-            c = do_y_rnr (c, parch_msg_sequence(msg));
+            c = do_y_rnr (c, msg_const_sequence(msg));
             break;
         case a_y_reset:
-            c = do_y_reset (c, parch_msg_diagnostic(msg));
+            c = do_y_reset (c, msg_const_diagnostic(msg));
             break;
         case a_y_reset_confirmation:
-            c = do_y_reset_confirmation(c, parch_msg_diagnostic(msg));
+            c = do_y_reset_confirmation(c, msg_const_diagnostic(msg));
             break;
 
 #if 0
@@ -599,6 +614,7 @@ channel_dispatch (Channel c, const msg_t *msg) {
 #endif
     }
     if(c.state != state_orig)
-        INFO("channel %s/%s changing to %s", dname(c.x_key), dname(c.y_key), state_names[c.state]);
+        INFO("channel %s/%s changing to %s", x_dname, y_dname, state_names[c.state]);
     return c;
 }
+

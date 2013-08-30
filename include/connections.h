@@ -9,6 +9,7 @@
 #define	CONNECTIONS_H
 
 #include <zmq.h>
+#include <czmq.h>
 #include <map>
 #include <string>
 #include <memory>
@@ -17,12 +18,14 @@ using namespace std;
 
 #include "direction.h"
 #include "throughput.h"
-//#include "name.h"
-//#include "msg.h"
+#include "name.h"
+#include "msg.h"
+#include "channel.h"
 
 
 #define DNAME_LENGTH_MAX 16
 #define DNAME_COUNT (4*26)
+#define CONNECTIONS_MAX (256)
 
 class Connection {
  public:
@@ -34,23 +37,27 @@ class Connection {
     uint8_t busy; // When true, this connection is on a call
 
     Connection (zframe_t *address, const char *name, throughput_t t, direction_t d);
-    char const *dname();
     ~Connection ();
 };
 
-#define CONNECTIONS_MAX (256)
+char const *dname(uint16_t i);
 
-class ConnectionStore {
- public:
-    std::map<string, Connection *> store;
-    ConnectionStore();
-    Connection* find_worker(const char *key);
-    void connect(const char *key, msg_t *msg);
-    void connection_msg_send(const char *key, msg_t **msg);
-};
+typedef map<string, Connection*> connection_store_t;
+extern connection_store_t connection_store;
 
-ConnectionStore connection_store;
+void
+add_connection(connection_store_t* store, const char* key, msg_t* msg);
+void
+connection_msg_send(connection_store_t* store, const char* key, msg_t** msg);
+Connection*
+find_worker(connection_store_t* store, const char* key);
+Connection*
+find_worker_by_name(connection_store_t* store, const char* name);
 
+void connection_dispatch(vector<Channel*>* s, connection_store_t *c, const char *key, msg_t *msg);
+
+void
+connection_disconnect(connection_store_t *store, const char *key);
 #if 0
 struct _connection_store_t {
     const int min;

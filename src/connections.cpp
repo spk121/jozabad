@@ -4,8 +4,11 @@
 #include "../include/msg.h"
 #include "../include/log.h"
 #include "../include/poll.h"
+#include "../include/channel.h"
 
 using namespace std;
+
+connection_store_t connection_store;
 
 // The DNAMES are used in log messages, because hex addresses are hard
 // to keep straight.
@@ -47,102 +50,98 @@ Connection::Connection (zframe_t *a, const char *n, throughput_t t, direction_t 
     direction = d;
 }
 
-char const *
-Connection::dname() {
-    return dnames[id % DNAME_COUNT];
-}
-
 Connection::~Connection () {
     zframe_destroy(&address);
 }
 
-ConnectionStore::ConnectionStore () {
-}
-
-Connection*
-ConnectionStore::find_worker(const char *key) {
-    // assert (store.count(key) > 0);
-    string s;
-
-    return store[key];
+char const *
+dname(uint16_t id) {
+    return dnames[id % DNAME_COUNT];
 }
 
 void
-ConnectionStore::connect(const char *key, msg_t *msg) {
-    int c = store.count(key);
+add_connection(connection_store_t *store, const char *key, msg_t *msg) {
+    int c = store->count(key);
     if (c == 0) {
         zframe_t *address = msg_address(msg);
         char *name = msg_service(msg);
         throughput_t throughput = (throughput_t) msg_throughput(msg);
         direction_t direction = (direction_t) msg_directionality(msg);
 
-        store.insert (pair<string, Connection *>(key, new Connection(address, name, throughput, direction)));
-        NOTE("adding %s as connection %s", key, store[key]->dname());
-        NOTE("%d connections exist", store.size());
+        store->insert (pair<string, Connection *>(key, new Connection(address, name, throughput, direction)));
+        NOTE("adding %s as connection %s", key, dname(store->at(key)->id));
+        NOTE("%d connections exist", store->size());
 
         msg_t *reply = msg_new(MSG_CONNECT_INDICATION);
         msg_set_throughput(reply, throughput);
         msg_set_directionality(reply, direction);
         msg_set_service(reply, name);
-        connection_msg_send(key, &reply);
+        connection_msg_send(store, key, &reply);
+    }
+}
+
+Connection*
+find_worker(connection_store_t *store, const char *key) {
+    assert (store->count(key) > 0);
+    return store->at(key);
+}
+
+Connection*
+find_worker_by_name(connection_store_t* store, const char* name) {
+    Connection* connection = NULL;
+    for (connection_store_t::iterator it = store->begin();
+         it != store->end();
+         ++ it) {
+        if (strcmp(it->second->name, name) == 0)
+            connection = it->second;
+    }
+    return connection;
+}
+
+void
+connection_msg_send(connection_store_t *store, const char *key, msg_t **msg) {
+    Connection *w = find_worker(store, key);
+    msg_set_address(*msg, w->address);
+    INFO("sending '%s' to %s", msg_command(*msg), dname(w->id));
+    msg_send(msg, sock);
+}
+
+void
+connection_disconnect(connection_store_t *store, const char *key) {
+    Connection* c = find_worker(store, key);
+    if (c != NULL) {
+        INFO("removing connection %s", dname(c->id));
+        store->erase(key);
+        NOTE("%d connections remain", store->size());
+    }
+    else {
+        WARN("failed to disconnection non-existent connection %s", key);
     }
 }
 
 void
-ConnectionStore::connection_msg_send(const char *key, msg_t **msg) {
-    // Note that this message may not have an address frame yet
-
-    Connection *w = find_worker(key);
-    msg_set_address(*msg, w->address);
-    INFO("sending '%s' to %s", msg_command(*msg), w->dname());
-    msg_send(msg, sock);
+connection_dispatch (channel_store_t* s, connection_store_t *c, const char *key, msg_t *msg) {
+    // This dispatcher is for messages from already-registered workers
+    // that aren't connected to peers.  Thus the only valid messages
+    // are DISCONNECT and CALL_REQUEST
+    int id = msg_id(msg);
+    if (id == MSG_DISCONNECT) {
+        connection_disconnect(c, key);
+    }
+    else if (id == MSG_CALL_REQUEST) {
+        // Look for a peer key
+        Connection* x = find_worker(c, key);
+        Connection* y = find_worker_by_name(c, msg_service(msg));
+        if (y == 0) {
+            // No available worker found.  Send a clear request.
+        } else {
+            INFO("adding channel %s/%s", dname(x->id), dname(y->id));
+            add_channel(s, key, dname(x->id), y->name, dname(y->id));
+        }
+    }
 }
 
 #if 0
-uint16_t
-connection_store_find_worker(connection_store_t *c, const char *key) {
-    bool found = false;
-    int i = c->min;
-    while (i < c->count) {
-        if (strcmp(c->connections[i].key, key) == 0) {
-            found = true;
-            break;
-        }
-        i++;
-    }
-    if (found)
-        return i;
-    return 0;
-}
-
-uint16_t
-connection_store_find_worker_by_name(connection_store_t *c, const char *name, const char *my_key) {
-    bool found = false;
-    int i = c->min;
-
-    // searching a worker with the given name that isn't me and isn't busy.
-    while (i < c->count) {
-        if ((strcmp(c->connections[i].name, name) == 0)
-                && (strcmp(c->connections[i].key, my_key) != 0)
-                && c->connections[i].busy == false) {
-            found = true;
-            break;
-        }
-        i++;
-    }
-    if (found)
-        return i;
-    return 0;
-}
-
-
-const char *
-dname(const char *key) {
-    int i = connection_store_find_worker(&connection_store, key);
-    if (i == 0)
-        return key;
-    return connection_store.connections[i].dname;
-}
 
 void
 connection_disconnect(connection_store_t *c, const char *key) {

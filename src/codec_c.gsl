@@ -79,10 +79,6 @@
 #define $(CLASS.NAME)_$(FIELD.NAME)_SIZE    $(size)
 .endfor
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //  Structure of our class
 
 struct _$(class.name)_t {
@@ -164,22 +160,30 @@ void
 //  Get/set the message address
 zframe_t *
     $(class.name)_address ($(class.name)_t *self);
+const zframe_t *
+    $(class.name)_const_address (const $(class.name)_t *self);
 void
     $(class.name)_set_address ($(class.name)_t *self, zframe_t *address);
 
 //  Get the $(class.name) id and printable command
 int
     $(class.name)_id ($(class.name)_t *self);
+int
+    $(class.name)_const_id (const $(class.name)_t *self);
 void
     $(class.name)_set_id ($(class.name)_t *self, int id);
 char *
     $(class.name)_command ($(class.name)_t *self);
+const char *
+    $(class.name)_const_command (const $(class.name)_t *self);
 
 .for class.field where !defined (value)
 .   if type = "number"
 //  Get/set the $(name) field
 $(ctype)
     $(class.name)_$(name) ($(class.name)_t *self);
+$(ctype)
+    $(class.name)_const_$(name) (const $(class.name)_t *self);
 void
     $(class.name)_set_$(name) ($(class.name)_t *self, $(ctype) $(name));
 .#
@@ -194,8 +198,10 @@ void
 //  Get/set the $(name) field
 char *
     $(class.name)_$(name) ($(class.name)_t *self);
+const char *
+    $(class.name)_const_$(name) (const $(class.name)_t *self);
 void
-    $(class.name)_set_$(name) ($(class.name)_t *self, char *format, ...);
+    $(class.name)_set_$(name) ($(class.name)_t *self, const char *format, ...);
 .#
 .   elsif type = "raw"
 //  Get/set the $(name) field
@@ -242,6 +248,8 @@ size_t
 //  Get/set the $(name) field
 zframe_t *
     $(class.name)_$(name) ($(class.name)_t *self);
+const zframe_t *
+    $(class.name)_const_$(name) (const $(class.name)_t *self);
 void
     $(class.name)_set_$(name) ($(class.name)_t *self, zframe_t *frame);
 .#
@@ -255,13 +263,9 @@ int
     $(class.name)_test (bool verbose);
 //  @end
 
-#ifdef __cplusplus
-}
-#endif
-
 #endif
 .echo "Generating ../src/$(class.name).c..."
-.output "../src/$(class.name).c"
+.output "../src/$(class.name).cpp"
 /*  =========================================================================
     $(class.name) - $(class.title)
 
@@ -982,6 +986,13 @@ $(class.name)_address ($(class.name)_t *self)
     return self->address;
 }
 
+const zframe_t *
+$(class.name)_const_address (const $(class.name)_t *self)
+{
+    assert (self);
+    return self->address;
+}
+
 void
 $(class.name)_set_address ($(class.name)_t *self, zframe_t *address)
 {
@@ -996,6 +1007,13 @@ $(class.name)_set_address ($(class.name)_t *self, zframe_t *address)
 
 int
 $(class.name)_id ($(class.name)_t *self)
+{
+    assert (self);
+    return self->id;
+}
+
+int
+$(class.name)_const_id (const $(class.name)_t *self)
 {
     assert (self);
     return self->id;
@@ -1031,6 +1049,13 @@ $(class.name)_command ($(class.name)_t *self)
 
 $(ctype)
 $(class.name)_$(name) ($(class.name)_t *self)
+{
+    assert (self);
+    return self->$(name);
+}
+
+$(ctype)
+$(class.name)_const_$(name) (const $(class.name)_t *self)
 {
     assert (self);
     return self->$(name);
@@ -1072,8 +1097,15 @@ $(class.name)_$(name) ($(class.name)_t *self)
     return self->$(name);
 }
 
+const char *
+$(class.name)_const_$(name) (const $(class.name)_t *self)
+{
+    assert (self);
+    return self->$(name);
+}
+
 void
-$(class.name)_set_$(name) ($(class.name)_t *self, char *format, ...)
+$(class.name)_set_$(name) ($(class.name)_t *self, const char *format, ...)
 {
     //  Format into newly allocated string
     assert (self);
@@ -1267,6 +1299,13 @@ $(class.name)_$(name)_size ($(class.name)_t *self)
 
 zframe_t *
 $(class.name)_$(name) ($(class.name)_t *self)
+{
+    assert (self);
+    return self->$(name);
+}
+
+const zframe_t *
+$(class.name)_const_$(name) (const $(class.name)_t *self)
 {
     assert (self);
     return self->$(name);

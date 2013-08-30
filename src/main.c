@@ -51,10 +51,6 @@ call request
 
 #include "../include/svc.h"
 
-uint8_t broker_packet_size_index_limit = PACKET_INDEX_MAX;
-uint8_t broker_throughput_index_limit = THROUGHPUT_INDEX_MAX;
-uint16_t broker_window_limit = WINDOW_MAX;
-
 int loglevel = 5;
 
 int main (int argc, char *argv[]) {
@@ -64,8 +60,6 @@ int main (int argc, char *argv[]) {
         NOTE("argv[%d] = '%s'", i, argv[i]);
     }
     
-    channel_store_init(&channel_store);
-    connection_store_init(&connection_store);
     poll_init(true, "tcp://*:5555");
     poll_start();
     // finalize_poll();

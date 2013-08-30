@@ -13,12 +13,12 @@
 #include <stdint.h>
 // #include "../include/msg.h"
 #include "log.h"
-#include "connections.h"
 #include "../include/state.h"
 #include "../include/flow.h"
 #include "../include/packet.h"
 #include "../include/window.h"
 #include "../include/throughput.h"
+#include "msg.h"
 
 using namespace std;
 #define CHANNELS_MAGIC 0x301
@@ -40,6 +40,19 @@ public:
 	~Channel () {free(x_key); free(y_key);};
 };
 
+typedef vector<Channel*> channel_store_t;
+extern channel_store_t channel_store;
+
+Channel*
+find_channel(channel_store_t* p_channel_store, const char *key, const char *dname);
+void
+add_channel (channel_store_t* p_channel_store, const char *x_key, const char *x_dname,
+             const char *y_key, const char *y_dname);
+Channel
+channel_dispatch (Channel c, const char *x_dname, const char *y_dname, const msg_t *msg);
+void
+remove_channel (channel_store_t* cs, Channel* c, const char* xdn, const char* ydn);
+#if 0
 class ChannelStore {
  public:
     vector<Channel *> store;
@@ -54,40 +67,11 @@ class ChannelStore {
 		INFO ("connecting %s/%s as channel", cx->dname(), cy->dname());
 	};
 
-	Channel* find_channel(const char *key) {
-		int found = 0;
-		Channel* ch = (Channel*) NULL;
-		const char* dname = connection_store.find_worker(key)->dname();
-		for (vector<Channel *>::iterator it = store.begin();
-			it != store.end();
-			++ it) {
-				if (strcmp(ch->x_key, key) == 0) {
-					found = 1;
-					ch = *it;
-					break;
-				}
-				else if (strcmp(ch->y_key, key) == 0) {
-					found = 2;
-					ch = *it;
-					break;
-				}
-		}
-		if (found == 0) {
-			NOTE("did not find %s in channel_store", dname);
-		}
-		else if (found == 1) {
-			NOTE("found %s as X in channel_store", dname);
-		}
-		else if (found == 2) {
-			NOTE("found %s as Y in channel_store", dname);
-		}
-		else
-			abort();
-		return ch;
-	}
 };
 
 extern ChannelStore channel_store;
+
+#endif
 
 #if 0
 void

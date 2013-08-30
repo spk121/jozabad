@@ -1,0 +1,9 @@
+#!/bin/sh
+cd src
+gsl -script:codec_c parch_msg.xml
+#echo
+#gsl -script:server_c -trace:0 -animate:0 svc_server.xml
+#echo
+#gsl -script:client_c -trace:0 -animate:0 svc_client.xml
+#echo
+
