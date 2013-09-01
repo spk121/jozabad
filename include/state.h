@@ -5,8 +5,8 @@
  * Created on August 21, 2013, 8:25 PM
  */
 
-#ifndef PARCH_STATE_H
-#define	PARCH_STATE_H
+#ifndef PARCH_STATE_H_INCLUDE
+#define	PARCH_STATE_H_INCLUDE
 
 #define STATE_NAME_MAX_LEN (24)
 
@@ -32,5 +32,5 @@ char const *
 bool
 validate(state_t i);
 
-#endif	/* PARCH_STATE_H */
+#endif
 

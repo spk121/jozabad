@@ -9,13 +9,16 @@ INCLUDES = \
     include/log.h \
     include/name.h \
     include/packet.h \
+    include/pgetopt.h \
     include/poll.h \
     include/state.h \
     include/msg.h \
     include/throughput.h \
     include/window.h
 
-SRC = src/action.cpp \
+CSRC = src/pgetopt.c
+
+CPPSRC = src/action.cpp \
     src/connections.cpp \
     src/channel.cpp \
     src/flow.cpp \
@@ -33,7 +36,7 @@ SRC = src/action.cpp \
 
 #ISRC := $(patsubst %.c,%.o,$(SRC))
 
-OBJ := $(patsubst %.cpp,%.o,$(SRC))
+OBJ := $(patsubst %.c,%.o,$(CSRC)) $(patsubst %.cpp,%.o,$(CPPSRC))
 
 CPPFLAGS = \
     -I/usr/local/include \
@@ -42,15 +45,19 @@ CPPFLAGS = \
     -Wendif-labels \
     -pedantic
 
-CXXFLAGS = \
-    $(CPPFLAGS) \
+CFLAGS = \
     -fstrict-aliasing \
     -fstrict-overflow \
     -ftree-vrp \
-    -ggdb3 \
+    -ggdb \
     -march=native \
-    -O0 \
-    -std=c++11 \
+    -O0
+
+CXXFLAGS = \
+    -std=c++11
+
+
+CWARN = \
     -Wall \
     -Warray-bounds \
     -Wcast-align \
@@ -66,7 +73,7 @@ CXXFLAGS = \
 
 #    -fmudflapth \
 
-
+CC = gcc
 CXX = g++
 # CC = /home/mike/studio/SolarisStudio12.3-linux-x86-bin/solarisstudio12.3/bin/cc
 # CXX = /usr/lib/clang-analyzer/scan-build/ccc-analyzer
@@ -87,20 +94,8 @@ LDFLAGS_LARGE = --verbose -Wl,-L/usr/local/lib
 LDFLAGS_MEDIUM = -Wl,--gc-sections --verbose
 LDFLAGS_SMALL = -Wl,--gc-sections -Wl,--strip-all --verbose
 
-all: src/broker src/test_node
+all: src/broker src/w_echo src/w_flood
 #	tmp_broker_med tmp_broker_small
-
-# lib.i : lib.c
-# parch_broker.i : parch_broker.c
-# parch_msg.i : parch_msg.c
-# parch_msg2.i : parch_msg2.c
-# parch_state_engine.i : parch_state_engine.c
-# parch_throughput.i : parch_throughput.c
-# parch_packet.i : parch_packet.c
-# parch_node.i : parch_node.c
-# parch_window.i : parch_window.c
-# test_node1.i : test_node1.c
-# poll.i : poll.c
 
 ################################################3
 # source files
@@ -119,65 +114,78 @@ include/msg.h: src/parch_msg.xml src/codec_c.gsl
 # object files
 
 src/action.o : src/action.cpp include/action.h include/msg.h
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
 src/channel.o : src/channel.cpp
-	$(CXX) $(CXXFLAGS) -Wno-missing-field-initializers -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
 src/connections.o : src/connections.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/diagnostic.o : src/diagnostic.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-src/main.o : src/main.c
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
-src/lib.o : src/lib.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
 src/direction.o : src/direction.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/flow.o : src/flow.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
+
+src/lib.o : src/lib.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
+
+src/main.o : src/main.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 # Auto-generated file would have too many warnings if warnings were enabled.
 src/msg.o : src/msg.cpp
-	$(CXX) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/name.o : src/name.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/packet.o : src/packet.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
-src/poll.o : src/poll.c
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+#
+src/pgetopt.o : src/pgetopt.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(CWARN)  -c -o $@ $<
+
+src/poll.o : src/poll.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/state.o : src/state.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/throughput.o : src/throughput.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/window.o : src/window.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
+
+src/w_echo.o : src/w_echo.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
+
+src/w_flood.o : src/w_flood.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 ################################################3
 # executable files
 
 
-src/test_node: src/parch_node.o src/test_node1.o src/msg.o
-	$(CXX) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
-
 src/broker: $(OBJ)
-	$(CXX) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq
+	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
+
+src/w_echo: src/w_echo.o src/diagnostic.o src/direction.o src/msg.o src/packet.o src/throughput.o
+	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
+
+src/w_flood: src/w_flood.o src/diagnostic.o src/direction.o src/msg.o src/packet.o src/throughput.o
+	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
 
 clean:
 	-rm include/svc.h.gch
 	-rm $(OBJ) src/test_node1.o  src/parch_node.o
-	-rm src/test_node src/broker
+	-rm src/w_echo src/broker
 
 .PHONY: check-syntax
 

@@ -12,12 +12,12 @@
 
 /*  These are the msg messages
     DATA - Binary data message.
-        sequence      number 4
+        sequence      number 2
         data          frame
     RR - Tells peer the lowest send sequence number that it may send in its DATA packet.
-        sequence      number 4
+        sequence      number 2
     RNR - Tells peer to stop sending data.
-        sequence      number 4
+        sequence      number 2
     CALL_REQUEST - Call a peer. Negotiate the type of connection requested.
         service       string
         directionality  number 1
@@ -57,8 +57,6 @@
     COUNT - This is the Switched Virtual Call protocol version 1
 */
 
-#include <cstdint>
-
 #define MSG_VERSION                         1
 
 #define MSG_DATA                            0
@@ -83,7 +81,7 @@ struct _msg_t {
     int id;                     //  msg message ID
     byte *needle;               //  Read/write pointer for serialization
     byte *ceiling;              //  Valid upper limit for read pointer
-    uint32_t sequence;
+    uint16_t sequence;
     zframe_t *data;
     char *service;
     byte directionality;
@@ -119,18 +117,18 @@ int
 //  Send the DATA to the output in one step
 int
     msg_send_data (void *output,
-        uint32_t sequence,
+        uint16_t sequence,
         zframe_t *data);
 
 //  Send the RR to the output in one step
 int
     msg_send_rr (void *output,
-        uint32_t sequence);
+        uint16_t sequence);
 
 //  Send the RNR to the output in one step
 int
     msg_send_rnr (void *output,
-        uint32_t sequence);
+        uint16_t sequence);
 
 //  Send the CALL_REQUEST to the output in one step
 int
@@ -223,18 +221,16 @@ int
     msg_const_id (const msg_t *self);
 void
     msg_set_id (msg_t *self, int id);
-char *
-    msg_command (msg_t *self);
 const char *
     msg_const_command (const msg_t *self);
 
 //  Get/set the sequence field
-uint32_t
+uint16_t
     msg_sequence (msg_t *self);
-uint32_t
+uint16_t
     msg_const_sequence (const msg_t *self);
 void
-    msg_set_sequence (msg_t *self, uint32_t sequence);
+    msg_set_sequence (msg_t *self, uint16_t sequence);
 
 //  Get/set the data field
 zframe_t *

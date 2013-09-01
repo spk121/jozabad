@@ -15,6 +15,7 @@
 */
 
 #define _GNU_SOURCE
+#include <cstdint>
 #include <czmq.h>
 #include "../include/msg.h"
 
@@ -250,7 +251,7 @@ msg_recv (void *input)
 
     switch (self->id) {
         case MSG_DATA:
-            GET_NUMBER4 (self->sequence);
+            GET_NUMBER2 (self->sequence);
             //  Get next frame, leave current untouched
             if (!zsocket_rcvmore (input))
                 goto malformed;
@@ -258,11 +259,11 @@ msg_recv (void *input)
             break;
 
         case MSG_RR:
-            GET_NUMBER4 (self->sequence);
+            GET_NUMBER2 (self->sequence);
             break;
 
         case MSG_RNR:
-            GET_NUMBER4 (self->sequence);
+            GET_NUMBER2 (self->sequence);
             break;
 
         case MSG_CALL_REQUEST:
@@ -364,18 +365,18 @@ msg_send (msg_t **self_p, void *output)
     size_t frame_size = 2 + 1;          //  Signature and message ID
     switch (self->id) {
         case MSG_DATA:
-            //  sequence is a 4-byte integer
-            frame_size += 4;
+            //  sequence is a 2-byte integer
+            frame_size += 2;
             break;
 
         case MSG_RR:
-            //  sequence is a 4-byte integer
-            frame_size += 4;
+            //  sequence is a 2-byte integer
+            frame_size += 2;
             break;
 
         case MSG_RNR:
-            //  sequence is a 4-byte integer
-            frame_size += 4;
+            //  sequence is a 2-byte integer
+            frame_size += 2;
             break;
 
         case MSG_CALL_REQUEST:
@@ -482,16 +483,16 @@ msg_send (msg_t **self_p, void *output)
 
     switch (self->id) {
         case MSG_DATA:
-            PUT_NUMBER4 (self->sequence);
+            PUT_NUMBER2 (self->sequence);
             frame_flags = ZFRAME_MORE;
             break;
 
         case MSG_RR:
-            PUT_NUMBER4 (self->sequence);
+            PUT_NUMBER2 (self->sequence);
             break;
 
         case MSG_RNR:
-            PUT_NUMBER4 (self->sequence);
+            PUT_NUMBER2 (self->sequence);
             break;
 
         case MSG_CALL_REQUEST:
@@ -603,7 +604,7 @@ msg_send (msg_t **self_p, void *output)
 int
 msg_send_data (
     void *output,
-    uint32_t sequence,
+    uint16_t sequence,
     zframe_t *data)
 {
     msg_t *self = msg_new (MSG_DATA);
@@ -619,7 +620,7 @@ msg_send_data (
 int
 msg_send_rr (
     void *output,
-    uint32_t sequence)
+    uint16_t sequence)
 {
     msg_t *self = msg_new (MSG_RR);
     msg_set_sequence (self, sequence);
@@ -633,7 +634,7 @@ msg_send_rr (
 int
 msg_send_rnr (
     void *output,
-    uint32_t sequence)
+    uint16_t sequence)
 {
     msg_t *self = msg_new (MSG_RNR);
     msg_set_sequence (self, sequence);
@@ -1082,8 +1083,8 @@ msg_set_id (msg_t *self, int id)
 //  --------------------------------------------------------------------------
 //  Return a printable command string
 
-char *
-msg_command (msg_t *self)
+const char *
+msg_const_command (const msg_t *self)
 {
     assert (self);
     switch (self->id) {
@@ -1136,14 +1137,14 @@ msg_command (msg_t *self)
 //  --------------------------------------------------------------------------
 //  Get/set the sequence field
 
-uint32_t
+uint16_t
 msg_sequence (msg_t *self)
 {
     assert (self);
     return self->sequence;
 }
 
-uint32_t
+uint16_t
 msg_const_sequence (const msg_t *self)
 {
     assert (self);
@@ -1151,7 +1152,7 @@ msg_const_sequence (const msg_t *self)
 }
 
 void
-msg_set_sequence (msg_t *self, uint32_t sequence)
+msg_set_sequence (msg_t *self, uint16_t sequence)
 {
     assert (self);
     self->sequence = sequence;

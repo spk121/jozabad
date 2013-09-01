@@ -5,6 +5,7 @@
 #include "../include/connections.h"
 #include "../include/flow.h"
 
+extern throughput_t opt_throughput;
 channel_store_t channel_store;
 
 Channel *
@@ -138,11 +139,12 @@ do_x_call_request (Channel c, const msg_t *msg) {
         c = do_clear(c);
     }
     else {
-        // Throttle the facilities requests
+        // CALL REQUEST NEGOTIATION -- STEP 1
+        // The call request from X is throttled by the Broker's limitations
         // FIXME: we should be throttling these with configuration options
         c.packet_size_index = throttle(c.packet_size_index, p_last);
         c.window_size = window_throttle(c.window_size, WINDOW_MAX);
-        c.throughput_index = throttle(c.throughput_index, t_last);
+        c.throughput_index = throttle(c.throughput_index, opt_throughput);
 
         // Forward the call request to Y
         msg_t *y_msg = msg_new(MSG_CALL_REQUEST);
@@ -470,22 +472,22 @@ do_y_rr (Channel c, uint16_t seq) {
 
 Channel
 channel_dispatch (Channel c, const char *x_dname, const char *y_dname, const msg_t *msg) {
+    char* msg_key = NULL;
     assert(c.x_key);
     assert(c.y_key);
     state_t state_orig = c.state;
 
-    char *key = zframe_strhex((zframe_t *) msg_const_address(msg));
-    bool is_y = strcmp(key, c.y_key) == 0;
+    msg_key = (char*) zframe_strhex((zframe_t*) msg_const_address(msg));
+    bool is_y = strcmp(msg_key, c.y_key) == 0;
 
     action_t a;
     if (is_y)
         a = y_action_table[c.state][msg_const_id(msg)];
     else
         a = x_action_table[c.state][msg_const_id(msg)];
-    INFO("%s/%s dispatching %s in %s", x_dname, y_dname,
-            action_names[a], state_names[c.state]);
-    free (key);
-    key = NULL;
+    INFO("%s/%s dispatching %s in %s", x_dname, y_dname, name(a), name(c.state));
+    free (msg_key);
+    msg_key = NULL;
     switch (a) {
         case a_unspecified:
             abort ();
@@ -510,7 +512,7 @@ channel_dispatch (Channel c, const char *x_dname, const char *y_dname, const msg
             c = do_x_disconnect (c);
             break;
         case a_x_call_request:
-            c = do_x_call_request (c, msg);
+            do_x_call_request (c, msg);
             break;
         case a_x_call_accepted:
             // Should never happen, since X always connects before Y

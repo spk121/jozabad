@@ -172,8 +172,6 @@ int
     $(class.name)_const_id (const $(class.name)_t *self);
 void
     $(class.name)_set_id ($(class.name)_t *self, int id);
-char *
-    $(class.name)_command ($(class.name)_t *self);
 const char *
     $(class.name)_const_command (const $(class.name)_t *self);
 
@@ -1029,8 +1027,8 @@ $(class.name)_set_id ($(class.name)_t *self, int id)
 //  --------------------------------------------------------------------------
 //  Return a printable command string
 
-char *
-$(class.name)_command ($(class.name)_t *self)
+const char *
+$(class.name)_const_command (const $(class.name)_t *self)
 {
     assert (self);
     switch (self->id) {

@@ -71,7 +71,7 @@ extern const char throughput_names[t_last + 1][THROUGHPUT_NAME_MAX_LEN + 1];
 extern const uint32_t throughput_bps[t_last + 1];
 
 char const *
-name(throughput_t i);
+    name(throughput_t i);
 bool
     validate(throughput_t i);
 throughput_t
@@ -81,7 +81,7 @@ throughput_t
 bool
     negotiate(throughput_t request, throughput_t current);
 uint32_t
-    bps(uint8_t i);
+    bps(throughput_t i);
 
 #endif	/* PARCH_THROUGHPUT_H */
 

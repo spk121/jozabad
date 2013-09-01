@@ -33,7 +33,7 @@ validate(const char *str) {
 
 
 void
-apply_default (char **ppname) {
+name_apply_default (char **ppname) {
     assert (validate (*ppname));
     if (strlen(*ppname) == 0) {
         free (*ppname);

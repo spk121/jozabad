@@ -48,7 +48,7 @@ const uint32_t throughput_bps[t_last + 1] = {
     1984000,
     2048000
 };
-    
+
 const char throughput_names[t_last + 1][THROUGHPUT_NAME_MAX_LEN + 1] = {
     "reserved",
     "reserved",
@@ -159,8 +159,7 @@ negotiate(throughput_t request, throughput_t current)
 }
 
 uint32_t
-bps(throughput_t i)
-{
+bps(throughput_t i) {
     assert (validate(i));
     throughput_t i2 = apply_default(i);
     return throughput_bps[i2];

@@ -54,7 +54,8 @@ find_worker(connection_store_t* store, const char* key);
 Connection*
 find_worker_by_name(connection_store_t* store, const char* name);
 
-void connection_dispatch(vector<Channel*>* s, connection_store_t *c, const char *key, msg_t *msg);
+bool
+    connection_dispatch(vector<Channel*>* s, connection_store_t *c, const char *key, msg_t *msg);
 
 void
 connection_disconnect(connection_store_t *store, const char *key);
