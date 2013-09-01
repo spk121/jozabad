@@ -24,6 +24,7 @@ typedef enum _diagnostic_t {
     d_packet_index_invalid_negotiation,
     d_packet_index_too_large,
     d_packet_index_too_small,
+    d_peer_disconnected,
     d_state_invalid,
     d_throughput_index_invalid_negotiation,
     d_throughput_index_too_large,

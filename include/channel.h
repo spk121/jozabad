@@ -19,6 +19,15 @@
 #include "../include/window.h"
 #include "../include/throughput.h"
 #include "msg.h"
+#include "connections.h"
+#include "diagnostic.h"
+
+#ifndef DEF_CONNECTION_STORE_T
+#define DEF_CONNECTION_STORE_T
+struct Connection;
+typedef map<string, Connection*> connection_store_t;
+extern connection_store_t connection_store;
+#endif
 
 using namespace std;
 
@@ -39,7 +48,7 @@ public:
         state = state_ready;
         flow = init();
         packet_size_index = p_last;
-        uint16_t window_size = WINDOW_MAX;
+        window_size = WINDOW_MAX;
         throughput_index = t_last;
     }
 
@@ -47,10 +56,82 @@ public:
         free(x_key);
         free(y_key);
     };
+
+    void do_clear(connection_store_t *con_store, diagnostic_t d) {
+        msg_t *x_msg = msg_new(MSG_CLEAR_REQUEST);
+        msg_set_diagnostic(x_msg, d);
+        connection_msg_send(con_store, x_key, &x_msg);
+
+        msg_t *y_msg = msg_new(MSG_CLEAR_REQUEST);
+        msg_set_diagnostic(y_msg, d);
+        connection_msg_send(con_store, y_key, &y_msg);
+
+        state = state_y_clear_request;
+    }
+
+    void do_reset(connection_store_t* con_store, diagnostic_t d) {
+        msg_t *x_msg = msg_new(MSG_RESET_REQUEST);
+        msg_set_diagnostic(x_msg, d);
+        connection_msg_send(con_store, x_key, &x_msg);
+
+        msg_t *y_msg = msg_new(MSG_RESET_REQUEST);
+        msg_set_diagnostic(y_msg, d);
+        connection_msg_send(con_store, y_key, &y_msg);
+        flow = reset(flow);
+        state = state_y_reset_request;
+    }
+
+    void do_disconnect(connection_store_t* con_store, diagnostic_t d) {
+        msg_t *x_msg = msg_new(MSG_DISCONNECT_INDICATION);
+        msg_set_diagnostic(x_msg, d);
+        connection_msg_send(con_store, x_key, &x_msg);
+
+        msg_t *y_msg = msg_new(MSG_DISCONNECT_INDICATION);
+        msg_set_diagnostic(y_msg, d);
+        connection_msg_send(con_store, y_key, &y_msg);
+
+        connection_disconnect(con_store, x_key);
+        connection_disconnect(con_store, y_key);
+
+        state = state_ready;
+    }
+
+    void do_x_call_request(connection_store_t *con_store, const char *service, packet_t p, uint16_t w, throughput_t t) {
+        // Validate the facilities requests
+        if (!validate(p)) {
+            do_clear(con_store, diagnostic);
+        } else if (!window_validate(w)) {
+            do_clear(con_store, diagnostic);
+        } else if (!validate(t)) {
+            do_clear(con_store, diagnostic);
+        } else {
+            // CALL REQUEST NEGOTIATION -- STEP 1
+            // The call request from X is throttled by the Broker's limitations
+            // FIXME: we should be throttling these with configuration options
+            p = throttle(p, p_last);
+            w = window_throttle(w, WINDOW_MAX);
+            t = throttle(t, opt_throughput);
+
+            // Forward the call request to Y
+            msg_t *y_msg = msg_new(MSG_CALL_REQUEST);
+            msg_set_service(y_msg, service);
+            msg_set_packet(y_msg, p);
+            msg_set_window(y_msg, w);
+            msg_set_throughput(y_msg, t);
+            connection_msg_send(con_store, y_key, &y_msg);
+
+            // Set the state to X CALL
+            state = state_x_call_request;
+        }
+    }
 };
 
-typedef vector<Channel*> channel_store_t;
-extern channel_store_t channel_store;
+typedef vector<Channel*> _channel_store_t;
+#ifndef TYPEDEF_CHANNEL_STORE_T
+#define TYPEDEF_CHANNEL_STORE_T
+typedef _channel_store_t channel_store_t;
+#endif
+//extern channel_store_t channel_store;
 
 Channel*
 find_channel(channel_store_t* p_channel_store, const char *key, const char *dname);

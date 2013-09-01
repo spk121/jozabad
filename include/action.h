@@ -72,5 +72,7 @@ char const *
 bool
     validate(action_t a);
 
+action_t find_action(state_t s, const msg_t *msg, bool is_y);
+
 #endif	/* ACTION_H */
 

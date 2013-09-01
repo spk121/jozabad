@@ -1,5 +1,4 @@
 #include "../include/state.h"
-#include "../include/channel.h"
 #include "../include/connections.h"
 #include "../include/lib.h"
 #include "../include/log.h"
@@ -46,10 +45,10 @@ s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg) {
 do_more:
     worker = NULL;
     channel = NULL;
-    worker = find_worker(&connection_store, key);
+    worker = find_worker(key);
     if (worker != NULL) {
         TRACE("the address of message %s is associated with known worker %s", msg_const_command(msg), dname(worker->id));
-        channel = find_channel(&channel_store, key, dname(worker->id));
+        channel = find_channel(key);
     } else {
         TRACE("the address of message %s is not associated with any known worker", msg_const_command(msg));
     }
@@ -60,14 +59,14 @@ do_more:
         const char *xkey = channel->x_key;
         const char *ykey = channel->y_key;
         TRACE("the address of message %s is associated with known channel %p/%p", msg_const_command(msg), xkey, ykey);
-        Connection *xworker = find_worker(&connection_store, xkey);
+        Connection *xworker = find_worker(xkey);
         TRACE("channel %s has worker %p", xkey, xworker);
         int xid = xworker->id;
         TRACE("worker %p has id %d", xworker, xid);
         const char *xdn = dname(xid);
         TRACE("worker id %d has name %s", xid, xdn);
 
-        Connection *yworker = find_worker(&connection_store, ykey);
+        Connection *yworker = find_worker(ykey);
         TRACE("channel %s has worker %p", ykey, yworker);
         int yid = yworker->id;
         TRACE("worker %p has id %d", yworker, yid);
@@ -76,10 +75,10 @@ do_more:
 
         INFO("handling off %s from %s to channel %s/%s", msg_const_command(msg), dname(worker->id), xdn, ydn);
 
-        *channel = channel_dispatch(*channel, xdn, ydn, msg);
+        channel->dispatch(msg);
         if (channel->state == state_ready) {
             TRACE("channel %p/%p is ready for removal", channel->x_key, channel->y_key);
-            remove_channel(&channel_store, channel, xdn, ydn);
+            remove_channel(channel);
         }
     } else if (worker != 0) {
         // Step 2: if msg comes from a worker that is in the worker directory, we let the
@@ -87,7 +86,7 @@ do_more:
         const char *dn = dname(worker->id);
         INFO("received %s from %s", msg_const_command(msg), dn);
         NOTE("handling off %s to from %s connection %s", msg_const_command(msg), dname(worker->id),dn);
-        more = connection_dispatch(&channel_store, &connection_store, key, msg);
+        more = connection_dispatch(key, msg);
         if (more)
             goto do_more;
     } else {
@@ -96,7 +95,7 @@ do_more:
         INFO("received %s from %s", msg_const_command(msg), key);
         if (msg_id(msg) == MSG_CONNECT) {
             NOTE("handling off %s to top-level", msg_const_command(msg));
-            add_connection(&connection_store, key, msg);
+            add_connection(key, msg);
         } else
             INFO("ignored %s from %s", msg_const_command(msg), key);
     }
