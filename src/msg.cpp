@@ -190,8 +190,10 @@ msg_destroy (msg_t **self_p)
         //  Free class properties
         zframe_destroy (&self->address);
         zframe_destroy (&self->data);
-        free (self->service);
+        free (self->called_address);
+        zframe_destroy (&self->user_data);
         free (self->protocol);
+        free (self->calling_address);
 
         //  Free object itself
         free (self);
@@ -267,19 +269,25 @@ msg_recv (void *input)
             break;
 
         case MSG_CALL_REQUEST:
-            free (self->service);
-            GET_STRING (self->service);
-            GET_NUMBER1 (self->directionality);
+            free (self->called_address);
+            GET_STRING (self->called_address);
             GET_NUMBER1 (self->packet);
             GET_NUMBER2 (self->window);
             GET_NUMBER1 (self->throughput);
+            //  Get next frame, leave current untouched
+            if (!zsocket_rcvmore (input))
+                goto malformed;
+            self->user_data = zframe_recv (input);
             break;
 
         case MSG_CALL_ACCEPTED:
-            GET_NUMBER1 (self->directionality);
             GET_NUMBER1 (self->packet);
             GET_NUMBER2 (self->window);
             GET_NUMBER1 (self->throughput);
+            //  Get next frame, leave current untouched
+            if (!zsocket_rcvmore (input))
+                goto malformed;
+            self->user_data = zframe_recv (input);
             break;
 
         case MSG_CLEAR_REQUEST:
@@ -288,8 +296,6 @@ msg_recv (void *input)
             break;
 
         case MSG_CLEAR_CONFIRMATION:
-            GET_NUMBER1 (self->cause);
-            GET_NUMBER1 (self->diagnostic);
             break;
 
         case MSG_RESET_REQUEST:
@@ -310,8 +316,8 @@ msg_recv (void *input)
             GET_NUMBER1 (self->version);
             if (self->version != MSG_VERSION)
                 goto malformed;
-            free (self->service);
-            GET_STRING (self->service);
+            free (self->calling_address);
+            GET_STRING (self->calling_address);
             GET_NUMBER1 (self->directionality);
             GET_NUMBER1 (self->throughput);
             break;
@@ -380,12 +386,10 @@ msg_send (msg_t **self_p, void *output)
             break;
 
         case MSG_CALL_REQUEST:
-            //  service is a string with 1-byte length
+            //  called_address is a string with 1-byte length
             frame_size++;       //  Size is one octet
-            if (self->service)
-                frame_size += strlen (self->service);
-            //  directionality is a 1-byte integer
-            frame_size += 1;
+            if (self->called_address)
+                frame_size += strlen (self->called_address);
             //  packet is a 1-byte integer
             frame_size += 1;
             //  window is a 2-byte integer
@@ -395,8 +399,6 @@ msg_send (msg_t **self_p, void *output)
             break;
 
         case MSG_CALL_ACCEPTED:
-            //  directionality is a 1-byte integer
-            frame_size += 1;
             //  packet is a 1-byte integer
             frame_size += 1;
             //  window is a 2-byte integer
@@ -413,10 +415,6 @@ msg_send (msg_t **self_p, void *output)
             break;
 
         case MSG_CLEAR_CONFIRMATION:
-            //  cause is a 1-byte integer
-            frame_size += 1;
-            //  diagnostic is a 1-byte integer
-            frame_size += 1;
             break;
 
         case MSG_RESET_REQUEST:
@@ -438,10 +436,10 @@ msg_send (msg_t **self_p, void *output)
             frame_size += 1 + strlen ("~SVC");
             //  version is a 1-byte integer
             frame_size += 1;
-            //  service is a string with 1-byte length
+            //  calling_address is a string with 1-byte length
             frame_size++;       //  Size is one octet
-            if (self->service)
-                frame_size += strlen (self->service);
+            if (self->calling_address)
+                frame_size += strlen (self->calling_address);
             //  directionality is a 1-byte integer
             frame_size += 1;
             //  throughput is a 1-byte integer
@@ -496,22 +494,22 @@ msg_send (msg_t **self_p, void *output)
             break;
 
         case MSG_CALL_REQUEST:
-            if (self->service) {
-                PUT_STRING (self->service);
+            if (self->called_address) {
+                PUT_STRING (self->called_address);
             }
             else
                 PUT_NUMBER1 (0);    //  Empty string
-            PUT_NUMBER1 (self->directionality);
             PUT_NUMBER1 (self->packet);
             PUT_NUMBER2 (self->window);
             PUT_NUMBER1 (self->throughput);
+            frame_flags = ZFRAME_MORE;
             break;
 
         case MSG_CALL_ACCEPTED:
-            PUT_NUMBER1 (self->directionality);
             PUT_NUMBER1 (self->packet);
             PUT_NUMBER2 (self->window);
             PUT_NUMBER1 (self->throughput);
+            frame_flags = ZFRAME_MORE;
             break;
 
         case MSG_CLEAR_REQUEST:
@@ -520,8 +518,6 @@ msg_send (msg_t **self_p, void *output)
             break;
 
         case MSG_CLEAR_CONFIRMATION:
-            PUT_NUMBER1 (self->cause);
-            PUT_NUMBER1 (self->diagnostic);
             break;
 
         case MSG_RESET_REQUEST:
@@ -537,8 +533,8 @@ msg_send (msg_t **self_p, void *output)
         case MSG_CONNECT:
             PUT_STRING ("~SVC");
             PUT_NUMBER1 (MSG_VERSION);
-            if (self->service) {
-                PUT_STRING (self->service);
+            if (self->calling_address) {
+                PUT_STRING (self->calling_address);
             }
             else
                 PUT_NUMBER1 (0);    //  Empty string
@@ -586,6 +582,26 @@ msg_send (msg_t **self_p, void *output)
             if (!self->data)
                 self->data = zframe_new (NULL, 0);
             if (zframe_send (&self->data, output, 0)) {
+                zframe_destroy (&frame);
+                msg_destroy (self_p);
+                return -1;
+            }
+            break;
+        case MSG_CALL_REQUEST:
+            //  If user_data isn't set, send an empty frame
+            if (!self->user_data)
+                self->user_data = zframe_new (NULL, 0);
+            if (zframe_send (&self->user_data, output, 0)) {
+                zframe_destroy (&frame);
+                msg_destroy (self_p);
+                return -1;
+            }
+            break;
+        case MSG_CALL_ACCEPTED:
+            //  If user_data isn't set, send an empty frame
+            if (!self->user_data)
+                self->user_data = zframe_new (NULL, 0);
+            if (zframe_send (&self->user_data, output, 0)) {
                 zframe_destroy (&frame);
                 msg_destroy (self_p);
                 return -1;
@@ -648,18 +664,18 @@ msg_send_rnr (
 int
 msg_send_call_request (
     void *output,
-    char *service,
-    byte directionality,
+    char *called_address,
     byte packet,
     uint16_t window,
-    byte throughput)
+    byte throughput,
+    zframe_t *user_data)
 {
     msg_t *self = msg_new (MSG_CALL_REQUEST);
-    msg_set_service (self, service);
-    msg_set_directionality (self, directionality);
+    msg_set_called_address (self, called_address);
     msg_set_packet (self, packet);
     msg_set_window (self, window);
     msg_set_throughput (self, throughput);
+    msg_set_user_data (self, zframe_dup (user_data));
     return msg_send (&self, output);
 }
 
@@ -670,16 +686,16 @@ msg_send_call_request (
 int
 msg_send_call_accepted (
     void *output,
-    byte directionality,
     byte packet,
     uint16_t window,
-    byte throughput)
+    byte throughput,
+    zframe_t *user_data)
 {
     msg_t *self = msg_new (MSG_CALL_ACCEPTED);
-    msg_set_directionality (self, directionality);
     msg_set_packet (self, packet);
     msg_set_window (self, window);
     msg_set_throughput (self, throughput);
+    msg_set_user_data (self, zframe_dup (user_data));
     return msg_send (&self, output);
 }
 
@@ -705,13 +721,9 @@ msg_send_clear_request (
 
 int
 msg_send_clear_confirmation (
-    void *output,
-    byte cause,
-    byte diagnostic)
+    void *output)
 {
     msg_t *self = msg_new (MSG_CLEAR_CONFIRMATION);
-    msg_set_cause (self, cause);
-    msg_set_diagnostic (self, diagnostic);
     return msg_send (&self, output);
 }
 
@@ -754,12 +766,12 @@ msg_send_reset_confirmation (
 int
 msg_send_connect (
     void *output,
-    char *service,
+    char *calling_address,
     byte directionality,
     byte throughput)
 {
     msg_t *self = msg_new (MSG_CONNECT);
-    msg_set_service (self, service);
+    msg_set_calling_address (self, calling_address);
     msg_set_directionality (self, directionality);
     msg_set_throughput (self, throughput);
     return msg_send (&self, output);
@@ -849,18 +861,18 @@ msg_dup (msg_t *self)
             break;
 
         case MSG_CALL_REQUEST:
-            copy->service = strdup (self->service);
-            copy->directionality = self->directionality;
+            copy->called_address = strdup (self->called_address);
             copy->packet = self->packet;
             copy->window = self->window;
             copy->throughput = self->throughput;
+            copy->user_data = zframe_dup (self->user_data);
             break;
 
         case MSG_CALL_ACCEPTED:
-            copy->directionality = self->directionality;
             copy->packet = self->packet;
             copy->window = self->window;
             copy->throughput = self->throughput;
+            copy->user_data = zframe_dup (self->user_data);
             break;
 
         case MSG_CLEAR_REQUEST:
@@ -869,8 +881,6 @@ msg_dup (msg_t *self)
             break;
 
         case MSG_CLEAR_CONFIRMATION:
-            copy->cause = self->cause;
-            copy->diagnostic = self->diagnostic;
             break;
 
         case MSG_RESET_REQUEST:
@@ -886,7 +896,7 @@ msg_dup (msg_t *self)
         case MSG_CONNECT:
             copy->protocol = strdup (self->protocol);
             copy->version = self->version;
-            copy->service = strdup (self->service);
+            copy->calling_address = strdup (self->calling_address);
             copy->directionality = self->directionality;
             copy->throughput = self->throughput;
             break;
@@ -953,22 +963,50 @@ msg_dump (msg_t *self)
 
         case MSG_CALL_REQUEST:
             puts ("CALL_REQUEST:");
-            if (self->service)
-                printf ("    service='%s'\n", self->service);
+            if (self->called_address)
+                printf ("    called_address='%s'\n", self->called_address);
             else
-                printf ("    service=\n");
-            printf ("    directionality=%ld\n", (long) self->directionality);
+                printf ("    called_address=\n");
             printf ("    packet=%ld\n", (long) self->packet);
             printf ("    window=%ld\n", (long) self->window);
             printf ("    throughput=%ld\n", (long) self->throughput);
+            printf ("    user_data={\n");
+            if (self->user_data) {
+                size_t size = zframe_size (self->user_data);
+                byte *data = zframe_data (self->user_data);
+                printf ("        size=%td\n", zframe_size (self->user_data));
+                if (size > 32)
+                    size = 32;
+                int user_data_index;
+                for (user_data_index = 0; user_data_index < size; user_data_index++) {
+                    if (user_data_index && (user_data_index % 4 == 0))
+                        printf ("-");
+                    printf ("%02X", data [user_data_index]);
+                }
+            }
+            printf ("    }\n");
             break;
 
         case MSG_CALL_ACCEPTED:
             puts ("CALL_ACCEPTED:");
-            printf ("    directionality=%ld\n", (long) self->directionality);
             printf ("    packet=%ld\n", (long) self->packet);
             printf ("    window=%ld\n", (long) self->window);
             printf ("    throughput=%ld\n", (long) self->throughput);
+            printf ("    user_data={\n");
+            if (self->user_data) {
+                size_t size = zframe_size (self->user_data);
+                byte *data = zframe_data (self->user_data);
+                printf ("        size=%td\n", zframe_size (self->user_data));
+                if (size > 32)
+                    size = 32;
+                int user_data_index;
+                for (user_data_index = 0; user_data_index < size; user_data_index++) {
+                    if (user_data_index && (user_data_index % 4 == 0))
+                        printf ("-");
+                    printf ("%02X", data [user_data_index]);
+                }
+            }
+            printf ("    }\n");
             break;
 
         case MSG_CLEAR_REQUEST:
@@ -979,8 +1017,6 @@ msg_dump (msg_t *self)
 
         case MSG_CLEAR_CONFIRMATION:
             puts ("CLEAR_CONFIRMATION:");
-            printf ("    cause=%ld\n", (long) self->cause);
-            printf ("    diagnostic=%ld\n", (long) self->diagnostic);
             break;
 
         case MSG_RESET_REQUEST:
@@ -999,10 +1035,10 @@ msg_dump (msg_t *self)
             puts ("CONNECT:");
             printf ("    protocol=~svc\n");
             printf ("    version=msg_version\n");
-            if (self->service)
-                printf ("    service='%s'\n", self->service);
+            if (self->calling_address)
+                printf ("    calling_address='%s'\n", self->calling_address);
             else
-                printf ("    service=\n");
+                printf ("    calling_address=\n");
             printf ("    directionality=%ld\n", (long) self->directionality);
             printf ("    throughput=%ld\n", (long) self->throughput);
             break;
@@ -1187,59 +1223,34 @@ msg_set_data (msg_t *self, zframe_t *frame)
 }
 
 //  --------------------------------------------------------------------------
-//  Get/set the service field
+//  Get/set the called_address field
 
 char *
-msg_service (msg_t *self)
+msg_called_address (msg_t *self)
 {
     assert (self);
-    return self->service;
+    return self->called_address;
 }
 
 const char *
-msg_const_service (const msg_t *self)
+msg_const_called_address (const msg_t *self)
 {
     assert (self);
-    return self->service;
+    return self->called_address;
 }
 
 void
-msg_set_service (msg_t *self, const char *format, ...)
+msg_set_called_address (msg_t *self, const char *format, ...)
 {
     //  Format into newly allocated string
     assert (self);
     va_list argptr;
     va_start (argptr, format);
-    free (self->service);
-    self->service = (char *) malloc (STRING_MAX + 1);
-    assert (self->service);
-    vsnprintf (self->service, STRING_MAX, format, argptr);
+    free (self->called_address);
+    self->called_address = (char *) malloc (STRING_MAX + 1);
+    assert (self->called_address);
+    vsnprintf (self->called_address, STRING_MAX, format, argptr);
     va_end (argptr);
-}
-
-
-//  --------------------------------------------------------------------------
-//  Get/set the directionality field
-
-byte
-msg_directionality (msg_t *self)
-{
-    assert (self);
-    return self->directionality;
-}
-
-byte
-msg_const_directionality (const msg_t *self)
-{
-    assert (self);
-    return self->directionality;
-}
-
-void
-msg_set_directionality (msg_t *self, byte directionality)
-{
-    assert (self);
-    self->directionality = directionality;
 }
 
 
@@ -1319,6 +1330,33 @@ msg_set_throughput (msg_t *self, byte throughput)
 
 
 //  --------------------------------------------------------------------------
+//  Get/set the user_data field
+
+zframe_t *
+msg_user_data (msg_t *self)
+{
+    assert (self);
+    return self->user_data;
+}
+
+const zframe_t *
+msg_const_user_data (const msg_t *self)
+{
+    assert (self);
+    return self->user_data;
+}
+
+//  Takes ownership of supplied frame
+void
+msg_set_user_data (msg_t *self, zframe_t *frame)
+{
+    assert (self);
+    if (self->user_data)
+        zframe_destroy (&self->user_data);
+    self->user_data = frame;
+}
+
+//  --------------------------------------------------------------------------
 //  Get/set the cause field
 
 byte
@@ -1365,6 +1403,63 @@ msg_set_diagnostic (msg_t *self, byte diagnostic)
 {
     assert (self);
     self->diagnostic = diagnostic;
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get/set the calling_address field
+
+char *
+msg_calling_address (msg_t *self)
+{
+    assert (self);
+    return self->calling_address;
+}
+
+const char *
+msg_const_calling_address (const msg_t *self)
+{
+    assert (self);
+    return self->calling_address;
+}
+
+void
+msg_set_calling_address (msg_t *self, const char *format, ...)
+{
+    //  Format into newly allocated string
+    assert (self);
+    va_list argptr;
+    va_start (argptr, format);
+    free (self->calling_address);
+    self->calling_address = (char *) malloc (STRING_MAX + 1);
+    assert (self->calling_address);
+    vsnprintf (self->calling_address, STRING_MAX, format, argptr);
+    va_end (argptr);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Get/set the directionality field
+
+byte
+msg_directionality (msg_t *self)
+{
+    assert (self);
+    return self->directionality;
+}
+
+byte
+msg_const_directionality (const msg_t *self)
+{
+    assert (self);
+    return self->directionality;
+}
+
+void
+msg_set_directionality (msg_t *self, byte directionality)
+{
+    assert (self);
+    self->directionality = directionality;
 }
 
 
@@ -1426,35 +1521,35 @@ msg_test (bool verbose)
     msg_destroy (&self);
 
     self = msg_new (MSG_CALL_REQUEST);
-    msg_set_service (self, "Life is short but Now lasts for ever");
-    msg_set_directionality (self, 123);
+    msg_set_called_address (self, "Life is short but Now lasts for ever");
     msg_set_packet (self, 123);
     msg_set_window (self, 123);
     msg_set_throughput (self, 123);
+    msg_set_user_data (self, zframe_new ("Captcha Diem", 12));
     msg_send (&self, output);
 
     self = msg_recv (input);
     assert (self);
-    assert (streq (msg_service (self), "Life is short but Now lasts for ever"));
-    assert (msg_directionality (self) == 123);
+    assert (streq (msg_called_address (self), "Life is short but Now lasts for ever"));
     assert (msg_packet (self) == 123);
     assert (msg_window (self) == 123);
     assert (msg_throughput (self) == 123);
+    assert (zframe_streq (msg_user_data (self), "Captcha Diem"));
     msg_destroy (&self);
 
     self = msg_new (MSG_CALL_ACCEPTED);
-    msg_set_directionality (self, 123);
     msg_set_packet (self, 123);
     msg_set_window (self, 123);
     msg_set_throughput (self, 123);
+    msg_set_user_data (self, zframe_new ("Captcha Diem", 12));
     msg_send (&self, output);
 
     self = msg_recv (input);
     assert (self);
-    assert (msg_directionality (self) == 123);
     assert (msg_packet (self) == 123);
     assert (msg_window (self) == 123);
     assert (msg_throughput (self) == 123);
+    assert (zframe_streq (msg_user_data (self), "Captcha Diem"));
     msg_destroy (&self);
 
     self = msg_new (MSG_CLEAR_REQUEST);
@@ -1469,14 +1564,10 @@ msg_test (bool verbose)
     msg_destroy (&self);
 
     self = msg_new (MSG_CLEAR_CONFIRMATION);
-    msg_set_cause (self, 123);
-    msg_set_diagnostic (self, 123);
     msg_send (&self, output);
 
     self = msg_recv (input);
     assert (self);
-    assert (msg_cause (self) == 123);
-    assert (msg_diagnostic (self) == 123);
     msg_destroy (&self);
 
     self = msg_new (MSG_RESET_REQUEST);
@@ -1502,14 +1593,14 @@ msg_test (bool verbose)
     msg_destroy (&self);
 
     self = msg_new (MSG_CONNECT);
-    msg_set_service (self, "Life is short but Now lasts for ever");
+    msg_set_calling_address (self, "Life is short but Now lasts for ever");
     msg_set_directionality (self, 123);
     msg_set_throughput (self, 123);
     msg_send (&self, output);
 
     self = msg_recv (input);
     assert (self);
-    assert (streq (msg_service (self), "Life is short but Now lasts for ever"));
+    assert (streq (msg_calling_address (self), "Life is short but Now lasts for ever"));
     assert (msg_directionality (self) == 123);
     assert (msg_throughput (self) == 123);
     msg_destroy (&self);

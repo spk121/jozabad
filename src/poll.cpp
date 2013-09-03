@@ -3,6 +3,7 @@
 #include "../include/lib.h"
 #include "../include/log.h"
 #include "../include/poll.h"
+#include "../include/dname.h"
 
 static zctx_t *ctx;
 void *sock;
@@ -95,12 +96,13 @@ do_more:
         INFO("received %s from %s", msg_const_command(msg), key);
         if (msg_id(msg) == MSG_CONNECT) {
             NOTE("handling off %s to top-level", msg_const_command(msg));
-            add_connection(key, msg);
+            add_connection(key, msg_const_address(msg),
+                    msg_const_calling_address(msg),
+                    (direction_t) msg_const_directionality(msg),
+                    (throughput_t) msg_const_throughput(msg));
         } else
             INFO("ignored %s from %s", msg_const_command(msg), key);
     }
-
-
 
     return 0;
 }

@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 
     // Call "echo"
     zclock_log ("calling %s with %s, %s, %d, %s", "echo", name(dir), name(packet), window, name(thru));
-    msg_send_call_request(sock, "echo", dir, packet, window, thru);
+    msg_send_call_request(sock, "echo", packet, window, thru, zframe_new(0,0));
 
     while (true) {
         zclock_log ("waiting for a call acceptance");
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
             continue;
         }
         else {
-            const char *sname = msg_const_service(msg_in);
+            const char *sname = msg_const_called_address(msg_in);
             dir = (direction_t) msg_directionality(msg_in);
             packet = (packet_t) msg_packet(msg_in);
             window = msg_window(msg_in);

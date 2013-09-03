@@ -72,16 +72,16 @@ int main(int argc, char** argv) {
             continue;
         }
         else {
-            const char *sname = msg_const_service(msg_in);
+            const char *addr = msg_const_called_address(msg_in);
             dir = (direction_t) msg_directionality(msg_in);
             packet = (packet_t) msg_packet(msg_in);
             window = msg_window(msg_in);
             thru = (throughput_t)msg_throughput(msg_in);
-            zclock_log ("received %s, %s, %s, %s, %d, %s", msg_const_command(msg_in), sname, name(dir), name(packet), window, name(thru));
+            zclock_log ("received %s, %s, %s, %s, %d, %s", msg_const_command(msg_in), addr, name(dir), name(packet), window, name(thru));
             msg_destroy(&msg_in);
 
             zclock_log ("sending call accepted with %s, %s, %d, %s", name(dir), name(packet), window, name(thru));
-            msg_send_call_accepted(sock, dir, packet, window, thru);
+            msg_send_call_accepted(sock, packet, window, thru, zframe_new(0, 0));
 
             break;
         }

@@ -14,49 +14,46 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "../libjoza/joza_msg.h"
+#include "../libjoza/joza_lib.h"
+#include "state.h"
+#include "flow.h"
 
 using namespace std;
 
-#include "direction.h"
-#include "throughput.h"
-#include "name.h"
-#include "msg.h"
-#include "state.h"
-#include "flow.h"
-#include "packet.h"
-#include "diagnostic.h"
-#include "cause.h"
-
-//#include "channel.h"
-
-
-
+#define X121_ADDRESS_LENGTH (15)
 #define CONNECTIONS_MAX (256)
 
 class Connection {
 public:
     int id;
-    zframe_t *address; // The ZeroMQ address frame of the worker
-    char name[NAME_LENGTH_MAX]; // The name of the worker. Null-terminated string.
-    throughput_t throughput;
+    zframe_t *zmq_address; 
+    char x121_address[X121_ADDRESS_LENGTH]; 
     direction_t direction;
-    uint8_t busy; // When true, this connection is on a call
+    uint8_t busy;
 
-    Connection(zframe_t *address, const char *name, throughput_t t, direction_t d);
-    Connection(zframe_t const* address, const char *name, throughput_t t, direction_t d);
+    Connection(zframe_t *address, const char *name, direction_t d);
+    Connection(zframe_t const* address, const char *name, direction_t d);
     ~Connection();
 };
 
 typedef map<string, Connection*> connection_store_t;
-Connection* find_worker(const char* key);
-const char* find_dname(const char *key);
-void connection_msg_send(const char *key, msg_t **msg);
-void add_connection(const char *key, zframe_t const* zeromq_address, char const* calling_address,
-        direction_t d, throughput_t t);
-void connection_msg_send(const char* key, msg_t** msg);
-bool connection_dispatch(const char *key, msg_t *msg);
-Connection* find_worker_by_name(const char* name);
-void connection_disconnect(const char *key);
+
+const char*
+    find_dname(const char *key);
+Connection*
+    find_worker(const char* key);
+void
+    connection_msg_send(const char *key, joza_msg_t **msg);
+void
+    add_connection(const char *key, zframe_t const* zmq_addr,
+                   char const* x121_addr, direction_t d);
+bool
+    connection_dispatch(const char *key, joza_msg_t *msg);
+Connection*
+    find_worker_by_x121_address(const char* addr);
+void
+    connection_disconnect(const char *key);
 
 
 class Channel {
@@ -73,7 +70,7 @@ public:
     Channel(const char *key_x, const char *key_y);
     ~Channel();
 
-    void dispatch(const msg_t *msg);
+    void dispatch(const joza_msg_t *msg);
     void do_clear(cause_t c, diagnostic_t d);
     void do_reset(cause_t c, diagnostic_t d);
     void do_disconnect(diagnostic_t d);
@@ -82,9 +79,9 @@ public:
     void do_x_call_collision(void);
     void do_x_clear_request(diagnostic_t d);
     void do_x_clear_confirmation(diagnostic_t d);
-    void do_x_data(uint16_t seq, const zframe_t *data);
-    void do_x_rr(uint16_t seq);
-    void do_x_rnr(uint16_t seq);
+    void do_x_data(uint16_t ps, uint16_t pr, const zframe_t *data);
+    void do_x_rr(uint16_t pr);
+    void do_x_rnr(uint16_t pr);
     void do_x_reset(diagnostic_t d);
     void do_x_reset_confirmation(diagnostic_t d);
     void do_y_disconnect(void);
@@ -92,9 +89,9 @@ public:
     void do_y_call_collision(void);
     void do_y_clear_request(diagnostic_t d);
     void do_y_clear_confirmation(diagnostic_t d);
-    void do_y_data(uint16_t seq, const zframe_t *data);
-    void do_y_rr(uint16_t seq);
-    void do_y_rnr(uint16_t seq);
+    void do_y_data(uint16_t ps, uint16_t pr, const zframe_t *data);
+    void do_y_rr(uint16_t pr);
+    void do_y_rnr(uint16_t pr);
     void do_y_reset(diagnostic_t d);
     void do_y_reset_confirmation(diagnostic_t d);
 };
