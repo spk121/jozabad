@@ -1,0 +1,167 @@
+* Functionality
+** Timers
+** OpenID
+** Leaky Bucket Throttling
+** Reject Packets
+
+* Documentation
+
+* Test Cases
+** invalid ps
+*** TODO should error if first message sent has non-zero ps
+*** TODO should error if ps increases by more than 1
+*** TODO should error if ps is repeated
+*** TODO should error if ps decreases
+*** TODO should error is ps is greater than 32767
+*** TODO should not error when ps wraps from 32767 to 0
+*** TODO should error is ps is not in window
+
+** invalid pr
+*** TODO should error if pr is more than last ps + 1
+*** TODO should error if pr is more than last pr + window + 1
+*** TODO should not error when pr wraps from 32767 to 0
+
+packet type invalid
+
+unidentifiable 
+*** TODO should ignore packets with bad format from unknown connections
+*** TODO should error if packet has bad format from known connection
+  
+**  call on one-way logical channel
+*** TODO should error when an output-barred worker tries to call
+  
+**  invalid packet type on permanent virtual circuit
+  
+**  packet on unassigned logical channel
+*** TODO should reject all packets except for CONNECT
+  
+**  reject not subscribec to
+  
+**  packet too short
+*** TODO should reject short data packets
+  
+**  packet too long
+*** TODO should reject all long data packets
+*** TODO should reject all long call requests
+*** TODO should reject all long call accepts
+  
+**  invalid general format identifier
+  (handled by joza_msg)
+  
+**  restart packet with non-zero ...
+  
+**  packet-type not compatible with facility
+  
+**  unauthorized interrupt confirmation
+  
+**  unauthorized interrupt
+  
+**  unauthorized reject
+  
+**  TOA/NPI address subscription facility not subscribed to
+*** TODO should error if connection request is using alternate address formats when they are not allowed
+  
+**  time expired for incoming call
+*** TODO should take action if worker doesn't respond to a call request within threshold
+  
+**  time expired for clear indication
+*** TODO should take action if worker doesn't respond to clear request within threshold
+  
+**  time expired for reset indication
+*** TODO should error if worker doesn't respond to reset request within threshold
+  
+**  time expired for restart indication
+  
+**  time expired for call deflection
+  
+**  facility code not allowed
+*** TODO (if facility codes were dictionaries) would error on bad facility code key
+  
+**  facility parameter not allowed
+*** TODO should error if thoroughput, window, packet size, directionality 
+    is out of range
+*** TODO should error if thoroughput, window, packet size, directionality 
+    does bad negotiation
+  
+**  invalid calling address
+*** TODO should error if connect request has a bad address
+*** TODO should error if a connect request has a duplicate address
+  
+**  invalid called address
+*** TODO should error if call request has a bad address
+  
+**  invalid facility length
+*** TODO (if facility codes were dictionaries) would error if the dictionary
+    length were wrong
+  
+**  incoming call barred
+*** TODO should error when a worker tries to call an input-barred worker
+  
+**  no logical channel available
+*** TODO should error when there are more than XXX active channels
+*** TODO [call should hand up when it has been idle for too long]
+  
+**  call collision
+*** TODO should send diagnostic when call collision occurs
+  
+**  duplicate facility requested
+*** TODO (if facility codes were dictionaries) should error if the same facility
+  appeared twice
+  
+**  non-zero address length
+*** TODO error if the call accepted packet has an non-zero address length,
+  and the called address hasn't been modified
+  
+**  non-zero facility length
+  
+**  facility not provided when expected
+  
+**  maximum number of call redirections...
+  
+** improper cause code from worker
+*** TODO error if worker sends a clear request with cause code that is other than 
+  "worker generated" cause
+  
+**  not aligned octet
+  
+**  inconsistent Q-bit setting
+  
+**  NUI problem
+*** TODO invalid network user identifier (part of billing)
+  
+**  ICRD problem
+*** TODO inter-network call redirection and deflection control
+  
+**  remote network problem
+  
+** remote network problem
+
+** international protocol problem
+
+** international link out of order
+
+** international link busy
+
+** transit network facility problem
+
+** remote network facility problem
+
+** international routing problem
+*** TODO give call progress when requested ROA invalid or not supported
+  
+**  temporary routing problem
+  
+** unknown called DNIC
+*** TODO should error if X.121 address has a DNIC that is different that the broker
+  
+**  maintenance action
+*** TODO should send diagnostics if broker is in SIGHUP mode
+  
+
+================================================================
+
+"network congestion" cause is momentary failure
+
+"network out of order" cause is longer failure
+
+
