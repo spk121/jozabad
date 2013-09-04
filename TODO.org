@@ -1,13 +1,14 @@
-* Functionality
-** Timers
-** OpenID
-** Leaky Bucket Throttling
-** Reject Packets
+* Missing Functionality
+** TODO Add Timers
+** TODO Add OpenID registration
+** TODO Leaky Bucket Per-Channel Throttling
+** TODO Reject Packets
 
-* Documentation
+* Missing Documentation
+All the documentation is missing. ;-)
 
-* Test Cases
-** invalid ps
+* Missing Test Cases
+** Tests for Invalid ps
 *** TODO should error if first message sent has non-zero ps
 *** TODO should error if ps increases by more than 1
 *** TODO should error if ps is repeated
@@ -16,58 +17,67 @@
 *** TODO should not error when ps wraps from 32767 to 0
 *** TODO should error is ps is not in window
 
-** invalid pr
+** Missing tests for Invalid pr
 *** TODO should error if pr is more than last ps + 1
 *** TODO should error if pr is more than last pr + window + 1
 *** TODO should not error when pr wraps from 32767 to 0
 
-packet type invalid
+** Missing tests for invalid packet types for a given state
+*** TODO state 1
+*** TODO state 2
+*** TODO etc
 
-unidentifiable 
+** Missing tests unidentifiable packets
 *** TODO should ignore packets with bad format from unknown connections
 *** TODO should error if packet has bad format from known connection
   
-**  call on one-way logical channel
+**  Missing tests for calls on one-way logical channel
 *** TODO should error when an output-barred worker tries to call
   
-**  invalid packet type on permanent virtual circuit
+**  Missing tests for invalid packet type on permanent virtual circuit
+None
   
-**  packet on unassigned logical channel
+**  Missing tests for packet on unassigned logical channel
 *** TODO should reject all packets except for CONNECT
   
-**  reject not subscribec to
-  
-**  packet too short
+**  Missing tests for reject not subscribec to
+
+**  Missing tests for packet too short
 *** TODO should reject short data packets
   
-**  packet too long
+**  Missing tests for packet too long
 *** TODO should reject all long data packets
 *** TODO should reject all long call requests
 *** TODO should reject all long call accepts
   
-**  invalid general format identifier
-  (handled by joza_msg)
+**  Missing tests for invalid general format identifier
+None.  Handled by Joza MSG
   
-**  restart packet with non-zero ...
+**  Missing tests for restart packet with non-zero ...
+This is N/A.  
   
-**  packet-type not compatible with facility
+**  Missing tests for packet-type not compatible with facility
+N/A until INTERRUPT or REJ packets are implemented  
   
-**  unauthorized interrupt confirmation
+**  Missing tests for unauthorized interrupt confirmation
+N/A until INTERRUPT is implemented
   
-**  unauthorized interrupt
+**  Missing tests for unauthorized interrupt
+N/A until INTERRUPT is implemented
   
-**  unauthorized reject
-  
+**  Missing tests for unauthorized reject
+N/A until REJ is implemented
+
 **  TOA/NPI address subscription facility not subscribed to
-*** TODO should error if connection request is using alternate address formats when they are not allowed
-  
-**  time expired for incoming call
+N/A until multiple address types are implemented
+
+**  Missing tests for time expired for incoming call
 *** TODO should take action if worker doesn't respond to a call request within threshold
   
-**  time expired for clear indication
+**  Missing tests for time expired for clear indication
 *** TODO should take action if worker doesn't respond to clear request within threshold
   
-**  time expired for reset indication
+**  Missing tests for time expired for reset indication
 *** TODO should error if worker doesn't respond to reset request within threshold
   
 **  time expired for restart indication
@@ -119,8 +129,7 @@ unidentifiable
 **  maximum number of call redirections...
   
 ** improper cause code from worker
-*** TODO error if worker sends a clear request with cause code that is other than 
-  "worker generated" cause
+*** TODO error if worker sends a clear request with cause code that is other than "worker generated" cause
   
 **  not aligned octet
   
