@@ -1,0 +1,110 @@
+<class name = "jza" signature = "1" title = "transport for Switched Virtual Call messages">
+This is the Switched Virtual Call prot ver 1
+<license>
+GPL3+, bitches
+</license>
+
+<!-- Prot ver -->
+<define name = "VER" value = "1" />
+
+<!-- Response codes -->
+<declare>
+// BEGIN DECLARE
+// END DECLARE
+</declare>
+
+<message name = "DATA" id = "0">
+Binary data message.
+  <field name = "q" type = "number" size = "1" />
+  <field name = "pr" type = "number" size = "2" />
+  <field name = "ps" type = "number" size = "2" />
+  <field name = "data" type = "frame" />
+</message>
+
+<message name = "RR" id = "1">
+Tells peer the lowest send sequence number that it may send in its DATA packet.
+  <field name = "pr" type = "number" size = "2" />
+</message>
+
+<message name = "RNR" id = "2">
+Tells peer to stop sending data.
+  <field name = "pr" type = "number" size = "2" />
+</message>
+
+<message name = "CALENQ" id = "3">
+Call a peer. Negotiate the type of connection requested.
+  <field name = "inaddr" type = "string" />
+  <field name = "outaddr" type = "string" />
+  <field name = "packet" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "2" />
+  <field name = "tput" type = "number" size = "1" />
+  <field name = "data" type = "frame" />
+</message>
+
+<message name = "CALACK" id = "4">
+Answer the call.
+  <field name = "inaddr" type = "string" />
+  <field name = "outaddr" type = "string" />
+  <field name = "packet" type = "number" size = "1" />
+  <field name = "window" type = "number" size = "2" />
+  <field name = "tput" type = "number" size = "1" />
+  <field name = "data" type = "frame" />
+</message>
+
+<message name = "CLRENQ" id = "5">
+Request call termination
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "dx" type = "number" size = "1" />
+</message>
+
+<message name = "CLRACK" id = "6">
+Accept call termination
+</message>
+
+<message name = "RSTENQ" id = "7">
+Tell the peer to restart flow control
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "dx" type = "number" size = "1" />
+</message>
+
+<message name = "RSTACK" id = "8">
+Tell the peer that we have restarted flow control
+</message>
+
+<message name = "CONENQ" id = "9">
+Client node requests connection to the broker.
+  <field name = "prot" type = "string" value = "~SVC" />
+  <field name = "ver" type = "number" size = "1" value = "JOZA_MSG_VER" />
+  <field name = "inaddr" type = "string" />
+  <field name = "iodir" type = "number" size = "1" />
+</message>
+
+<message name = "CONACK" id = "10">
+Broker tells node that it has been connected.
+</message>
+
+<message name = "DISENQ" id = "11">
+Node tells broker that it is disconnecting.
+</message>
+
+<message name = "DISACK" id = "12">
+ Broker tells node that it has been disconnected
+</message>
+
+<message name = "DX" id = "13">
+  <field name = "cause" type = "number" size = "1" />
+  <field name = "dx" type = "number" size = "1" />
+</message>
+
+<message name = "COUNT" id = "14" />
+
+<!-- message name = "REJ" id = "3" -->
+
+<!-- message name = "INTERRUPT" id = "10" -->
+<!-- message name = "INTERRUPT_CONFIRMATION id = "11" -->
+
+<!-- message name = "DX" id = "12" -->
+<!-- message name = "RESTART_REQUEST" id = "13" -->
+<!-- message name = "RESTART_CONFIRMATION id = "14" -->
+
+</class>
