@@ -1,3 +1,8 @@
+Visual Studio C++ 2012 vs GCC / GNU libc
+========================================
+Supporting these two cases together is rather difficult.
+
+Herb at the MS team are working hard at implementing the C++1x standards and standard lib, but, have given up on C11.  Herb says that if you want C11 on Visual Studio, you should just use the C++ compiler and then skip the features of C11 that aren't in C++11.
 
 Message formats
 ===============
