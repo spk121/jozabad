@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Express 2012 for Windows Desktop
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libjoza", "libjoza\libjoza.vcxproj", "{1A3311F5-C83B-4490-B584-B72BCCD70160}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "broker", "broker\broker.vcxproj", "{3F573162-13F1-40A5-8557-2C8B276F159D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1A3311F5-C83B-4490-B584-B72BCCD70160} = {1A3311F5-C83B-4490-B584-B72BCCD70160}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Debug|Win32.Build.0 = Debug|Win32
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Debug|Win32.Deploy.0 = Debug|Win32
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Release|Win32.ActiveCfg = Release|Win32
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Release|Win32.Build.0 = Release|Win32
+		{1A3311F5-C83B-4490-B584-B72BCCD70160}.Release|Win32.Deploy.0 = Release|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Debug|Win32.Build.0 = Debug|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Debug|Win32.Deploy.0 = Debug|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.ActiveCfg = Release|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.Build.0 = Release|Win32
+		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.Deploy.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

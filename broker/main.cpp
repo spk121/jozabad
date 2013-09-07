@@ -48,7 +48,7 @@ int main (int argc, char *argv[]) {
     while ((c = pgetopt(argc, argv, opt_pattern)) != -1) {
 	switch(c) {
             case 'p':
-                val = atoi(poptarg);
+                val = stoi(poptarg);
                 if (val >= 1 && val <= 65535) {
                     opt_port = val;
                 }

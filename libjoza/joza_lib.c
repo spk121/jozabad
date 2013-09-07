@@ -465,3 +465,6 @@ uint16_t window_negotiate (uint16_t request, uint16_t current, bool *valid)
     return ret;
 }
 
+zframe_t *zframe_const_dup(const zframe_t *f) {
+	return zframe_dup((zframe_t *)f);
+}

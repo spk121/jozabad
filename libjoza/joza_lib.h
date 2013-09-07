@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include <stdbool.h>
+#include <czmq.h>
 
 #define WINDOW_MIN 1U
 #define WINDOW_MAX 32767U
@@ -212,6 +212,7 @@ bool window_validate(uint16_t i);
 uint16_t window_throttle(uint16_t request, uint16_t limit);
 uint16_t window_negotiate(uint16_t request, uint16_t current, bool *valid);
 
+zframe_t *zframe_const_dup(const zframe_t *f);
 #ifdef	__cplusplus
 }
 #endif

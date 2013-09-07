@@ -17,10 +17,10 @@
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <zmq.h>
 #include <czmq.h>
 #include "joza_msg.h"
+#include "joza_lib.h"
 
 
 
@@ -661,7 +661,7 @@ joza_msg_send_data (
     joza_msg_set_q (self, q);
     joza_msg_set_pr (self, pr);
     joza_msg_set_ps (self, ps);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -675,11 +675,11 @@ joza_msg_send_addr_data (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DATA);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_q (self, q);
     joza_msg_set_pr (self, pr);
     joza_msg_set_ps (self, ps);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -704,7 +704,7 @@ joza_msg_send_addr_rr (
     uint16_t pr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RR);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_pr (self, pr);
     return joza_msg_send (&self, output);
 }
@@ -730,7 +730,7 @@ joza_msg_send_addr_rnr (
     uint16_t pr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RNR);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_pr (self, pr);
     return joza_msg_send (&self, output);
 }
@@ -755,7 +755,7 @@ joza_msg_send_call_request (
     joza_msg_set_packet (self, packet);
     joza_msg_set_window (self, window);
     joza_msg_set_throughput (self, throughput);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -771,13 +771,13 @@ joza_msg_send_addr_call_request (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CALL_REQUEST);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_called_address (self, called_address);
     joza_msg_set_packet (self, packet);
     joza_msg_set_window (self, window);
     joza_msg_set_throughput (self, throughput);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -801,7 +801,7 @@ joza_msg_send_call_accepted (
     joza_msg_set_packet (self, packet);
     joza_msg_set_window (self, window);
     joza_msg_set_throughput (self, throughput);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -817,13 +817,13 @@ joza_msg_send_addr_call_accepted (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CALL_ACCEPTED);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_called_address (self, called_address);
     joza_msg_set_packet (self, packet);
     joza_msg_set_window (self, window);
     joza_msg_set_throughput (self, throughput);
-    joza_msg_set_data (self, zframe_dup (data));
+    joza_msg_set_data (self, zframe_const_dup (data));
     return joza_msg_send (&self, output);
 }
 
@@ -851,7 +851,7 @@ joza_msg_send_addr_clear_request (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CLEAR_REQUEST);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -875,7 +875,7 @@ joza_msg_send_addr_clear_confirmation (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CLEAR_CONFIRMATION);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -903,7 +903,7 @@ joza_msg_send_addr_reset_request (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RESET_REQUEST);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -927,7 +927,7 @@ joza_msg_send_addr_reset_confirmation (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RESET_CONFIRMATION);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -955,7 +955,7 @@ joza_msg_send_addr_connect (
     byte directionality)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_directionality (self, directionality);
     return joza_msg_send (&self, output);
@@ -979,7 +979,7 @@ joza_msg_send_addr_connect_indication (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT_INDICATION);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1001,7 +1001,7 @@ joza_msg_send_addr_disconnect (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DISCONNECT);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1023,7 +1023,7 @@ joza_msg_send_addr_disconnect_indication (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DISCONNECT_INDICATION);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1051,7 +1051,7 @@ joza_msg_send_addr_diagnostic (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DIAGNOSTIC);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -1075,7 +1075,7 @@ joza_msg_send_addr_count (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_COUNT);
-    self->address = zframe_dup(addr);
+    self->address = zframe_const_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1091,13 +1091,13 @@ joza_msg_dup (joza_msg_t *self)
 
     joza_msg_t *copy = joza_msg_new (self->id);
     if (self->address)
-        copy->address = zframe_dup (self->address);
+        copy->address = zframe_const_dup (self->address);
     switch (self->id) {
         case JOZA_MSG_DATA:
             copy->q = self->q;
             copy->pr = self->pr;
             copy->ps = self->ps;
-            copy->data = zframe_dup (self->data);
+            copy->data = zframe_const_dup (self->data);
             break;
 
         case JOZA_MSG_RR:
@@ -1114,7 +1114,7 @@ joza_msg_dup (joza_msg_t *self)
             copy->packet = self->packet;
             copy->window = self->window;
             copy->throughput = self->throughput;
-            copy->data = zframe_dup (self->data);
+            copy->data = zframe_const_dup (self->data);
             break;
 
         case JOZA_MSG_CALL_ACCEPTED:
@@ -1123,7 +1123,7 @@ joza_msg_dup (joza_msg_t *self)
             copy->packet = self->packet;
             copy->window = self->window;
             copy->throughput = self->throughput;
-            copy->data = zframe_dup (self->data);
+            copy->data = zframe_const_dup (self->data);
             break;
 
         case JOZA_MSG_CLEAR_REQUEST:
@@ -1351,7 +1351,7 @@ joza_msg_set_address (joza_msg_t *self, zframe_t *address)
 {
     if (self->address)
         zframe_destroy (&self->address);
-    self->address = zframe_dup (address);
+    self->address = zframe_const_dup (address);
 }
 
 
