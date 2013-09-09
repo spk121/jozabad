@@ -26,12 +26,17 @@ int main(int argc, char** argv) {
     zctx_t *ctx2 = NULL;
     void *sock1 = NULL;
     void *sock2 = NULL;
-    //throughput_t thru = t_2048kbps;
-    //packet_t packet = p_4_Kbytes;
-    //uint16_t window = WINDOW_MAX;
+    throughput_t thru = t_2048kbps;
+    packet_t packet = p_4_Kbytes;
+    uint16_t window = WINDOW_MAX;
+    int ret;
 
     initialize (verbose, ctx1, sock1, broker, calling_address1, dir);
     initialize (verbose, ctx2, sock2, broker, calling_address2, dir);
+    if (verbose)
+        printf("setting up a virtual call on a logical channel\n");
+    ret = joza_msg_send_call_request(sock1, calling_address1, calling_address2,
+                                     packet, thru, window, zframe_new (0,0));
     return (EXIT_SUCCESS);
 }
 
@@ -94,6 +99,5 @@ static void initialize(int verbose, zctx_t *ctx, void *sock, char *broker,
             joza_msg_dump(response);
         }
         exit (1);
-    }
-    
+    }   
 }

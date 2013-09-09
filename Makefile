@@ -1,8 +1,10 @@
 INCLUDES = \
     include/action.h \
+    include/cause.h \
     include/connections.h \
     include/diagnostic.h \
     include/direction.h \
+    include/dname.h \
     include/flow.h \
     include/lib.h \
     include/log.h \
@@ -18,7 +20,9 @@ INCLUDES = \
 CSRC = src/pgetopt.c
 
 CPPSRC = src/action.cpp \
+    src/cause.cpp \
     src/connections.cpp \
+    src/dname.cpp \
     src/flow.cpp \
     src/diagnostic.cpp \
     src/direction.cpp \
@@ -113,6 +117,9 @@ include/msg.h: src/parch_msg.xml src/codec_c.gsl
 src/action.o : src/action.cpp include/action.h include/msg.h
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
+src/cause.o : src/cause.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
+
 #src/channel.o : src/channel.cpp
 #	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
@@ -123,6 +130,9 @@ src/diagnostic.o : src/diagnostic.cpp
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
 
 src/direction.o : src/direction.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
+
+src/dname.o : src/dname.cpp
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
 
 src/flow.o : src/flow.cpp

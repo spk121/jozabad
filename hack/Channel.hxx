@@ -47,6 +47,7 @@ class ChannelStore {
 public:
     ChannelStore() : _store(), _xmap(), _ymap() {};
     int dispatch(Msg& msg);
+    int do_call_request_step_2(Msg& msg, string y_key);
 
     pair<int, shared_ptr<Channel>> find (string key);
     void insert (string x, string y, uint16_t W, uint16_t P, uint32_t T);

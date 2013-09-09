@@ -84,7 +84,6 @@ int main(int argc, char *argv []) {
         assert(parch_msg_id(request) == PARCH_MSG_CALL_REQUEST);
         assert(streq(parch_msg_service(request), "echo"));
 
-
         // Respond that the call is accepted
         parch_msg_send_call_accepted(parch_node_client(session), 0, parch_msg_packet(request), parch_msg_window(request), parch_msg_throughput(request));
 

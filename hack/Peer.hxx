@@ -36,8 +36,14 @@ class PeerStore {
     void insert(const zframe_t *pzf, string name, IoDir dir);
     size_t count(string key);
     size_t count_by_address(string addr);
+    Peer& get(string key);
+    Peer& get_by_name(string addr);
     int dispatch(Msg& msg);
+    int do_connect(Msg& msg);
+    int do_disconnect(Msg& msg);
     void disconnect(string key); 
+
+    pair<int, string> do_call_request_step_1(Msg& msg);
 
  private:
     map<string, Peer> _map;

@@ -11,6 +11,32 @@
 //        2 if handled
 int ChannelStore::dispatch(Msg& msg)
 {
+    int ret = 0;
+    // Else, if this message
+    // - is one of the regular messages
+    // - is from a known peer
+    // - that peer is in a connection
+    // - the connected peer is valid
+    // then figure out what needs to be validated.
+    // Check if
+    // - the message has valid addresses
+    // - the message has valid faciltities requests
+    // - the message has valid ps and pr values
+    // then, use the state machine and action table to process the message
+
+    return ret;
+}
+
+int ChannelStore::do_call_request_step_2(Msg& msg, string ykey)
+{
+    // If this message
+    // - is a call request
+    // - is from a known peer
+    // - that peer is not in a connection
+    // - the message has a called_address that is of a known peer
+    // - and that known peer is not in a connection
+    // - and has valid facilities values
+    // then, connect the callee and caller
     return 0;
 }
 
@@ -36,31 +62,3 @@ size_t ChannelStore::count(string key)
     return (_xmap.count(key) + _ymap.count(key));
 }
 
-#if 0
-int main()
-{
-    ChannelStore cs;
-
-    cs.insert("Adam", "Brody", 2, 128, 64000);
-    auto x = cs.find("Adam");
-    auto y = cs.find("Brody");
-    auto z = 100;
-    // auto z = cs.find("Charlie");
-#if 0
-    ChannelVector channels;
-    ChannelMap xchannels;
-    ChannelMap ychannels;
-
-    add_channel(channels, xchannels, ychannels, "X2", "Y2", 2, 128, 64000);
-    channels.emplace_back(make_shared<Channel>("X1","Y1",2,128,64000));
-    xchannels.insert(pair<string,shared_ptr<Channel>>("key1", channels.front()));
-    xchannels["key2"] = channels.front();
-    shared_ptr<Channel> d = xchannels["key1"];
-    xchannels.erase("key2");
-    d = xchannels["key3"];
-    if (xchannels.count("key4"))
-        d = xchannels.at("key4");
-#endif
-    return 0;
-}
-#endif
