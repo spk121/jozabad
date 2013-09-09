@@ -1,11 +1,11 @@
 # Jozabad
 
-Jozabad is a broker and a client library that implements a custom hub-and-spoke communcation protocol.
+Jozabad is a broker and a client library that implements a custom hub-and-spoke communication protocol.
 
 The basic goals of the protocol are these:
 
 * A node can connect to or disconnect from the hub at any time.
-* A node can request that the hub create a persistent, exclusive, asynchronous, bilateral communcation channel with any other idle node willing to communcate.
+* A node can request that the hub create a persistent, exclusive, asynchronous, bilateral communication channel with any other idle node willing to communcate.
 * The communication between connected node pairs is stateful (not REST).  It allows for Telnet-like protocols.
 * The hub prevents nodes from discovering one-another's IP address and port.
 * It has safeguards to allow multiple connections to fairly share a low-speed (384 kbit/sec) DSL link.

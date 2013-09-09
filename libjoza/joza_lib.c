@@ -465,6 +465,23 @@ uint16_t window_negotiate (uint16_t request, uint16_t current, bool *valid)
     return ret;
 }
 
+bool address_validate(const char *str) {
+    bool safe = true;
+    size_t len = strlen(str);
+    if (len == 0 || len > 16)
+        safe = false;
+    else {
+        for (size_t i = 0; i < len; i++) {
+            if ((unsigned char) str[i] >= (unsigned char) 128 || (unsigned char) str[i] <= (unsigned char) 31)
+                safe = false;
+        }
+        if (str[0] == ' ' || str[len - 1] == ' ')
+            safe = false;
+    }
+    return safe;
+
+}
+
 zframe_t *zframe_const_dup(const zframe_t *f) {
 	return zframe_dup((zframe_t *)f);
 }

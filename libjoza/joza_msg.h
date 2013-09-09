@@ -14,7 +14,6 @@
 extern "C" {
 #endif
 
-#define _GNU_SOURCE
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>

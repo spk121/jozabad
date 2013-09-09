@@ -1,8 +1,22 @@
+Abbreviations
+=============
+
+tput    throughput (bits/sec)
+iodir   input/output direction
+dx      diagnostic
+actn    action
+enq     request aka enquiry
+ack     positive request acknowledgement or confirmation
+nak     negative request acknowledgement
+
 Visual Studio C++ 2012 vs GCC / GNU libc
 ========================================
 Supporting these two cases together is rather difficult.
 
-Herb at the MS team are working hard at implementing the C++1x standards and standard lib, but, have given up on C11.  Herb says that if you want C11 on Visual Studio, you should just use the C++ compiler and then skip the features of C11 that aren't in C++11.
+Herb at the MS team are working hard at implementing the C++1x
+standards and standard lib, but, have given up on C11.  Herb says that
+if you want C11 on Visual Studio, you should just use the C++ compiler
+and then skip the features of C11 that aren't in C++11.
 
 Message formats
 ===============
@@ -32,3 +46,13 @@ In practice, this means that the broker will have a code AAA-B and will reject a
 Also, if a worker calls CCCCCCCC and it is busy, there might someday be functionality to forward the call to a specific CCCCCCCC-DD.
 
 For now, the last two DD should never be used.
+
+Stringprep / SASLPrep
+--------------------
+X.121 is probably too restrictve, even for this kind of nonsense.
+
+Probably should just have a fixed-length UTF-8 string that passes rules like SASLPrep.
+
+GNU libidn could be used for that.
+
+There's also GNU SASL if I want simple authentication / OpenID.

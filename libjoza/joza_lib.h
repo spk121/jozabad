@@ -33,6 +33,8 @@ typedef enum _cause_t {
 } cause_t;
     
 typedef enum _diagnostic_t {
+    // These are X.25 diagnostics.  I've included them all here, but, once I know
+    // which ones are unnecessary, I'll get rid of many of them.
     d_unspecified,
     d_invalid_ps,
     d_invalid_pr,
@@ -83,7 +85,7 @@ typedef enum _diagnostic_t {
     d_duplicate_facility_requested,
     d_non_zero_address_length,
     d_non_zero_facility_length,
-   d_facility_not_provided_when_expected,
+    d_facility_not_provided_when_expected,
     d_maximum_number_of_call_redirections_exceeded,
 
     d_miscellaneous,
@@ -106,6 +108,15 @@ typedef enum _diagnostic_t {
     d_temporary_routing_problem,
     d_unknown_called_DNIC,
     d_maintenance_action,
+
+    // These are new diagnostics I invented because they don't map
+    // well to the X.25 diagnostics.
+#if 0
+    d_duplicate_connection_request,
+    d_maximum_number_of_workers_reached,
+    d_invalid_facility_parameter__direction,
+
+#endif
 
     d_last = d_maintenance_action
 } diagnostic_t;
@@ -211,6 +222,7 @@ uint32_t throughput_bps(throughput_t p);
 bool window_validate(uint16_t i);
 uint16_t window_throttle(uint16_t request, uint16_t limit);
 uint16_t window_negotiate(uint16_t request, uint16_t current, bool *valid);
+bool address_validate(const char *a);
 
 zframe_t *zframe_const_dup(const zframe_t *f);
 #ifdef	__cplusplus
