@@ -21,8 +21,9 @@ public:
         : _address(p._address), _name(p._name), _ioDir(p._ioDir)
     {
         _refcount = p._refcount;
-    }
-
+    };
+	bool busy() {return _refcount > 0;};
+	string key() {return _address._hex; };
 
     ZFrame _address;
     int _id;
@@ -35,7 +36,7 @@ class PeerStore {
  public:
     void insert(const zframe_t *pzf, string name, IoDir dir);
     size_t count(string key);
-    size_t count_by_address(string addr);
+    size_t count_by_name(string addr);
     Peer& get(string key);
     Peer& get_by_name(string addr);
     int dispatch(Msg& msg);

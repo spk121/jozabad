@@ -7,6 +7,7 @@
 
 using namespace std;
 extern void *g_sock;
+#define MAX_CALL_REQUEST_DATA_SIZE 16
 
 int Peer::_count = 0;
 
@@ -40,7 +41,7 @@ size_t PeerStore::count(string key)
     return _map.count(key);
 }
 
-size_t PeerStore::count_by_address(string addr)
+size_t PeerStore::count_by_name(string addr)
 {
     //return std::count(_map.begin(), _map.end(), [addr](pair<string, Peer> x){return x.second._name == addr;});
     for (auto it = _map.begin();
@@ -96,7 +97,7 @@ int PeerStore::do_connect(Msg& msg)
                                       d_facility_parameter_not_allowed);
         ret = 2;
     }
-    else if (count_by_address(msg.calling_address()) != 0) {
+    else if (count_by_name(msg.calling_address()) != 0) {
         // Duplicate address
         joza_msg_send_addr_diagnostic(g_sock, msg.address(),
                                       c_local_procedure_error,
@@ -131,7 +132,10 @@ int PeerStore::do_disconnect(Msg& msg)
 // Handling a CALL_REQUEST message is special because it requires both
 // PeerStore and ChannelStore.  This is the first half of the
 // CALL_REQUEST processing.
-pair<int, string> PeerStore::do_call_request_step_1(Msg& msg)
+
+typedef pair<int, string> _pair;
+
+_pair PeerStore::do_call_request_step_1(Msg& msg)
 {
     pair<int, string> ret;
     size_t X_count = count(msg.key());
@@ -142,7 +146,7 @@ pair<int, string> PeerStore::do_call_request_step_1(Msg& msg)
     if (X_count == 0) {
         // If we don't know who this is from, give up.
         joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_local_procedure_error, d_unspecified);
-        ret = {2, ""};
+        ret = _pair(2, "");
     }
     else {
         Peer& X = get(msg.key());
@@ -154,14 +158,14 @@ pair<int, string> PeerStore::do_call_request_step_1(Msg& msg)
         }
         else if (!packet_validate(msg.packet())) {
         }
-        else if (!packet_validate(msg.window())) {
+        else if (!window_validate(msg.window())) {
         }
-        else if (!packet_validate(msg.throughput())) {
+        else if (!throughput_validate(msg.throughput())) {
         }
         else if (msg.data_size() > MAX_CALL_REQUEST_DATA_SIZE) {
         }
         else {
-            Y_count = count_by_name(msg.called_address());
+            size_t Y_count = count_by_name(msg.called_address());
 
             assert (Y_count <= 1);
             if (Y_count == 0) {
@@ -174,16 +178,16 @@ pair<int, string> PeerStore::do_call_request_step_1(Msg& msg)
                     // X is already on a call.  At this point I know it will get rejected, but,
                     // I let ChannelStore do it so it can send a "d_packet_type_invalid_for_sX"
                     // message.
-                    ret = {1, Y.key()};
+                    ret = _pair(1, Y.key());
                 }
                 else if (Y.busy()) {
                     // Y is on a call and X is not.  Thus, Y is busy.
                     joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_number_busy, d_call_collision);
-                    ret = {2, ""};
+                    ret = _pair(2, "");
                 }
                 else {
                     // OK finally. This is a valid message on valid free peers.
-                    ret = {1, Y.key()};
+                    ret = _pair(1, Y.key());
                 }
             }
         }
@@ -191,7 +195,7 @@ pair<int, string> PeerStore::do_call_request_step_1(Msg& msg)
 
     // Unreachable
     abort ();
-    return {0, ""};
+    return _pair(0, "");
 }
 
 #if 0

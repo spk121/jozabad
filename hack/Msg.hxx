@@ -1,13 +1,13 @@
 #pragma once
 
 #include "../libjoza/joza_msg.h"
+#include "../libjoza/joza_lib.h"
 #include <czmq.h>
 #include <zmq.h>
 #include <string>
 #include "ZFrame.hxx"
 
 using namespace std;
-
 
 // This little class just exists to make sure that a joza_msg_t is
 // properly freed.
@@ -59,7 +59,12 @@ public:
         return (_msg != NULL);
     }
 
-    string calling_address() 
+    string called_address() 
+    {
+        return joza_msg_called_address(_msg);
+    }
+
+	string calling_address() 
     {
         return joza_msg_calling_address(_msg);
     }
@@ -76,7 +81,25 @@ public:
         update_hex();
     }
 
+	packet_t packet() 
+	{
+		return (packet_t) _msg->packet;
+	}
 
+	uint16_t window()
+	{
+		return _msg->window;
+	}
+
+	throughput_t throughput()
+	{
+		return (throughput_t) _msg->throughput;
+	}
+
+	size_t data_size()
+	{
+		return zframe_size(_msg->data);
+	}
 
 private:
     void update_hex() 

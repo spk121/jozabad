@@ -16,7 +16,7 @@ extern "C" {
 
 #include <string.h>
 #include <stdint.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 #include <zmq.h>
 #include <czmq.h>
 
