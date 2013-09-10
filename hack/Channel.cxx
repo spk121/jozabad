@@ -1,9 +1,15 @@
 #include "Channel.hxx"
+#include "Peer.hxx"
+#include "../libjoza/joza_msg.h"
 
 #include <memory>
 #include <map>
 #include <utility>
 #include <algorithm>
+
+static diagnostic_t state_to_diagnostic(State s);
+extern void *g_sock;
+extern PeerStore peers;
 
 // Tries to handle the given message. 
 // return 0 if not handled
@@ -27,17 +33,40 @@ int ChannelStore::dispatch(Msg& msg)
     return ret;
 }
 
-int ChannelStore::do_call_request_step_2(Msg& msg, string ykey)
+int ChannelStore::do_call_request_step_2(Msg& msg, string& ykey)
 {
-    // If this message
-    // - is a call request
-    // - is from a known peer
-    // - that peer is not in a connection
-    // - the message has a called_address that is of a known peer
-    // - and that known peer is not in a connection
-    // - and has valid facilities values
-    // then, connect the callee and caller
-    return 0;
+    int ret = 0;
+    // do_call_request_part_one should have guaranteed that this
+    // - this message is valid
+    // - msg comes from a known peer
+    // - msg is calling a known peer
+
+    if (count(msg._hex) != 0) {
+        auto ch = find(msg._hex);
+        // The message sender is already on a call.  We need to get the call's state 
+        // to send a proper diagnostic.
+        joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                      c_local_procedure_error,
+                                      state_to_diagnostic(ch.second->_state));
+        ret = 2;
+    }
+    else {
+        // Create the call
+        insert(msg._hex, ykey, msg.window(), msg.packet(), msg.throughput());
+
+        // FIXME: here is where the broker would throttle window/packet/throughput
+        
+        joza_msg_send_addr_call_request(g_sock,
+                                        peers.get(ykey)._address._pzframe,
+                                        (char *)msg.calling_address().c_str(),
+                                        (char *)msg.called_address().c_str(),
+                                        msg.packet(),
+                                        msg.window(),
+                                        msg.throughput(),
+                                        joza_msg_data(msg._msg));
+        ret = 2;
+    }
+    return ret;
 }
 
 pair<int, shared_ptr<Channel>> ChannelStore::find (string key)
@@ -57,8 +86,29 @@ void ChannelStore::insert(string x, string y, uint16_t W, uint16_t P, uint32_t T
     _ymap[y] = _store.back();
 }
 
-size_t ChannelStore::count(string key)
+size_t ChannelStore::count(string& key)
 {
     return (_xmap.count(key) + _ymap.count(key));
 }
 
+static diagnostic_t state_to_diagnostic(State s) {
+    if (s == State::ready)
+        return d_packet_type_invalid_for_s1;
+    else if (s == State::x_call_request)
+        return d_packet_type_invalid_for_s2;
+    else if (s == State::y_call_request)
+        return d_packet_type_invalid_for_s3;
+    else if (s == State::data_transfer)
+        return d_packet_type_invalid_for_s4;
+    else if (s == State::call_collision)
+        return d_packet_type_invalid_for_s5;
+    else if (s == State::x_clear_request)
+        return d_packet_type_invalid_for_s6;
+    else if (s == State::y_clear_request)
+        return d_packet_type_invalid_for_s7;
+    else if (s == State::x_reset_request)
+        return d_packet_type_invalid_for_s8;
+    else if (s == State::y_reset_request)
+        return d_packet_type_invalid_for_s9;
+    return d_packet_type_invalid;
+}

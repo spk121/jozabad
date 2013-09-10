@@ -22,6 +22,7 @@ public:
     {
         _refcount = p._refcount;
     };
+    Peer() = delete;
 	bool busy() {return _refcount > 0;};
 	string key() {return _address._hex; };
 
@@ -34,15 +35,15 @@ public:
 
 class PeerStore {
  public:
-    void insert(const zframe_t *pzf, string name, IoDir dir);
     size_t count(string key);
     size_t count_by_name(string addr);
-    Peer& get(string key);
-    Peer& get_by_name(string addr);
+    void disconnect(string key); 
     int dispatch(Msg& msg);
     int do_connect(Msg& msg);
     int do_disconnect(Msg& msg);
-    void disconnect(string key); 
+    Peer& get(string key);
+    Peer& get_by_name(string addr);
+    void insert(const zframe_t *pzf, string name, IoDir dir);
 
     pair<int, string> do_call_request_step_1(Msg& msg);
 

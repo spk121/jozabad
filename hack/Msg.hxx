@@ -101,7 +101,11 @@ public:
 		return zframe_size(_msg->data);
 	}
 
-private:
+    zframe_t* data()
+    {
+        return _msg->data;
+    }
+
     void update_hex() 
     {
         char *h = zframe_strhex(joza_msg_address(_msg));

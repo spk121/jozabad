@@ -1,7 +1,7 @@
 #include "../libjoza/joza_lib.h"
 #include "../libjoza/joza_msg.h"
 
-static void initialize(int verbose, zctx_t *ctx, void *sock, char *broker,
+static void initialize(int verbose, const char *preface, zctx_t **ctx, void **sock, char *broker,
                        char *calling_address, direction_t dir);
 
 static int timeout1;
@@ -31,53 +31,67 @@ int main(int argc, char** argv) {
     uint16_t window = WINDOW_MAX;
     int ret;
 
-    initialize (verbose, ctx1, sock1, broker, calling_address1, dir);
-    initialize (verbose, ctx2, sock2, broker, calling_address2, dir);
+    initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
+    initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, dir);
     if (verbose)
-        printf("setting up a virtual call on a logical channel\n");
+        printf("peer X: requesting a virtual call\n");
     ret = joza_msg_send_call_request(sock1, calling_address1, calling_address2,
-                                     packet, thru, window, zframe_new (0,0));
+                                     packet, window, thru, zframe_new (0,0));
+
+    if (verbose)
+        printf("peer Y: waiting for a call request message\n");
+    // Broker must respond within timeout
+    joza_msg_t *response = joza_msg_recv(sock2);
+    if (joza_msg_id(response) != JOZA_MSG_CALL_REQUEST) {
+        if (verbose) {
+            printf("peer Y: did not receive call request from X\n");
+            joza_msg_dump(response);
+        }
+        exit (1);
+    }   
+    
     return (EXIT_SUCCESS);
 }
 
-static void initialize(int verbose, zctx_t *ctx, void *sock, char *broker,
+static void initialize(int verbose, const char *preface, zctx_t **ctx, void **sock, char *broker,
                        char *calling_address, direction_t dir)
 {
     int ret;
 
     if (verbose)
-        printf("connecting to socket %s\n", broker);
+        printf("%s: connecting to socket %s\n", preface, broker);
 
-    ctx = zctx_new ();
-    if (ctx == NULL) {
+    *ctx = zctx_new ();
+    if (*ctx == NULL) {
         if (verbose)
-            printf("zctx_new() returned NULL\n");
+            printf("%s: zctx_new() returned NULL\n", preface);
         exit(1);
     }
 
-    sock = zsocket_new(ctx, ZMQ_DEALER);
-    if (sock == NULL) {
+    *sock = zsocket_new(*ctx, ZMQ_DEALER);
+    if (*sock == NULL) {
         if (verbose)
-            printf("zsocket_new(%p, %d) returned NULL\n", ctx, ZMQ_DEALER);
+            printf("%s: zsocket_new(%p, %d) returned NULL\n", preface, *ctx, ZMQ_DEALER);
         exit(1);
     }
 
-    ret = zsocket_connect(sock, broker);
+    ret = zsocket_connect(*sock, broker);
     if (ret != 0) {
         if (verbose)
-            printf("zsocket_connect(%p, %p) returned %d\n", sock, broker, ret);
+            printf("%s: zsocket_connect(%p, %p) returned %d\n", preface, *sock, broker, ret);
         exit(1);
     }
 
     if (verbose)
-        printf("connecting to broker as %s, (%s)\n",
+        printf("%s: connecting to broker as %s, (%s)\n",
+               preface,
                calling_address,
                direction_name(dir));
-    ret = joza_msg_send_connect(sock, calling_address, dir);
+    ret = joza_msg_send_connect(*sock, calling_address, dir);
     if (ret != 0) {
         if (verbose)
-            printf("joza_msg_send_connect (%p, %s, %s) returned %d\n",
-                   sock,
+            printf("%s: joza_msg_send_connect (%p, %s, %s) returned %d\n", preface,
+                   *sock,
                    calling_address,
                    direction_name(dir),
                    ret);
@@ -90,12 +104,12 @@ static void initialize(int verbose, zctx_t *ctx, void *sock, char *broker,
     alarm(10);
 
     if (verbose)
-        printf("waiting for connect indication\n");
-    joza_msg_t *response = joza_msg_recv(sock);
+        printf("%s: waiting for connect indication\n", preface);
+    joza_msg_t *response = joza_msg_recv(*sock);
     timeout1 = false;
     if (joza_msg_id(response) != JOZA_MSG_CONNECT_INDICATION) {
         if (verbose) {
-            printf("did not receive connect indication\n");
+            printf("%s: did not receive connect indication\n", preface);
             joza_msg_dump(response);
         }
         exit (1);

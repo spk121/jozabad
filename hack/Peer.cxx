@@ -17,25 +17,6 @@ Peer::Peer(const zframe_t *pzf, string name, IoDir dir)
     _id = _count++;
 }
 
-// Create a new entry in the peer store
-void PeerStore::insert(const zframe_t *pzf, string name, IoDir dir)
-{
-    char *key;
-    key = zframe_strhex((zframe_t *) pzf);
-    pair<string, Peer> v(key, Peer(pzf, name, dir));
-    free (key);
-
-    auto ret = _map.insert(v);
-
-    // The check to see if we're re-adding a Peer belongs in dispatch().
-    assert(ret.second == true);
-};
-
-void PeerStore::disconnect(string key) 
-{
-    _map.erase(_map.find(key));
-}
-
 size_t PeerStore::count(string key)
 {
     return _map.count(key);
@@ -52,6 +33,12 @@ size_t PeerStore::count_by_name(string addr)
     }
     return 0;
 }
+
+void PeerStore::disconnect(string key) 
+{
+    _map.erase(_map.find(key));
+}
+
 
 // Tries to handle the given message. 
 // return 0 if not handled
@@ -70,6 +57,107 @@ int PeerStore::dispatch(Msg& msg)
         ret = do_disconnect(msg);
     return ret;
 }
+
+// Handling a CALL_REQUEST message is special because it requires both
+// PeerStore and ChannelStore.  This is the first half of the
+// CALL_REQUEST processing.
+
+typedef pair<int, string> _pair;
+
+_pair PeerStore::do_call_request_step_1(Msg& msg)
+{
+    pair<int, string> ret(-1,"");
+    size_t X_count = count(msg.key());
+
+    assert(msg.is_a(JOZA_MSG_CALL_REQUEST));
+    assert (X_count <= 1);
+
+    if (X_count == 0) {
+        // If we don't know who this is from, give up.
+        joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_local_procedure_error, d_unspecified);
+        ret = _pair(2, "");
+    }
+    else {
+        Peer& X = get(msg.key());
+
+        // This message from from outside, to be paranoid and check it.
+
+        if (X._name != msg.calling_address()) {
+            // Bad calling address
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_local_procedure_error,
+                                          d_invalid_calling_address);
+            ret = _pair(2, "");
+        }
+        else if (!address_validate(msg.called_address().c_str())) {
+            // Bad calling address
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_local_procedure_error,
+                                          d_invalid_called_address);
+            ret = _pair(2, "");
+        }
+        else if (!packet_validate(msg.packet())) {
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_invalid_facility_request,
+                                          d_facility_parameter_not_allowed);
+            ret = _pair(2, "");
+        }
+        else if (!window_validate(msg.window())) {
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_invalid_facility_request,
+                                          d_facility_parameter_not_allowed);
+            ret = _pair(2, "");
+        }
+        else if (!throughput_validate(msg.throughput())) {
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_invalid_facility_request,
+                                          d_facility_parameter_not_allowed);
+            ret = _pair(2, "");
+        }
+        else if (msg.data_size() > MAX_CALL_REQUEST_DATA_SIZE) {
+            joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                          c_local_procedure_error,
+                                          d_packet_too_long);
+            ret = _pair(2, "");
+        }
+        else {
+            size_t Y_count = count_by_name(msg.called_address());
+
+            assert (Y_count <= 1);
+            if (Y_count == 0) {
+                // Connect request to unknown peer
+                joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                              c_local_procedure_error,
+                                              d_invalid_called_address);
+                ret = _pair(2, "");
+            }
+            else {
+                Peer& Y = get_by_name(msg.called_address());
+
+                if (X.busy()) {
+                    // X is already on a call.  At this point I know it will get rejected, but,
+                    // I let ChannelStore do it so it can send a "d_packet_type_invalid_for_sX"
+                    // message.
+                    ret = _pair(1, Y.key());
+                }
+                else if (Y.busy()) {
+                    // Y is on a call and X is not.  Thus, Y is busy.
+                    joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_number_busy, d_call_collision);
+                    ret = _pair(2, "");
+                }
+                else {
+                    // OK finally. This is a valid message on valid free peers.
+                    ret = _pair(1, Y.key());
+                }
+            }
+        }
+    }
+
+    if (ret.first == -1)
+        abort ();
+    return ret;
+}
+
 
 int PeerStore::do_connect(Msg& msg)
 {
@@ -129,74 +217,34 @@ int PeerStore::do_disconnect(Msg& msg)
     return ret;
 }
 
-// Handling a CALL_REQUEST message is special because it requires both
-// PeerStore and ChannelStore.  This is the first half of the
-// CALL_REQUEST processing.
-
-typedef pair<int, string> _pair;
-
-_pair PeerStore::do_call_request_step_1(Msg& msg)
+Peer& PeerStore::get(string key)
 {
-    pair<int, string> ret;
-    size_t X_count = count(msg.key());
-
-    assert(msg.is_a(JOZA_MSG_CALL_REQUEST));
-    assert (X_count <= 1);
-
-    if (X_count == 0) {
-        // If we don't know who this is from, give up.
-        joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_local_procedure_error, d_unspecified);
-        ret = _pair(2, "");
-    }
-    else {
-        Peer& X = get(msg.key());
-
-        // This message from from outside, to be paranoid and check it.
-
-        if (X._name != msg.calling_address()) {
-            // Bad calling address
-        }
-        else if (!packet_validate(msg.packet())) {
-        }
-        else if (!window_validate(msg.window())) {
-        }
-        else if (!throughput_validate(msg.throughput())) {
-        }
-        else if (msg.data_size() > MAX_CALL_REQUEST_DATA_SIZE) {
-        }
-        else {
-            size_t Y_count = count_by_name(msg.called_address());
-
-            assert (Y_count <= 1);
-            if (Y_count == 0) {
-                // Connect request to unknown peer
-            }
-            else {
-                Peer& Y = get_by_name(msg.called_address());
-
-                if (X.busy()) {
-                    // X is already on a call.  At this point I know it will get rejected, but,
-                    // I let ChannelStore do it so it can send a "d_packet_type_invalid_for_sX"
-                    // message.
-                    ret = _pair(1, Y.key());
-                }
-                else if (Y.busy()) {
-                    // Y is on a call and X is not.  Thus, Y is busy.
-                    joza_msg_send_addr_diagnostic (g_sock, msg.address(), c_number_busy, d_call_collision);
-                    ret = _pair(2, "");
-                }
-                else {
-                    // OK finally. This is a valid message on valid free peers.
-                    ret = _pair(1, Y.key());
-                }
-            }
-        }
-    }
-
-    // Unreachable
-    abort ();
-    return _pair(0, "");
+    return _map.at(key);
 }
+
+Peer& PeerStore::get_by_name(string addr)
+{
+    for (auto it = _map.begin(); it != _map.end(); ++it) {
+        if (it->second._name == addr)
+            return it->second;
+    }
+    abort();
+}
+
+
+// Create a new entry in the peer store
+void PeerStore::insert(const zframe_t *pzf, string name, IoDir dir)
+{
+    char *key;
+    key = zframe_strhex((zframe_t *) pzf);
+    pair<string, Peer> v(key, Peer(pzf, name, dir));
+    free (key);
+
+    auto ret = _map.insert(v);
+
+    // The check to see if we're re-adding a Peer belongs in dispatch().
+    assert(ret.second == true);
+};
 
 #if 0
 int main()
