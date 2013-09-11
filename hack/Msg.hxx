@@ -54,6 +54,11 @@ public:
         return (id == joza_msg_id(_msg));
     }
 
+    int id()
+    {
+        return joza_msg_id(_msg);
+    }
+
     bool is_valid()
     {
         return (_msg != NULL);

@@ -9,6 +9,7 @@
 PeerStore peers;
 ChannelStore channels;
 Poll poll;
+extern void *g_sock;
 
 int dispatch(Msg& msg)
 {
@@ -51,6 +52,9 @@ int dispatch(Msg& msg)
 
     if (ret == 0) {
         // unexpected message from unknown peer
+        joza_msg_send_addr_diagnostic(g_sock, msg.address(),
+                                      c_local_procedure_error,
+                                      d_unidentifiable_packet);        
     }
     if (ret == 1)
         goto do_more;

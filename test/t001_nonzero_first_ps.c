@@ -32,7 +32,9 @@ int main(int argc, char** argv) {
     int ret;
 
     initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
+
     initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, dir);
+
     if (verbose)
         printf("peer X: requesting a virtual call\n");
     ret = joza_msg_send_call_request(sock1, calling_address1, calling_address2,
@@ -40,7 +42,6 @@ int main(int argc, char** argv) {
 
     if (verbose)
         printf("peer Y: waiting for a call request message\n");
-    // Broker must respond within timeout
     joza_msg_t *response = joza_msg_recv(sock2);
     if (joza_msg_id(response) != JOZA_MSG_CALL_REQUEST) {
         if (verbose) {
@@ -49,7 +50,24 @@ int main(int argc, char** argv) {
         }
         exit (1);
     }   
+
+    if (verbose)
+        printf("peer Y: sending call accepted message\n");
+    joza_msg_send_call_accepted(sock2, calling_address1, calling_address2,
+                                packet, window, thru, zframe_new(0,0));
+
+    joza_msg_destroy(&response);
     
+    if (verbose)
+        printf("peer X: waiting for a call accepted message\n");
+    response = joza_msg_recv(sock1);
+    if (joza_msg_id(response) != JOZA_MSG_CALL_ACCEPTED) {
+        if (verbose) {
+            printf("peer X: did not receive call request from Y\n");
+            joza_msg_dump(response);
+        }
+        exit (1);
+    }   
     return (EXIT_SUCCESS);
 }
 

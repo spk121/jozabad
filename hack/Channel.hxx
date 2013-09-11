@@ -6,22 +6,9 @@
 #include <string>
 #include <vector>
 #include "Msg.hxx"
+#include "action.hxx"
 
 using namespace std;
-
-enum class State {
-    ready,
-    x_call_request,
-    y_call_request,
-    data_transfer,
-    call_collision,
-    x_clear_request,
-    y_clear_request,
-    x_reset_request,
-    y_reset_request,
-
-    state_last = y_reset_request
-} state_t;
 
 struct Subchannel {
     string _key;
@@ -42,6 +29,8 @@ public:
         _throughput = {T};
     }
     ~Channel() {};
+
+    int dispatch(Msg& msg, bool is_y);
 
     State _state;
 private:
