@@ -1,0 +1,62 @@
+* C++11
+
+So here I am, trying to write C++ again. Que mierda.
+
+* uniform brace initialization for everything
+
+Don't do parenthesized initialization, '=' assignment initialization,
+or constructor member parenthesized initialization.
+
+* use 'references' instead of pointers if an object is singleton, nonnull, and never dereferenced
+
+* use 'delete' to get rid of all unnecessary constructors
+
+struct Obj
+{
+// copy
+ Obj(const Obj&) = delete;
+
+// move
+ Obj(Obj&& other) = delete
+
+// copy assignment
+ Obj& operator=(const Obj&) = delete;
+
+// move assignment
+ Obj& operator=(Obj&& other) = delete
+};
+
+* use 'nullptr' instead of NULL always
+
+* use 'auto' whenever you can
+
+* use 'decltype' whenever you can
+
+typedef decltype (some object) typename;
+
+* move constructors
+
+"""
+A move constructor looks like this:
+
+C::C(C&& other); //C++11 move constructor
+
+It doesn’t allocate new resources. Instead, it pilfers other‘s
+resources and then sets other to its default-constructed state."
+
+A move assignment operator has the following signature:
+
+C& C::operator=(C&& other);//C++11 move assignment operator
+
+A move assignment operator is similar to a copy constructor except
+that before pilfering the source object, it releases any resources
+that its object may own. The move assignment operator performs four
+logical steps:
+
+    Release any resources that *this currently owns.
+    Pilfer other‘s resource.
+    Set other to a default state.
+    Return *this.
+"""
+
+http://blog.smartbear.com/c-plus-plus/c11-tutorial-introducing-the-move-constructor-and-the-move-assignment-operator/
