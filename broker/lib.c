@@ -9,8 +9,13 @@
    - GCC - C11 only + no local includes except own public header
    - CL 11.0 - C11 subset of C++11 only (/TP) + no local includes except own public header
 */
+#ifdef __GNUC__
+# define _GNU_SOURCE
+#endif
+
 #include <assert.h>
 #include <ctype.h>
+#include <limits.h>
 #ifndef WIN32
 # include <stdbool.h>
 #endif
@@ -21,11 +26,26 @@
 #include "lib.h"
 
 //----------------------------------------------------------------------------
+// ANNEX K MISSING FUNCTIONS
+//----------------------------------------------------------------------------
+
+#if __GLIBC__ == 2
+// This can be removed once Annex K hits GNU libc
+size_t strnlen_s (const char *s, size_t maxsize)
+{
+  if (s == NULL)
+    return 0;
+
+  return strnlen (s, maxsize);
+}
+#endif
+
+//----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
 
-const static char p_ini[] = "%&+,.:=_";
-const static char p_mid[] = "%&+,.:=_ ";
+static const char p_ini[] = "%&+,.:=_";
+static const char p_mid[] = "%&+,.:=_ ";
 
 /* Returns TRUE if the character C is in the set of valid initial
    characters for a name.  */
@@ -47,7 +67,7 @@ static bool _val_mid (char C)
 bool safeascii(const char *mem, size_t n)
 {
 	assert(mem != NULL);
-    int i;
+    size_t i;
 
 	if (n == 0)
 		return true;
@@ -158,6 +178,22 @@ const char *unpack121(uint32_t x)
 // UNIQUE-KEY VECTORS
 //----------------------------------------------------------------------------
 
+#if UKEY_WIDTH == 1
+typedef uint16_t double_ukey_t;
+# define UKEY_SHIFT 8
+# define UKEY_MASK UINT16_C(0xFF)
+#elif UKEY_WIDTH == 2
+typedef uint32_t double_ukey_t;
+# define UKEY_SHIFT 16
+# define UKEY_MASK UINT32_C(0xFFFF)
+#elif UKEY_WIDTH == 4
+typedef uint64_t double_ukey_t;
+#define UKEY_SHIFT 32
+#define UKEY_MASK UINT64_C(0xFFFFFFFF)
+#else
+# error "Bad UKEY_WIDTH"
+#endif
+
 
 // Using a bisection search on a matrix ARR of length N,
 // which is supposed to contain a strictly monotonically increasing
@@ -165,7 +201,7 @@ const char *unpack121(uint32_t x)
 // return the location of the key, or, if it is not found,
 // the location where the key would be inserted.
 // A return value of N indicates after the end of the matrix.
-static int keyfind(unsigned short arr[], int n, unsigned short key)
+static int keyfind(ukey_t arr[], size_t n, ukey_t key)
 {
     int lo, hi, mid;
 
@@ -188,15 +224,14 @@ static int keyfind(unsigned short arr[], int n, unsigned short key)
 // doesn't appear in the array, KEY is returned.  If it does appear, the next avaialble
 // unique integer key is returned.  J is an array index that is the starting point
 // of the search.
-static unsigned short _keynext(unsigned short arr[], int n, unsigned short key, int j)
+static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 {
-	assert (n >= 0 && n < USHRT_MAX);  // infinite loop when all integers are being used as keys
-	assert (j >= 0 && j <= n);
-	int count = 0;
+	assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
+	assert (j <= n);
 
     while (j < n)
     {
-		unsigned short k = arr[j];
+		ukey_t k = arr[j];
 		if (k < key)
 			j ++;
         else if (k == key) {
@@ -217,9 +252,9 @@ static unsigned short _keynext(unsigned short arr[], int n, unsigned short key, 
 // - find the next free unique KEY
 // - find the location where that KEY could be inserted into the array
 // The KEY parameter is the starting point for the search for a new key.
-index_key_t keynext(unsigned short arr[], int n, unsigned short key)
+index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
 {
-    index_key_t ret;
+    index_ukey_t ret;
     int index;
 	bool did_loop = false;
 
@@ -246,9 +281,9 @@ index_key_t keynext(unsigned short arr[], int n, unsigned short key)
 // Used in the sort in indexx() below.
 static int compu64(const void *x, const void *y)
 {
-	uint64_t a, b;
-	a = *(uint64_t *)x;
-	b = *(uint64_t *)y;
+	double_ukey_t a, b;
+	a = *(double_ukey_t *)x;
+	b = *(double_ukey_t *)y;
 	if (a < b)
 		return -1;
 	else if (a == b)
@@ -262,27 +297,26 @@ static int compu64(const void *x, const void *y)
 // indices into the original array that would put it
 // in sorted order.
 // FIXME: memory inefficient.  Could use the NumRec version.
-void indexx(unsigned short arr[], int n, unsigned short indx[])
+void indexx(ukey_t arr[], size_t n, ukey_t indx[])
 {
-	static_assert(sizeof(unsigned short) < sizeof(uint32_t), "bad integer sizes for indexx");
-	uint64_t *arrindx = (uint64_t *) calloc(n, sizeof(uint64_t));
+	double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
 
 	// Pack the array value and index into one array.
 	// The value is first so we end up sorting on it.
-	for (int i = 0; i < n; i ++)
-		arrindx[i] = ((uint64_t) arr[i]) << 32 | (uint64_t) i;
-	qsort(arrindx, n, sizeof(uint64_t), compu64);
-	for (int i = 0; i < n; i ++)
-		indx[i] = (unsigned short) (arrindx[i] & UINT64_C(0xFFFFFFFF));
+	for (double_ukey_t i = 0; i < n; i ++)
+		arrindx[i] = ((double_ukey_t) arr[i]) << UKEY_SHIFT | i;
+	qsort(arrindx, n, sizeof(double_ukey_t), compu64);
+	for (double_ukey_t i = 0; i < n; i ++)
+		indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
 	free (arrindx);
 }
 
-#if 0
+#if 1
 #include <stdio.h>
 int main()
 {
-	unsigned short x[] = {8, 6, 7, 5, 3, 0, 9};
-	unsigned short idx[7];
+	ukey_t x[] = {8, 6, 7, 5, 3, 0, 9};
+	ukey_t idx[7];
 	indexx(x, 7, idx);
 	for (int i = 0; i < 7; i ++)
 		printf("%d %d %d\n", i, x[i], idx[i]);
