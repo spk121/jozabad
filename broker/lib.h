@@ -49,10 +49,13 @@ typedef uint32_t ukey_t;
 #endif
 
 typedef struct {
-    int index;
+    size_t index;
     ukey_t key;
 } index_ukey_t;
+
+size_t keyfind(ukey_t arr[], size_t n, ukey_t key);
 index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key);
 void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
+
 #endif	/* LIB_H */
 

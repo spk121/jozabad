@@ -1,9 +1,9 @@
 /* lib.c
-	These are functions or procedures
-	1. they act only on their parameters
-	2. require no external knowledge beyond C11 + stdlib
+   These are functions or procedures
+   1. they act only on their parameters
+   2. require no external knowledge beyond C11 + stdlib
 
-	*/
+*/
 
 /* Guidance
    - GCC - C11 only + no local includes except own public header
@@ -33,10 +33,10 @@
 // This can be removed once Annex K hits GNU libc
 size_t strnlen_s (const char *s, size_t maxsize)
 {
-  if (s == NULL)
-    return 0;
+    if (s == NULL)
+        return 0;
 
-  return strnlen (s, maxsize);
+    return strnlen (s, maxsize);
 }
 #endif
 
@@ -66,11 +66,11 @@ static bool _val_mid (char C)
    NULLs may only appear at the end. */
 bool safeascii(const char *mem, size_t n)
 {
-	assert(mem != NULL);
+    assert(mem != NULL);
     size_t i;
 
-	if (n == 0)
-		return true;
+    if (n == 0)
+        return true;
     if (!_val_init(mem[0]))
         return false;
     i = 1;
@@ -82,7 +82,7 @@ bool safeascii(const char *mem, size_t n)
         else
             i++;
     return true;
- }
+}
 
 //----------------------------------------------------------------------------
 // PHONE-STYLE NAMES
@@ -107,71 +107,71 @@ bool safe121 (const char *str, size_t n)
 
     if (len != 11 && len != 8)
         ret = false;
-	else
-	{
-		for (int i = 0; i < len; i ++)
-		{
-			if ((i == 3 || i == 8)  && str[i] != '-')
-			{
-				ret = false;
-				break;
-			}
-			else if (str[i] < '0' || str[i] > '9')
-			{
+    else
+    {
+        for (int i = 0; i < len; i ++)
+        {
+            if ((i == 3 || i == 8)  && str[i] != '-')
+            {
                 ret = false;
-				break;
-			}
-		}
-	}
-	return ret;
+                break;
+            }
+            else if (str[i] < '0' || str[i] > '9')
+            {
+                ret = false;
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 // Returns the integer-representation of an 'x121' name stored
 // in character array STR of length N.
 uint32_t pack121(const char *str, size_t n)
 {
-	assert(safe121 (str, n) == true);
+    assert(safe121 (str, n) == true);
 
-	uint32_t val = 0, scale = 100000000;
-	assert(safe121(str, n));
+    uint32_t val = 0, scale = 100000000;
+    assert(safe121(str, n));
     int len = strnlen_s(str, n);
-	for (int i = 0; i < len; i ++)
-	{
-		val += (str[i] - '0') * scale;
-		scale /= 10;
-	}
-	return val;
+    for (int i = 0; i < len; i ++)
+    {
+        val += (str[i] - '0') * scale;
+        scale /= 10;
+    }
+    return val;
 }
 
 // Not thread safe, obviously.  Behold the laziness!
 const char *unpack121(uint32_t x)
 {
-	static char str[12];
-	str[11] = '\0';
-	str[10] = '0' + (x % 10);
-	x /= 10;
-	str[9] = '0' + (x % 10);
-	x /= 10;
-	str[8] = '-';
-	if (str[10] == '0' && str[9] == '0')
-		str[8] = '\0';
-	else
-		str[8] = '-';
-	str[7] = '0' + (x % 10);
-	x /= 10;
-	str[6] = '0' + (x % 10);
-	x /= 10;
-	str[5] = '0' + (x % 10);
-	x /= 10;
-	str[4] = '0' + (x % 10);
-	x /= 10;
-	str[3] = '-';
-	str[2] = '0' + (x % 10);
-	x /= 10;
-	str[1] = '0' + (x % 10);
-	x /= 10;
-	str[0] = '0' + (x % 10);
-	return str;
+    static char str[12];
+    str[11] = '\0';
+    str[10] = '0' + (x % 10);
+    x /= 10;
+    str[9] = '0' + (x % 10);
+    x /= 10;
+    str[8] = '-';
+    if (str[10] == '0' && str[9] == '0')
+        str[8] = '\0';
+    else
+        str[8] = '-';
+    str[7] = '0' + (x % 10);
+    x /= 10;
+    str[6] = '0' + (x % 10);
+    x /= 10;
+    str[5] = '0' + (x % 10);
+    x /= 10;
+    str[4] = '0' + (x % 10);
+    x /= 10;
+    str[3] = '-';
+    str[2] = '0' + (x % 10);
+    x /= 10;
+    str[1] = '0' + (x % 10);
+    x /= 10;
+    str[0] = '0' + (x % 10);
+    return str;
 }
 
 //----------------------------------------------------------------------------
@@ -201,9 +201,9 @@ typedef uint64_t double_ukey_t;
 // return the location of the key, or, if it is not found,
 // the location where the key would be inserted.
 // A return value of N indicates after the end of the matrix.
-static int keyfind(ukey_t arr[], size_t n, ukey_t key)
+size_t keyfind(ukey_t arr[], size_t n, ukey_t key)
 {
-    int lo, hi, mid;
+    size_t lo, hi, mid;
 
     lo = 0;
     hi = n + 1;
@@ -226,14 +226,14 @@ static int keyfind(ukey_t arr[], size_t n, ukey_t key)
 // of the search.
 static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 {
-	assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
-	assert (j <= n);
+    assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
+    assert (j <= n);
 
     while (j < n)
     {
-		ukey_t k = arr[j];
-		if (k < key)
-			j ++;
+        ukey_t k = arr[j];
+        if (k < key)
+            j ++;
         else if (k == key) {
             key ++;
 
@@ -256,7 +256,7 @@ index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
 {
     index_ukey_t ret;
     int index;
-	bool did_loop = false;
+    bool did_loop = false;
 
  loop:
     index = keyfind(arr, n, key);
@@ -267,9 +267,9 @@ index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
         // ID.  So we check the entry to the left to see if this ID
         // is a duplicate, and then increment it if necessary.
         if (arr[index - 1] == key) {
-			assert (!did_loop);
+            assert (!did_loop);
             key = _keynext(arr, n, key, index - 1);
-			did_loop = true;
+            did_loop = true;
             goto loop;
         }
     }
@@ -281,15 +281,15 @@ index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
 // Used in the sort in indexx() below.
 static int compu64(const void *x, const void *y)
 {
-	double_ukey_t a, b;
-	a = *(double_ukey_t *)x;
-	b = *(double_ukey_t *)y;
-	if (a < b)
-		return -1;
-	else if (a == b)
-		return 0;
-	else
-		return 1;
+    double_ukey_t a, b;
+    a = *(double_ukey_t *)x;
+    b = *(double_ukey_t *)y;
+    if (a < b)
+        return -1;
+    else if (a == b)
+        return 0;
+    else
+        return 1;
 }
 
 // Given an unsorted list of unique integers ARR and
@@ -299,30 +299,30 @@ static int compu64(const void *x, const void *y)
 // FIXME: memory inefficient.  Could use the NumRec version.
 void indexx(ukey_t arr[], size_t n, ukey_t indx[])
 {
-	double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
+    double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
 
-	// Pack the array value and index into one array.
-	// The value is first so we end up sorting on it.
-	for (double_ukey_t i = 0; i < n; i ++)
-		arrindx[i] = ((double_ukey_t) arr[i]) << UKEY_SHIFT | i;
-	qsort(arrindx, n, sizeof(double_ukey_t), compu64);
-	for (double_ukey_t i = 0; i < n; i ++)
-		indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
-	free (arrindx);
+    // Pack the array value and index into one array.
+    // The value is first so we end up sorting on it.
+    for (double_ukey_t i = 0; i < n; i ++)
+        arrindx[i] = ((double_ukey_t) arr[i]) << UKEY_SHIFT | i;
+    qsort(arrindx, n, sizeof(double_ukey_t), compu64);
+    for (double_ukey_t i = 0; i < n; i ++)
+        indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
+    free (arrindx);
 }
 
 #if 1
 #include <stdio.h>
 int main()
 {
-	ukey_t x[] = {8, 6, 7, 5, 3, 0, 9};
-	ukey_t idx[7];
-	indexx(x, 7, idx);
-	for (int i = 0; i < 7; i ++)
-		printf("%d %d %d\n", i, x[i], idx[i]);
-	for (int i = 0; i < 7; i ++)
-		printf("%d %d\n", i, x[idx[i]]);
+    ukey_t x[] = {8, 6, 7, 5, 3, 0, 9};
+    ukey_t idx[7];
+    indexx(x, 7, idx);
+    for (int i = 0; i < 7; i ++)
+        printf("%d %d %d\n", i, x[i], idx[i]);
+    for (int i = 0; i < 7; i ++)
+        printf("%d %d\n", i, x[idx[i]]);
 
-	return 0;
+    return 0;
 }
 #endif
