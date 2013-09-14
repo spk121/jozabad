@@ -4,10 +4,6 @@
 #include "lib.h"
 #include "iodir.h"
 
-#ifndef NAME_LEN
-# define NAME_LEN 11U
-#endif
-
 typedef struct {
     bool_t valid;
     ukey_t key;

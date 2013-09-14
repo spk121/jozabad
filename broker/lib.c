@@ -2,7 +2,7 @@
 These are functions or procedures
 1. they act only on their parameters
 2. require no external knowledge beyond C11 + stdlib
-
+3. one could imagine that they might be of some general use
 */
 
 /* Guidance
@@ -27,6 +27,17 @@ These are functions or procedures
 // COMPAT
 //----------------------------------------------------------------------------
 
+size_t intlen(int x)
+{
+    if (x == 0)
+        return 1;
+
+    int d = (int)(log10(fabs(x))+1);
+    if (x < 0)
+        d++;
+    return d;
+}
+
 #if __GLIBC__ == 2
 // This can be removed once Annex K hits GNU libc
 size_t strnlen_s (const char *s, size_t maxsize)
@@ -44,7 +55,7 @@ size_t strnlen_s (const char *s, size_t maxsize)
 
 // An obscure, 6-bit encoding
 
-const char ecma1[64] =            \
+const char ecma1[65] =            \
                                   " \t\n\v\f\r\016\017()*+,-./" \
                                   "0123456789:;<=>?"            \
                                   "\000ABCDEFGHIJKLMNO"         \
@@ -495,7 +506,7 @@ double now()
 }
 
 
-#if 1
+#if 0
 #include <stdio.h>
 int main()
 {

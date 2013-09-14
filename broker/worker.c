@@ -9,16 +9,19 @@
 #include "iodir.h"
 
 #ifndef WORKER_COUNT
-# define WORKER_COUNT UKEY_C(1024)
+# define WORKER_COUNT 1024U
 #endif
-static_assert(WORKER_COUNT < UKEY_MAX, "WORKER_COUNT too large for ukey_t");
+static_assert(WORKER_COUNT <= INT_MAX, "WORKER_COUNT too large");
+
+#ifndef NAME_LEN
+# define NAME_LEN 11U
+#endif
+static_assert(NAME_LEN <= INT8_MAX, "NAME_LEN too large");
 
 /*
   These arrays form a hash table whose data is keyed either by
   a string hash of the ZMQ address or by name.
-*/
 
-/*
   zhash uint32_t   [primary key]    a hash created from the ZMQ Router identity
   name  char[17]   [secondary key]  a string name for the connection
   zaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity
@@ -53,29 +56,44 @@ static size_t   w_nidx[WORKER_COUNT];
 // FIXME: PEDANTIC - pointers to the names in w_name;
 static char     *w_pname[WORKER_COUNT];
 
-static void init_pname(void)
+void init_pname(void)
 {
     for (size_t i = 0; i < WORKER_COUNT; i ++)
         w_pname[i] = &(w_name[i][0]);
 }
 
-#define PUSH(arr,idx,count)                                             \
-    memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
-
 // Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
 // bytes 1 to 5 of the address would work as a unique ID for a
 // given connection.
-uint32_t addr2hash (zframe_t *z)
+static uint32_t addr2hash (zframe_t *z)
 {
     uint32_t x[1];
     memcpy(x, (char *) zframe_data(z) + 1, sizeof(uint32_t));
     return x[0];
 }
 
+static void push
+#define PUSH(arr,idx,count)  _Generic((a                                 \
+    memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
+
+static void pushd(double arr[], size_t idx, size_t count)
+{
+    if (PARANOIA)
+    {
+        for (int i = _count; i >= idx + 1; i --)
+        {
+            arr[i] = arr[i-1];
+        }
+        arr[idx] = 0.0;
+    }
+    else
+        memmove(&arr[idx+1], &arr[idx], sizeof(double) * (count - idx));
+}
+
 // Add a new worker to the store.  Returns true on success or false
 // on failure.  Everything is supposed to be pre-validated, so 
 // invalid means that this message is ignored.
-void add_worker(zframe_t *A, const char *N, iodir_t I)
+uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
 {
     uint32_t hash;
     size_t i;
@@ -105,9 +123,9 @@ void add_worker(zframe_t *A, const char *N, iodir_t I)
         PUSH(w_iodir, i, _count);
         PUSH(w_lcn, i, _count);
         PUSH(w_role, i, _count);
-        PUSH(w_ctime, i, _count);
-        PUSH(w_atime, i, _count);
-        PUSH(w_mtime, i, _count);
+        pushd(w_ctime, i, _count);
+        pushd(w_atime, i, _count);
+        pushd(w_mtime, i, _count);
     }
 
     w_zhash[i] = hash;
@@ -124,6 +142,38 @@ void add_worker(zframe_t *A, const char *N, iodir_t I)
 
     // Update the index table that alphabetizes the names.
     qisort(w_pname, _count, w_nidx);
+    return hash;
 }
 
-#undef PUSH
+void remove_worker(uint32_t hash)
+{
+    if (_count == 0)
+        return;
+    i = ifind(w_zhash, _count, hash);
+    if (w_zhash[i] != hash)
+        return;
+    if (i < _count - 1)
+    {
+        REMOVE(w_zhash, i, _count);
+        REMOVE(w_zaddr, i, _count);
+        REMOVE(w_name, i, _count);
+        REMOVE(w_iodir, i, _count);
+        REMOVE(w_lcn, i, _count);
+        REMOVE(w_role, i, _count);
+        removed(w_ctime, i, _count);
+        removed(w_atime, i, _count);
+        removed(w_mtime, i, _count);
+    }
+    _count --;
+    w_zhash[_count] = 0;
+    memset(w_name[_count], 0, NAME_LEN + 1);
+    w_zaddr[_count] = NULL;
+    w_iodir[i] = BIDIRECTIONAL;
+    w_lcn[i] = UKEY_C(0);
+    w_role[i] = READY;
+    w_ctime[i] = -1.0;
+    w_mtime[i] = -1.0;
+    w_atime[i] = -1.0;
+}
+
+#undef REMOVE

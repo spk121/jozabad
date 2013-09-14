@@ -5,16 +5,22 @@
 #ifndef _PARCH_LIB_H_INCLUDE
 #define	_PARCH_LIB_H_INCLUDE
 
+#include <stdint.h>
+#include <stdlib.h>
+
 //----------------------------------------------------------------------------
 // COMPAT
 //----------------------------------------------------------------------------
-
 typedef int8_t bool_t;
 #define TRUE INT8_C(1)
 #define FALSE INT8_C(0)
+#pragma GCC diagnostic error "-w"
 #define bool _DONT_USE_STD_BOOL;
 #define true _DONT_USE_STD_BOOL;
 #define false _DONT_USE_STD_BOOL;
+#pragma GCC diagnostic pop
+
+size_t intlen(int x);
 
 #if __GLIBC__ == 2
 // This can be removed once Annex K hits GNU libc

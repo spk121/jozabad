@@ -19,16 +19,14 @@ yps    seq_t                       ID of next packet to be sent by Y
 ypr    seq_t                       Smallest packet ID Y will accept from X
 window seq_t                       delta between the smallest and largest acceptable ID
 tput   tput_t                      throughput allowed on this channel
-tok   uint32_t                     store for x throughput "leaky bucket" tokens
-ctime uint64_t                     time this channel was created
-atime uint64_t                     time of last message from either peer
-mtime uint64_t                     time of last modification to lcn/xaddr/yaddr/state/?p?/tput
+tok   double                       store for x throughput "leaky bucket" tokens
+ctime double                       time this channel was created
+atime double                       time of last message from either peer
+mtime double                       time of last modification to lcn/xaddr/yaddr/state/?p?/tput
 */                                                                
 
 
 static size_t _count = 0;
-static ukey_t c_xkey[CHANNEL_COUNT]; /* unique key of caller X */
-static ukey_t c_ykey[CHANNEL_COUNT]; /* unique key of callee Y */
 static void *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
 static void *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
 static size_t c_yidx[CHANNEL_COUNT]; /* index array that sorts ykey array */
@@ -43,7 +41,7 @@ static tput_t c_tput[CHANNEL_COUNT]; /* bits/sec permitted on this channel */
 #define PUSH(arr,idx,count)                                             \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
-void add_channel(key_t xkey, void *xzaddr, key_t ykey, void *yzaddr)
+lcn_t add_channel(zframe_t *xzaddr, zframe_t *yzaddr)
 {
     assert(_count < CHANNEL_COUNT);
     assert(xkey < UKEY_MAX);
