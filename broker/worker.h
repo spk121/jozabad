@@ -1,5 +1,6 @@
 #ifndef JOZA_WORKER_H
 #define JOZA_WORKER_H
+#include <czmq.h>
 #include "lib.h"
 #include "iodir.h"
 
@@ -15,7 +16,9 @@ typedef struct {
     iodir_t io;
 } worker_t;
 
-void add_worker(char *name, size_t len, void *Z, iodir_t I);
+typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
+
+void add_worker(zframe_t *A, const char *N, iodir_t I);
 worker_t get_worker(ukey_t key);
 
 #endif

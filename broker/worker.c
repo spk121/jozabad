@@ -19,90 +19,111 @@ static_assert(WORKER_COUNT < UKEY_MAX, "WORKER_COUNT too large for ukey_t");
 */
 
 /*
-zhash uint32_t   [primary key]    a hash created from the ZMQ Router identity
-name  char[16]   [secondary key]  a string name for the connection
-zaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity                     
-iodir iodir_t                     whether this worker makes or receives calls
-lcn   lcn_t                       Logical Channel Number
-role  role_t                      X (caller), Y (callee), or READY (not in a call)
-ctime uint64_t                   time this worker was created
-atime uint64_t                   time of last message from this worker
-mtime uint64_t                    time of last modification to hash/name/addr/iodir/lcn/role
+  zhash uint32_t   [primary key]    a hash created from the ZMQ Router identity
+  name  char[17]   [secondary key]  a string name for the connection
+  zaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity
+  iodir iodir_t                     whether this worker makes or receives calls
+  lcn   lcn_t                       Logical Channel Number
+  role  role_t                      X (caller), Y (callee), or READY
+  ctime uint64_t                    time this worker was created
+  atime uint64_t                    time of last message from this worker
+  mtime uint64_t                    time of last modification to
+                                       hash/name/addr/iodir/lcn/role
 
-nidx  size_t     [secondary key]  an array that keeps the sort indices for the secondary key
-*/                                                                
+  nidx  size_t     [secondary key]  an array that keeps the sort indices
+                                    for the secondary key
+*/
 
-                                                                
+// Number of workers
+static size_t   _count = 0;
 
-static size_t _count = 0;
-static ukey_t _key = 0;
-static ukey_t w_key[WORKER_COUNT];
-static char w_name[WORKER_COUNT][NAME_LEN +1];
-static uint8_t w_zaddr[WORKER_COUNT][ZADDR_LEN];
-static iodir_t w_iodir[WORKER_COUNT];
+// Data for the workers
+static uint32_t w_zhash[WORKER_COUNT];
+static char     w_name[WORKER_COUNT][NAME_LEN + 1];
+static void     *w_zaddr[WORKER_COUNT];
+static iodir_t  w_iodir[WORKER_COUNT];
+static ukey_t   w_lcn[WORKER_COUNT];
+static role_t   w_role[WORKER_COUNT];
+static double   w_ctime[WORKER_COUNT];
+static double   w_atime[WORKER_COUNT];
+static double   w_mtime[WORKER_COUNT];
 
+// List of the sort order of the strings in w_name
+static size_t   w_nidx[WORKER_COUNT];
+// FIXME: PEDANTIC - pointers to the names in w_name;
+static char     *w_pname[WORKER_COUNT];
+
+static void init_pname(void)
+{
+    for (size_t i = 0; i < WORKER_COUNT; i ++)
+        w_pname[i] = &(w_name[i][0]);
+}
 
 #define PUSH(arr,idx,count)                                             \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
-/* Given a name N, and Zmq address Z, and a I/O direction I,
-   - finds a free ID number to identify this new worker
-   - adds this new worker into the list of workers
-   - keeps the sorting of the list in order of ID */
-
-void add_worker(char *str, size_t len, void *Z, iodir_t I)
+// Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
+// bytes 1 to 5 of the address would work as a unique ID for a
+// given connection.
+uint32_t addr2hash (zframe_t *z)
 {
-    assert(_count < WORKER_COUNT);
-    assert(VAL_IODIR(I));
-    assert(str != NULL);
-    assert(len <= NAME_LEN);
-
-    index_ukey_t kid = keynext(w_key, _count, _key);
-    size_t idx = kid.index;
-    ukey_t key = key;
-
-    if (idx < _count)
-    {
-        PUSH(w_key, idx, _count);
-        PUSH(w_zaddr, idx, _count);
-        PUSH(w_iodir, idx, _count);
-        PUSH(w_name, idx, _count);
-    }
-    w_key[idx] = key;
-    memset(&w_name[idx][0], 0, NAME_LEN +1);
-    memcpy(w_name[idx], str, len);
-    w_zaddr[idx] = Z;
-    w_iodir[idx] = I;
-
-    _count ++;
-    _key = key;
+    uint32_t x[1];
+    memcpy(x, (char *) zframe_data(z) + 1, sizeof(uint32_t));
+    return x[0];
 }
+
+// Add a new worker to the store.  Returns true on success or false
+// on failure.  Everything is supposed to be pre-validated, so 
+// invalid means that this message is ignored.
+void add_worker(zframe_t *A, const char *N, iodir_t I)
+{
+    uint32_t hash;
+    size_t i;
+    double elapsed_time = now();
+
+    if (_count >= WORKER_COUNT)
+        return;
+
+    hash = addr2hash(A);
+    if (hash == 0)
+        return;
+
+    i = ifind(w_zhash, _count, hash);
+    if (w_zhash[i] == hash)
+        return;
+
+    if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN
+        || !safeascii(N, NAME_LEN))
+        return;
+    if (!VAL_IODIR(I))
+        return;
+    
+    if (i < _count) {
+        PUSH(w_zhash, i, _count);
+        PUSH(w_zaddr, i, _count);
+        PUSH(w_name, i, _count);
+        PUSH(w_iodir, i, _count);
+        PUSH(w_lcn, i, _count);
+        PUSH(w_role, i, _count);
+        PUSH(w_ctime, i, _count);
+        PUSH(w_atime, i, _count);
+        PUSH(w_mtime, i, _count);
+    }
+
+    w_zhash[i] = hash;
+    memset(w_name[i], 0, NAME_LEN + 1);
+    strncpy(w_name[i], N, NAME_LEN);
+    w_zaddr[i] = A;
+    w_iodir[i] = I;
+    w_lcn[i] = UKEY_C(0);
+    w_role[i] = READY;
+    
+    w_ctime[i] = elapsed_time;
+    w_mtime[i] = elapsed_time;
+    w_atime[i] = elapsed_time;
+
+    // Update the index table that alphabetizes the names.
+    qisort(w_pname, _count, w_nidx);
+}
+
 #undef PUSH
-
-// Returns information about the worker with the given KEY.  If a
-// worker with that key does not exist, the VALID flag of the return
-// structure is false.
-worker_t get_worker(ukey_t key)
-{
-    worker_t w;
-    size_t index;
-
-    assert(key < WORKER_COUNT);
-
-    memset(&w, 0, sizeof(w));
-
-    index = keyfind(w_key, _count, key);
-    if (w_key[index] != key) {
-        w.valid = false;
-    }
-    else {
-        w.valid = true;
-        w.key = key;
-        w.name = w_name[index];
-        w.zaddr = w_zaddr[index];
-        w.io = w_iodir[index];
-    }
-    return w;
-}
-
-key_t name2key(const char name, size_t len);
