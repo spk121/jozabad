@@ -9,7 +9,7 @@
 #endif
 
 typedef struct {
-    bool valid;
+    bool_t valid;
     ukey_t key;
     const char *name;           /* not null-terminated */
     const void *zaddr;

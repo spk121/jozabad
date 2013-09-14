@@ -16,9 +16,6 @@ These are functions or procedures
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
-#ifndef WIN32
-# include <stdbool.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -27,17 +24,17 @@ These are functions or procedures
 #include "lib.h"
 
 //----------------------------------------------------------------------------
-// ANNEX K MISSING FUNCTIONS
+// COMPAT
 //----------------------------------------------------------------------------
 
 #if __GLIBC__ == 2
 // This can be removed once Annex K hits GNU libc
 size_t strnlen_s (const char *s, size_t maxsize)
 {
-	if (s == NULL)
-		return 0;
+    if (s == NULL)
+        return 0;
 
-	return strnlen (s, maxsize);
+    return strnlen (s, maxsize);
 }
 #endif
 
@@ -48,11 +45,11 @@ size_t strnlen_s (const char *s, size_t maxsize)
 // An obscure, 6-bit encoding
 
 const char ecma1[64] =            \
-    " \t\n\v\f\r\016\017()*+,-./" \
-    "0123456789:;<=>?"            \
-    "\000ABCDEFGHIJKLMNO"         \
-    "PQRSTUVWXYZ[\\]\033\177";
- 
+                                  " \t\n\v\f\r\016\017()*+,-./" \
+                                  "0123456789:;<=>?"            \
+                                  "\000ABCDEFGHIJKLMNO"         \
+                                  "PQRSTUVWXYZ[\\]\033\177";
+
 //----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
@@ -62,39 +59,39 @@ static const char p_mid[] = "%&+,.:=_ ";
 
 /* Returns TRUE if the character C is in the set of valid initial
 characters for a name.  */
-static bool _val_init (char C)
+static bool_t _val_init (char C)
 {
-	return ((C != '\0') && (isalnum(C) || strchr(p_ini, C) != NULL));
+    return ((C != '\0') && (isalnum(C) || strchr(p_ini, C) != NULL));
 }
 
 /* Returns TRUE if the character C is in the set of valid non-initial
 characters for a name.  */
-static bool _val_mid (char C)
+static bool_t _val_mid (char C)
 {
-	return ((C != '\0') && (isalnum(C) || strchr(p_mid, C) != NULL));
+    return ((C != '\0') && (isalnum(C) || strchr(p_mid, C) != NULL));
 }
 
 /* Returns TRUE if character array STR of length N contains only
 safe characters.  STR need not be NULL-terminated, but, if it is
 NULLs may only appear at the end. */
-bool safeascii(const char *mem, size_t n)
+bool_t safeascii(const char *mem, size_t n)
 {
-	assert(mem != NULL);
-	size_t i;
+    assert(mem != NULL);
+    size_t i;
 
-	if (n == 0)
-		return true;
-	if (!_val_init(mem[0]))
-		return false;
-	i = 1;
-	while (_val_mid(mem[i]) && i < n)
-		i++;
-	while (i < n)
-		if (mem[i] != '\0')
-			return false;
-		else
-			i++;
-	return true;
+    if (n == 0)
+        return TRUE;
+    if (!_val_init(mem[0]))
+        return FALSE;
+    i = 1;
+    while (_val_mid(mem[i]) && i < n)
+        i++;
+    while (i < n)
+        if (mem[i] != '\0')
+            return FALSE;
+        else
+            i++;
+    return TRUE;
 }
 
 //----------------------------------------------------------------------------
@@ -107,84 +104,78 @@ bool safeascii(const char *mem, size_t n)
 // AAA-BBBB-CC
 // or AAA-BBBB
 // if the CC's are missing, they are presumed to be zero
-// Conceptually AAA-BBBB is "phone number" and CC is an 
+// Conceptually AAA-BBBB is "phone number" and CC is an
 // "extension".
 
 // Returns TRUE is character array STR holds a valid 'x121'-style address.
 // STR need not be null terminated.
-bool safe121 (const char *str, size_t n)
+bool_t safe121 (const char *str, size_t n)
 {
-	bool ret = true;
+    bool_t ret = TRUE;
 
-	int len = strnlen_s(str, n);
+    int len = strnlen_s(str, n);
 
-	if (len != 11 && len != 8)
-		ret = false;
-	else
-	{
-		for (int i = 0; i < len; i ++)
-		{
-			if ((i == 3 || i == 8)  && str[i] != '-')
-			{
-				ret = false;
-				break;
-			}
-			else if (str[i] < '0' || str[i] > '9')
-			{
-				ret = false;
-				break;
-			}
-		}
-	}
-	return ret;
+    if (len != 11 && len != 8)
+        ret = FALSE;
+    else {
+        for (int i = 0; i < len; i ++) {
+            if ((i == 3 || i == 8)  && str[i] != '-') {
+                ret = FALSE;
+                break;
+            } else if (str[i] < '0' || str[i] > '9') {
+                ret = FALSE;
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 // Returns the integer-representation of an 'x121' name stored
 // in character array STR of length N.
 uint32_t pack121(const char *str, size_t n)
 {
-	assert(safe121 (str, n) == true);
+    assert(safe121 (str, n) == TRUE);
 
-	uint32_t val = 0, scale = 100000000;
-	assert(safe121(str, n));
-	int len = strnlen_s(str, n);
-	for (int i = 0; i < len; i ++)
-	{
-		val += (str[i] - '0') * scale;
-		scale /= 10;
-	}
-	return val;
+    uint32_t val = 0, scale = 100000000;
+    assert(safe121(str, n));
+    int len = strnlen_s(str, n);
+    for (int i = 0; i < len; i ++) {
+        val += (str[i] - '0') * scale;
+        scale /= 10;
+    }
+    return val;
 }
 
 // Not thread safe, obviously.  Behold the laziness!
 const char *unpack121(uint32_t x)
 {
-	static char str[12];
-	str[11] = '\0';
-	str[10] = '0' + (x % 10);
-	x /= 10;
-	str[9] = '0' + (x % 10);
-	x /= 10;
-	str[8] = '-';
-	if (str[10] == '0' && str[9] == '0')
-		str[8] = '\0';
-	else
-		str[8] = '-';
-	str[7] = '0' + (x % 10);
-	x /= 10;
-	str[6] = '0' + (x % 10);
-	x /= 10;
-	str[5] = '0' + (x % 10);
-	x /= 10;
-	str[4] = '0' + (x % 10);
-	x /= 10;
-	str[3] = '-';
-	str[2] = '0' + (x % 10);
-	x /= 10;
-	str[1] = '0' + (x % 10);
-	x /= 10;
-	str[0] = '0' + (x % 10);
-	return str;
+    static char str[12];
+    str[11] = '\0';
+    str[10] = '0' + (x % 10);
+    x /= 10;
+    str[9] = '0' + (x % 10);
+    x /= 10;
+    str[8] = '-';
+    if (str[10] == '0' && str[9] == '0')
+        str[8] = '\0';
+    else
+        str[8] = '-';
+    str[7] = '0' + (x % 10);
+    x /= 10;
+    str[6] = '0' + (x % 10);
+    x /= 10;
+    str[5] = '0' + (x % 10);
+    x /= 10;
+    str[4] = '0' + (x % 10);
+    x /= 10;
+    str[3] = '-';
+    str[2] = '0' + (x % 10);
+    x /= 10;
+    str[1] = '0' + (x % 10);
+    x /= 10;
+    str[0] = '0' + (x % 10);
+    return str;
 }
 
 //----------------------------------------------------------------------------
@@ -196,19 +187,18 @@ const char *unpack121(uint32_t x)
 // location where X would be inserted.
 size_t ifind(uint32_t arr[], size_t n, uint32_t X)
 {
-	size_t lo, hi, mid;
+    size_t lo, hi, mid;
 
-	lo = 0;
-	hi = n + 1;
-	while (hi - lo > 1)
-	{
-		mid = (hi + lo) >> 1;
-		if (X >= arr[mid - 1])
-			lo = mid;
-		else
-			hi = mid;
-	}
-	return lo;
+    lo = 0;
+    hi = n + 1;
+    while (hi - lo > 1) {
+        mid = (hi + lo) >> 1;
+        if (X >= arr[mid - 1])
+            lo = mid;
+        else
+            hi = mid;
+    }
+    return lo;
 }
 
 //----------------------------------------------------------------------------
@@ -221,18 +211,18 @@ size_t ifind(uint32_t arr[], size_t n, uint32_t X)
 // they point would be in lexicographic order.
 static void sort3 (char *arr[], size_t indx[], size_t a, size_t b, size_t c)
 {
-	size_t tmp;
+    size_t tmp;
 #define SWAP(a,b) tmp=(a);(a)=(b);(b)=tmp;
 
-	if (strcmp(arr[indx[a]], arr[indx[c]]) > 0) {
+    if (strcmp(arr[indx[a]], arr[indx[c]]) > 0) {
         SWAP(indx[a], indx[c]);
-	}
-	if (strcmp(arr[indx[b]], arr[indx[c]]) > 0) {
+    }
+    if (strcmp(arr[indx[b]], arr[indx[c]]) > 0) {
         SWAP(indx[b], indx[c]);
-	}
-	if (strcmp(arr[indx[a]], arr[indx[b]]) > 0) {
+    }
+    if (strcmp(arr[indx[a]], arr[indx[b]]) > 0) {
         SWAP(indx[a],indx[b]);
-	}
+    }
 #undef SWAP
 }
 
@@ -240,20 +230,20 @@ static void sort3 (char *arr[], size_t indx[], size_t a, size_t b, size_t c)
 // sort the values ARR.  Only modify the entries between [left,right).
 static void iisort(char *arr[], size_t indx[], size_t left, size_t right)
 {
-	size_t i, j;
-	char *val;
-	size_t index;
+    size_t i, j;
+    char *val;
+    size_t index;
 
-	for (j = left + 1; j < right; j ++) {
-		index = indx[j];
-		val = arr[index];
-		i = j;
-		while (i > left && strcmp(arr[indx[i-1]], val) > 0) {
-			indx[i] = indx[i-1];
-			i --;
-		}
-		indx[i] = index;
-	}
+    for (j = left + 1; j < right; j ++) {
+        index = indx[j];
+        val = arr[index];
+        i = j;
+        while (i > left && strcmp(arr[indx[i-1]], val) > 0) {
+            indx[i] = indx[i-1];
+            i --;
+        }
+        indx[i] = index;
+    }
 }
 
 
@@ -271,77 +261,77 @@ void qisort(char *arr[], size_t n, size_t indx[])
     size_t left = 0;
     size_t center;
     size_t right = n - 1;
-	size_t i, j, index_cur, itemp;
-	int stack_size = 0, *stack;
-	char *value_cur;
+    size_t i, j, index_cur, itemp;
+    int stack_size = 0, *stack;
+    char *value_cur;
 #define SWAP(a,b) itemp=(a);(a)=(b);(b)=itemp;
 
-	stack = (int *)calloc(NSTACK, sizeof(int));
-	for(j = 0; j < n; j ++)
-		indx[j] = j;
+    stack = (int *)calloc(NSTACK, sizeof(int));
+    for(j = 0; j < n; j ++)
+        indx[j] = j;
 
-	for(;;) {
-		// If our subarray is down to a handful of elements, we switch
-		// to an insertion sort.
-		if (right - left < M) {
-			iisort(arr, indx, left, right);
-			if (stack_size == 0)
-				break;
+    for(;;) {
+        // If our subarray is down to a handful of elements, we switch
+        // to an insertion sort.
+        if (right - left < M) {
+            iisort(arr, indx, left, right);
+            if (stack_size == 0)
+                break;
 
-			// Pop the stack and begin a new round of partitioning.
-			right = stack[stack_size-1];
-			stack_size --;
-			left = stack[stack_size-1];
-			stack_size --;
-		} else {
-			// Choose the center string of left, center, and right
-			// elements as partitioning element.  Rearrange the three
-			// elements in sorted order.
-			center = (left + right) >> 1;
-			SWAP(indx[center], indx[left + 1]);
-			sort3(arr, indx, left, left + 1, right);
+            // Pop the stack and begin a new round of partitioning.
+            right = stack[stack_size-1];
+            stack_size --;
+            left = stack[stack_size-1];
+            stack_size --;
+        } else {
+            // Choose the center string of left, center, and right
+            // elements as partitioning element.  Rearrange the three
+            // elements in sorted order.
+            center = (left + right) >> 1;
+            SWAP(indx[center], indx[left + 1]);
+            sort3(arr, indx, left, left + 1, right);
 
-			i = left + 1;
-			j = right;
+            i = left + 1;
+            j = right;
 
-			index_cur = indx[left+1];
-			value_cur = arr[index_cur];
-			for(;;) {
-				// Scan up to find a string greater than target
-				// string.
-				do {
-					i++;
-				} while(strcmp(arr[indx[i]], value_cur) < 0);
-				// Scan down to find a string less that our target
-				// string.
-				do { 
-					j--; 
-				} while(strcmp(arr[indx[j]], value_cur) > 0);
-				// If the indices cross, partitioning is complete.
-				if(j<i) 
-					break;
-				// Otherwise, exchange them.
-				SWAP(indx[i],indx[j]);
-			}
-			indx[left+1] = indx[j];
-			// Insert the index of the target string here.
-			indx[j] = index_cur;
-			stack_size += 2;
-			// Push pointers to a larger subarray on the stack, and
-			// process smaller subarray immediately.
-			if(stack_size>NSTACK) abort();
-			if (right - i + 1 >= j - left) {
-				stack[stack_size-1] = right;
-				stack[stack_size-2] = i;
-				right = j - 1;
-			}else{
-				stack[stack_size-1] = j - 1;
-				stack[stack_size-2] = left;
-				left = i;
-			}
-		}
-	}
-	free (stack);
+            index_cur = indx[left+1];
+            value_cur = arr[index_cur];
+            for(;;) {
+                // Scan up to find a string greater than target
+                // string.
+                do {
+                    i++;
+                } while(strcmp(arr[indx[i]], value_cur) < 0);
+                // Scan down to find a string less that our target
+                // string.
+                do {
+                    j--;
+                } while(strcmp(arr[indx[j]], value_cur) > 0);
+                // If the indices cross, partitioning is complete.
+                if(j<i)
+                    break;
+                // Otherwise, exchange them.
+                SWAP(indx[i],indx[j]);
+            }
+            indx[left+1] = indx[j];
+            // Insert the index of the target string here.
+            indx[j] = index_cur;
+            stack_size += 2;
+            // Push pointers to a larger subarray on the stack, and
+            // process smaller subarray immediately.
+            if(stack_size>NSTACK) abort();
+            if (right - i + 1 >= j - left) {
+                stack[stack_size-1] = right;
+                stack[stack_size-2] = i;
+                right = j - 1;
+            } else {
+                stack[stack_size-1] = j - 1;
+                stack[stack_size-2] = left;
+                left = i;
+            }
+        }
+    }
+    free (stack);
 #undef SWAP
 }
 
@@ -374,19 +364,18 @@ typedef uint64_t double_ukey_t;
 // value of N indicates after the end of the matrix.
 size_t keyfind(ukey_t arr[], size_t n, ukey_t key)
 {
-	size_t lo, hi, mid;
+    size_t lo, hi, mid;
 
-	lo = 0;
-	hi = n + 1;
-	while (hi - lo > 1)
-	{
-		mid = (hi + lo) >> 1;
-		if (key >= arr[mid - 1])
-			lo = mid;
-		else
-			hi = mid;
-	}
-	return lo;
+    lo = 0;
+    hi = n + 1;
+    while (hi - lo > 1) {
+        mid = (hi + lo) >> 1;
+        if (key >= arr[mid - 1])
+            lo = mid;
+        else
+            hi = mid;
+    }
+    return lo;
 }
 
 // Given a table ARR of strictly monotonically increasing integers
@@ -397,70 +386,67 @@ size_t keyfind(ukey_t arr[], size_t n, ukey_t key)
 // index that is the starting point of the search.
 static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 {
-	assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
-	assert (j <= n);
+    assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
+    assert (j <= n);
 
-	while (j < n)
-	{
-		ukey_t k = arr[j];
-		if (k < key)
-			j ++;
-		else if (k == key) {
-			key ++;
+    while (j < n) {
+        ukey_t k = arr[j];
+        if (k < key)
+            j ++;
+        else if (k == key) {
+            key ++;
 
-			// Check if ID has numerically wrapped back to zero
-			if (key == 0)
-				j = 0;
-		}
-		else
-			break;
-	}
-	return key;
+            // Check if ID has numerically wrapped back to zero
+            if (key == 0)
+                j = 0;
+        } else
+            break;
+    }
+    return key;
 }
 
-// Given a table ARR of strictly monotonically increasing integers that 
+// Given a table ARR of strictly monotonically increasing integers that
 // are presumed to be a list of unique keys
 // - find the next free unique KEY
 // - find the location where that KEY could be inserted into the array
 // The KEY parameter is the starting point for the search for a new key.
 index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
 {
-	index_ukey_t ret;
-	int index;
-	bool did_loop = false;
+    index_ukey_t ret;
+    int index;
+    bool_t did_loop = FALSE;
 
 loop:
-	index = keyfind(arr, n, key);
-	if (index > 0)
-	{
-		// If this ID is a duplicate, keyfind() will have suggested
-		// that it be inserted to the right of an entry with the same
-		// ID.  So we check the entry to the left to see if this ID is
-		// a duplicate, and then increment it if necessary.
-		if (arr[index - 1] == key) {
-			assert (!did_loop);
-			key = _keynext(arr, n, key, index - 1);
-			did_loop = true;
-			goto loop;
-		}
-	}
-	ret.index = index;
-	ret.key = key;
-	return ret;
+    index = keyfind(arr, n, key);
+    if (index > 0) {
+        // If this ID is a duplicate, keyfind() will have suggested
+        // that it be inserted to the right of an entry with the same
+        // ID.  So we check the entry to the left to see if this ID is
+        // a duplicate, and then increment it if necessary.
+        if (arr[index - 1] == key) {
+            assert (!did_loop);
+            key = _keynext(arr, n, key, index - 1);
+            did_loop = TRUE;
+            goto loop;
+        }
+    }
+    ret.index = index;
+    ret.key = key;
+    return ret;
 }
 
 // Used in the sort in indexx() below.
 static int compu64(const void *x, const void *y)
 {
-	double_ukey_t a, b;
-	a = *(double_ukey_t *)x;
-	b = *(double_ukey_t *)y;
-	if (a < b)
-		return -1;
-	else if (a == b)
-		return 0;
-	else
-		return 1;
+    double_ukey_t a, b;
+    a = *(double_ukey_t *)x;
+    b = *(double_ukey_t *)y;
+    if (a < b)
+        return -1;
+    else if (a == b)
+        return 0;
+    else
+        return 1;
 }
 
 // Given an unsorted list of unique integers ARR and a workspace array
@@ -469,16 +455,16 @@ static int compu64(const void *x, const void *y)
 // Could use the NumRec version.
 void indexx(ukey_t arr[], size_t n, ukey_t indx[])
 {
-	double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
+    double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
 
-	// Pack the array value and index into one array.
-	// The value is first so we end up sorting on it.
-	for (double_ukey_t i = 0; i < n; i ++)
-		arrindx[i] = ((double_ukey_t) arr[i]) << UKEY_SHIFT | i;
-	qsort(arrindx, n, sizeof(double_ukey_t), compu64);
-	for (double_ukey_t i = 0; i < n; i ++)
-		indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
-	free (arrindx);
+    // Pack the array value and index into one array.
+    // The value is first so we end up sorting on it.
+    for (double_ukey_t i = 0; i < n; i ++)
+        arrindx[i] = ((double_ukey_t) arr[i]) << UKEY_SHIFT | i;
+    qsort(arrindx, n, sizeof(double_ukey_t), compu64);
+    for (double_ukey_t i = 0; i < n; i ++)
+        indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
+    free (arrindx);
 }
 
 //----------------------------------------------------------------------------
@@ -507,26 +493,26 @@ double now()
 
     return difftime(time1, time0);
 }
-    
+
 
 #if 1
 #include <stdio.h>
 int main()
 {
-	ukey_t x[] = {8, 6, 7, 5, 3, 0, 9};
-	ukey_t idx[7];
-	indexx(x, 7, idx);
-	for (int i = 0; i < 7; i ++)
-		printf("%d %d %d\n", i, x[i], idx[i]);
-	for (int i = 0; i < 7; i ++)
-		printf("%d %d\n", i, x[idx[i]]);
+    ukey_t x[] = {8, 6, 7, 5, 3, 0, 9};
+    ukey_t idx[7];
+    indexx(x, 7, idx);
+    for (int i = 0; i < 7; i ++)
+        printf("%d %d %d\n", i, x[i], idx[i]);
+    for (int i = 0; i < 7; i ++)
+        printf("%d %d\n", i, x[idx[i]]);
 
-	char* strings[14] = {"now", "is", "the", "time", "for", "all", "good", "men", "to", "the", "aid", "of", "their", "country"};
-	size_t indx[14];
-	//insertion_sort(strings,indx,0,10);
-	qisort(strings, 14, indx);
-	for (int i = 0; i < 14; i ++)
-		printf("%d %d %s\n", i, indx[i], strings[indx[i]]);
-	return 0;
+    char* strings[14] = {"now", "is", "the", "time", "for", "all", "good", "men", "to", "the", "aid", "of", "their", "country"};
+    size_t indx[14];
+    //insertion_sort(strings,indx,0,10);
+    qisort(strings, 14, indx);
+    for (int i = 0; i < 14; i ++)
+        printf("%d %d %s\n", i, indx[i], strings[indx[i]]);
+    return 0;
 }
 #endif

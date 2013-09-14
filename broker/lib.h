@@ -5,14 +5,16 @@
 #ifndef _PARCH_LIB_H_INCLUDE
 #define	_PARCH_LIB_H_INCLUDE
 
-#ifndef WIN32
-#include <stdbool.h>
-#endif
-#include <stdint.h>
+//----------------------------------------------------------------------------
+// COMPAT
+//----------------------------------------------------------------------------
 
-//----------------------------------------------------------------------------
-// ANNEX K MISSING FUNCTIONS
-//----------------------------------------------------------------------------
+typedef int8_t bool_t;
+#define TRUE INT8_C(1)
+#define FALSE INT8_C(0)
+#define bool _DONT_USE_STD_BOOL;
+#define true _DONT_USE_STD_BOOL;
+#define false _DONT_USE_STD_BOOL;
 
 #if __GLIBC__ == 2
 // This can be removed once Annex K hits GNU libc
@@ -22,12 +24,12 @@ size_t strnlen_s (const char *s, size_t maxsize);
 //----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
-bool safeascii(const char *mem, size_t n);
+bool_t safeascii(const char *mem, size_t n);
 
 //----------------------------------------------------------------------------
 // PHONE-STYLE NAMES
 //----------------------------------------------------------------------------
-bool safe121 (const char *str, size_t n);
+bool_t safe121 (const char *str, size_t n);
 uint32_t pack121(const char *str, size_t n);
 const char *unpack121(uint32_t x);
 
