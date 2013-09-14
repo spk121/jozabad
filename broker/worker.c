@@ -18,6 +18,8 @@ static_assert(WORKER_COUNT <= INT_MAX, "WORKER_COUNT too large");
 #endif
 static_assert(NAME_LEN <= INT8_MAX, "NAME_LEN too large");
 
+extern int PARANOIA = 0;
+
 /*
   These arrays form a hash table whose data is keyed either by
   a string hash of the ZMQ address or by name.
@@ -68,19 +70,25 @@ void init_pname(void)
 static uint32_t addr2hash (zframe_t *z)
 {
     uint32_t x[1];
+#ifdef HAVE_CZMQ
     memcpy(x, (char *) zframe_data(z) + 1, sizeof(uint32_t));
+#else
+	// Unsafe dependency on data format knowledge!!
+	// Skip two byte frame header and the initial zero
+	// that the router socket places in a router address frame.
+	memcpy(x, (char *) z + 3, sizeof(uint32_t));
+#endif
     return x[0];
 }
 
-static void push
-#define PUSH(arr,idx,count)  _Generic((a                                 \
+#define PUSH(arr,idx,count)                               \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
 static void pushd(double arr[], size_t idx, size_t count)
 {
     if (PARANOIA)
     {
-        for (int i = _count; i >= idx + 1; i --)
+        for (size_t i = _count; i >= idx + 1; i --)
         {
             arr[i] = arr[i-1];
         }
@@ -100,21 +108,21 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
     double elapsed_time = now();
 
     if (_count >= WORKER_COUNT)
-        return;
+        return 0;
 
     hash = addr2hash(A);
     if (hash == 0)
-        return;
+        return 0;
 
     i = ifind(w_zhash, _count, hash);
     if (w_zhash[i] == hash)
-        return;
+        return 0;
 
     if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN
         || !safeascii(N, NAME_LEN))
-        return;
+        return 0;
     if (!VAL_IODIR(I))
-        return;
+        return 0;
     
     if (i < _count) {
         PUSH(w_zhash, i, _count);
@@ -147,6 +155,7 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
 
 void remove_worker(uint32_t hash)
 {
+	size_t i;
     if (_count == 0)
         return;
     i = ifind(w_zhash, _count, hash);

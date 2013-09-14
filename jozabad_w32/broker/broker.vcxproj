@@ -53,6 +53,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\mlgran\czmq-1.4.1\include;C:\Users\mlgran\zeromq-3.2.3\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -82,26 +83,21 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\broker\action.h" />
-    <ClInclude Include="..\..\broker\connections.h" />
-    <ClInclude Include="..\..\broker\dname.h" />
-    <ClInclude Include="..\..\broker\flow.h" />
+    <ClInclude Include="..\..\broker\iodir.h" />
     <ClInclude Include="..\..\broker\lib.h" />
     <ClInclude Include="..\..\broker\log.h" />
     <ClInclude Include="..\..\broker\pgetopt.h" />
-    <ClInclude Include="..\..\broker\poll.h" />
-    <ClInclude Include="..\..\broker\state.h" />
+    <ClInclude Include="..\..\broker\tput.h" />
+    <ClInclude Include="..\..\broker\worker.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\broker\action.cpp" />
-    <ClCompile Include="..\..\broker\connections.cpp" />
-    <ClCompile Include="..\..\broker\dname.cpp" />
-    <ClCompile Include="..\..\broker\flow.cpp" />
-    <ClCompile Include="..\..\broker\lib.cpp" />
-    <ClCompile Include="..\..\broker\main.cpp" />
+    <ClCompile Include="..\..\broker\lib.c">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
+    </ClCompile>
+    <ClCompile Include="..\..\broker\main.c" />
     <ClCompile Include="..\..\broker\pgetopt.c" />
-    <ClCompile Include="..\..\broker\poll.cpp" />
-    <ClCompile Include="..\..\broker\state.cpp" />
+    <ClCompile Include="..\..\broker\tput.c" />
+    <ClCompile Include="..\..\broker\worker.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

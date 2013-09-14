@@ -20,6 +20,7 @@ These are functions or procedures
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <math.h>
 
 #include "lib.h"
 
@@ -29,10 +30,11 @@ These are functions or procedures
 
 size_t intlen(int x)
 {
+	double dx = (double)x;
     if (x == 0)
         return 1;
 
-    int d = (int)(log10(fabs(x))+1);
+    int d = (int)(log10(fabs(dx))+1.0);
     if (x < 0)
         d++;
     return d;
