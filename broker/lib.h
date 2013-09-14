@@ -11,6 +11,15 @@
 #include <stdint.h>
 
 //----------------------------------------------------------------------------
+// ANNEX K MISSING FUNCTIONS
+//----------------------------------------------------------------------------
+
+#if __GLIBC__ == 2
+// This can be removed once Annex K hits GNU libc
+size_t strnlen_s (const char *s, size_t maxsize);
+#endif
+
+//----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
 bool safeascii(const char *mem, size_t n);
@@ -21,6 +30,18 @@ bool safeascii(const char *mem, size_t n);
 bool safe121 (const char *str, size_t n);
 uint32_t pack121(const char *str, size_t n);
 const char *unpack121(uint32_t x);
+
+//----------------------------------------------------------------------------
+// INDEX SORTING OF STRINGS
+//----------------------------------------------------------------------------
+
+void qisort(char *arr[], size_t n, size_t indx[]);
+
+//----------------------------------------------------------------------------
+// SEARCHING ORDERED UINT32_T ARRAYS
+//----------------------------------------------------------------------------
+
+size_t ifind(uint32_t arr[], size_t n, uint32_t X);
 
 //----------------------------------------------------------------------------
 // UNIQUE-KEY VECTORS
@@ -56,6 +77,12 @@ typedef struct {
 size_t keyfind(ukey_t arr[], size_t n, ukey_t key);
 index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key);
 void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
+
+//----------------------------------------------------------------------------
+// STRICT C11 TIME
+//----------------------------------------------------------------------------
+
+double now(void);
 
 #endif	/* LIB_H */
 

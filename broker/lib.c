@@ -22,6 +22,7 @@ These are functions or procedures
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "lib.h"
 
@@ -40,6 +41,18 @@ size_t strnlen_s (const char *s, size_t maxsize)
 }
 #endif
 
+//----------------------------------------------------------------------------
+// ECMA-1 STRINGS
+//----------------------------------------------------------------------------
+
+// An obscure, 6-bit encoding
+
+const char ecma1[64] =            \
+    " \t\n\v\f\r\016\017()*+,-./" \
+    "0123456789:;<=>?"            \
+    "\000ABCDEFGHIJKLMNO"         \
+    "PQRSTUVWXYZ[\\]\033\177";
+ 
 //----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
@@ -202,40 +215,34 @@ size_t ifind(uint32_t arr[], size_t n, uint32_t X)
 // INDEX SORTING OF STRINGS
 //----------------------------------------------------------------------------
 
-
-#define NSTACK 50
-#define M 7
-
-// Give an array of strings ARR, and an array of indices that point to locations in ARR,
-// and 3 locations into the array of indices, swap the three specified index elements
-// so that the strings to which they point would be in lexicographic order.
-static void sort3 (char *arr[], unsigned long indx[], unsigned long a, unsigned long b, unsigned long c)
+// Give an array of strings ARR, and an array of indices that point to
+// locations in ARR, and 3 locations into the array of indices, swap
+// the three specified index elements so that the strings to which
+// they point would be in lexicographic order.
+static void sort3 (char *arr[], size_t indx[], size_t a, size_t b, size_t c)
 {
-	unsigned long tmp;
+	size_t tmp;
+#define SWAP(a,b) tmp=(a);(a)=(b);(b)=tmp;
+
 	if (strcmp(arr[indx[a]], arr[indx[c]]) > 0) {
-		tmp = indx[a];
-		indx[a] = indx[c];
-		indx[c] = tmp;
+        SWAP(indx[a], indx[c]);
 	}
 	if (strcmp(arr[indx[b]], arr[indx[c]]) > 0) {
-		tmp = indx[b];
-		indx[b] = indx[c];
-		indx[c] = tmp;
+        SWAP(indx[b], indx[c]);
 	}
 	if (strcmp(arr[indx[a]], arr[indx[b]]) > 0) {
-		tmp = indx[a];
-		indx[a] = indx[b];
-		indx[b] = tmp;
+        SWAP(indx[a],indx[b]);
 	}
+#undef SWAP
 }
 
-/* Using a slow sort, create an index array INDX whose indices would sort
-the values ARR.  Only modify the entries between [left,right). */
-static void insertion_sort(char *arr[], unsigned long indx[], unsigned long left, unsigned long right)
+// Using a slow sort, create an index array INDX whose indices would
+// sort the values ARR.  Only modify the entries between [left,right).
+static void iisort(char *arr[], size_t indx[], size_t left, size_t right)
 {
-	unsigned long i, j;
+	size_t i, j;
 	char *val;
-	unsigned long index;
+	size_t index;
 
 	for (j = left + 1; j < right; j ++) {
 		index = indx[j];
@@ -249,82 +256,93 @@ static void insertion_sort(char *arr[], unsigned long indx[], unsigned long left
 	}
 }
 
-/* Using a Quicksort, create an index array INDX whose indices would sort
-the values ARR.  This is adapted from Numerical Recipes in C. */
-void sindex(unsigned long n, char *arr[], unsigned long indx[])
+
+// NSTACK is the depth of the stack used to hold Quicksort brackets.
+#define NSTACK 50
+
+// M is the size of a bracket where sort switches from Quick Sort to
+// Insertion Sort.
+#define M 7
+
+// Using a Quicksort, create an index array INDX whose indices would
+// sort the values ARR.  This is adapted from Numerical Recipes in C.
+void qisort(char *arr[], size_t n, size_t indx[])
 {
-	unsigned long i, indxt, right = n - 1, itemp, j, center, left = 0;
-	int jstack = 0, *istack;
-	char *val;
+    size_t left = 0;
+    size_t center;
+    size_t right = n - 1;
+	size_t i, j, index_cur, itemp;
+	int stack_size = 0, *stack;
+	char *value_cur;
 #define SWAP(a,b) itemp=(a);(a)=(b);(b)=itemp;
 
-	istack = (int *)calloc(NSTACK, sizeof(int));
+	stack = (int *)calloc(NSTACK, sizeof(int));
 	for(j = 0; j < n; j ++)
 		indx[j] = j;
 
 	for(;;) {
-		// If our subarray is down to a handful of elements,
-		// we switch to an insertion sort
+		// If our subarray is down to a handful of elements, we switch
+		// to an insertion sort.
 		if (right - left < M) {
-			insertion_sort(arr, indx, left, right);
-			if (jstack == 0)
+			iisort(arr, indx, left, right);
+			if (stack_size == 0)
 				break;
-			/* Pop stack and begin a new round of partitioning */
-			right = istack[jstack-1];
-			jstack --;
-			left = istack[jstack-1];
-			jstack --;
-		} else {
-			/* Choose median of left, center, and right elements
-			as partitioning element A.  Also
-			rearrange so that a[left] <= a[left+1] <= a[right]
-			*/
 
+			// Pop the stack and begin a new round of partitioning.
+			right = stack[stack_size-1];
+			stack_size --;
+			left = stack[stack_size-1];
+			stack_size --;
+		} else {
+			// Choose the center string of left, center, and right
+			// elements as partitioning element.  Rearrange the three
+			// elements in sorted order.
 			center = (left + right) >> 1;
 			SWAP(indx[center], indx[left + 1]);
 			sort3(arr, indx, left, left + 1, right);
 
-			/* Initialize pointers for partitioning */
 			i = left + 1;
 			j = right;
 
-			/* This is the partitioning element */
-			indxt = indx[left+1];
-			val = arr[indxt];
+			index_cur = indx[left+1];
+			value_cur = arr[index_cur];
 			for(;;) {
-				/* Scan up to find element > a */
+				// Scan up to find a string greater than target
+				// string.
 				do {
 					i++;
-				} while(strcmp(arr[indx[i]], val) < 0);
-				/* Scan down to find element < a*/
+				} while(strcmp(arr[indx[i]], value_cur) < 0);
+				// Scan down to find a string less that our target
+				// string.
 				do { 
 					j--; 
-				} while(strcmp(arr[indx[j]], val) > 0);
-				/* If the pointers are crossed, partitioning is complete */
+				} while(strcmp(arr[indx[j]], value_cur) > 0);
+				// If the indices cross, partitioning is complete.
 				if(j<i) 
 					break;
-				/* Otherwise exchange them */
+				// Otherwise, exchange them.
 				SWAP(indx[i],indx[j]);
 			}
 			indx[left+1] = indx[j];
-			/* Then insert the partitioning element here */
-			indx[j] = indxt;
-			jstack += 2;
-			/* Push pointers to a larger subarray on the stack, and process
-			smaller subarray immediately */
-			if(jstack>NSTACK) abort();
+			// Insert the index of the target string here.
+			indx[j] = index_cur;
+			stack_size += 2;
+			// Push pointers to a larger subarray on the stack, and
+			// process smaller subarray immediately.
+			if(stack_size>NSTACK) abort();
 			if (right - i + 1 >= j - left) {
-				istack[jstack-1] = right;
-				istack[jstack-2] = i;
+				stack[stack_size-1] = right;
+				stack[stack_size-2] = i;
 				right = j - 1;
 			}else{
-				istack[jstack-1] = j - 1;
-				istack[jstack-2] = left;
+				stack[stack_size-1] = j - 1;
+				stack[stack_size-2] = left;
 				left = i;
 			}
 		}
 	}
-	free (istack);
+	free (stack);
+#undef SWAP
 }
 
 
@@ -349,12 +367,11 @@ typedef uint64_t double_ukey_t;
 #endif
 
 
-// Using a bisection search on a matrix ARR of length N,
-// which is supposed to contain a strictly monotonically increasing
-// list of unique key integers,
-// return the location of the key, or, if it is not found,
-// the location where the key would be inserted.
-// A return value of N indicates after the end of the matrix.
+// Using a bisection search on a matrix ARR of length N, which is
+// supposed to contain a strictly monotonically increasing list of
+// unique key integers, return the location of the key, or, if it is
+// not found, the location where the key would be inserted.  A return
+// value of N indicates after the end of the matrix.
 size_t keyfind(ukey_t arr[], size_t n, ukey_t key)
 {
 	size_t lo, hi, mid;
@@ -372,12 +389,12 @@ size_t keyfind(ukey_t arr[], size_t n, ukey_t key)
 	return lo;
 }
 
-// Given a table ARR of strictly monotonically increasing integers that function
-// as unique keys, and a desired KEY,
-// this searches the array to ensure that KEY does not appear in the array.  If it
-// doesn't appear in the array, KEY is returned.  If it does appear, the next avaialble
-// unique integer key is returned.  J is an array index that is the starting point
-// of the search.
+// Given a table ARR of strictly monotonically increasing integers
+// that function as unique keys, and a desired KEY, this searches the
+// array to ensure that KEY does not appear in the array.  If it
+// doesn't appear in the array, KEY is returned.  If it does appear,
+// the next avaialble unique integer key is returned.  J is an array
+// index that is the starting point of the search.
 static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 {
 	assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
@@ -418,8 +435,8 @@ loop:
 	{
 		// If this ID is a duplicate, keyfind() will have suggested
 		// that it be inserted to the right of an entry with the same
-		// ID.  So we check the entry to the left to see if this ID
-		// is a duplicate, and then increment it if necessary.
+		// ID.  So we check the entry to the left to see if this ID is
+		// a duplicate, and then increment it if necessary.
 		if (arr[index - 1] == key) {
 			assert (!did_loop);
 			key = _keynext(arr, n, key, index - 1);
@@ -446,11 +463,10 @@ static int compu64(const void *x, const void *y)
 		return 1;
 }
 
-// Given an unsorted list of unique integers ARR and
-// a workspace array INDX, it fills INDX with a list of
-// indices into the original array that would put it
-// in sorted order.
-// FIXME: memory inefficient.  Could use the NumRec version.
+// Given an unsorted list of unique integers ARR and a workspace array
+// INDX, it fills INDX with a list of indices into the original array
+// that would put it in sorted order.  FIXME: memory inefficient.
+// Could use the NumRec version.
 void indexx(ukey_t arr[], size_t n, ukey_t indx[])
 {
 	double_ukey_t *arrindx = (double_ukey_t *) calloc(n, sizeof(double_ukey_t));
@@ -465,6 +481,34 @@ void indexx(ukey_t arr[], size_t n, ukey_t indx[])
 	free (arrindx);
 }
 
+//----------------------------------------------------------------------------
+// STRICT C11 TIME
+//----------------------------------------------------------------------------
+
+// Strict C11 is pretty weak when it comes to times, but, here's how
+// you get an delta time.  It returns -1.0 if there is some mysterious
+// failure.  The resolution of this is unspecified in C11.
+double now()
+{
+    static int first = 1;
+    static time_t time0;
+    time_t time1, tret;
+
+    if (first) {
+        tret = time(&time0);
+        if (tret == (time_t)-1)
+            return -1.0;
+        first = 0;
+    }
+
+    tret = time(&time1);
+    if (tret == (time_t)-1)
+        return -1.0;
+
+    return difftime(time1, time0);
+}
+    
+
 #if 1
 #include <stdio.h>
 int main()
@@ -478,9 +522,9 @@ int main()
 		printf("%d %d\n", i, x[idx[i]]);
 
 	char* strings[14] = {"now", "is", "the", "time", "for", "all", "good", "men", "to", "the", "aid", "of", "their", "country"};
-	unsigned long indx[14];
+	size_t indx[14];
 	//insertion_sort(strings,indx,0,10);
-	sindex(14, strings, indx);
+	qisort(strings, 14, indx);
 	for (int i = 0; i < 14; i ++)
 		printf("%d %d %s\n", i, indx[i], strings[indx[i]]);
 	return 0;
