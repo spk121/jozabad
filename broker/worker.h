@@ -1,26 +1,39 @@
 #ifndef JOZA_WORKER_H
 #define JOZA_WORKER_H
-#ifdef HAVE_CZMQ
+#ifndef COMPILE_WITHOUT_CZMQ
 # include <czmq.h>
 #endif
+#include <assert.h>
+#include <stdint.h>
 #include "lib.h"
 #include "iodir.h"
 
-#ifndef HAVE_CZMQ
+#ifdef COMPILE_WITHOUT_CZMQ
 typedef void zframe_t;
 #endif
 
-typedef struct {
-    bool_t valid;
-    ukey_t key;
-    const char *name;           /* not null-terminated */
-    const void *zaddr;
-    iodir_t io;
-} worker_t;
+#ifndef WORKER_COUNT
+# define WORKER_COUNT 1024U
+#endif
+static_assert(WORKER_COUNT <= INT_MAX, "WORKER_COUNT too large");
+
+#ifndef NAME_LEN
+# define NAME_LEN 11U
+#endif
+static_assert(NAME_LEN <= INT8_MAX, "NAME_LEN too large");
+
 
 typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
 
+extern uint32_t w_zhash[WORKER_COUNT];
+extern char     w_name[WORKER_COUNT][NAME_LEN + 1];
+extern void     *w_zaddr[WORKER_COUNT];
+extern iodir_t  w_iodir[WORKER_COUNT];
+extern ukey_t   w_lcn[WORKER_COUNT];
+extern role_t   w_role[WORKER_COUNT];
+
+uint32_t addr2hash (zframe_t *z);
 uint32_t add_worker(zframe_t *A, const char *N, iodir_t I);
-worker_t get_worker(ukey_t key);
+bool_index_t get_worker(uint32_t key);
 
 #endif

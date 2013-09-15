@@ -8,8 +8,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+
+
 //----------------------------------------------------------------------------
-// COMPAT
+// BASICS
 //----------------------------------------------------------------------------
 typedef int8_t bool_t;
 #define TRUE INT8_C(1)
@@ -19,6 +21,11 @@ typedef int8_t bool_t;
 #define true _DONT_USE_STD_BOOL;
 #define false _DONT_USE_STD_BOOL;
 #pragma GCC diagnostic pop
+
+typedef struct {
+    bool_t flag;
+    size_t index;
+} bool_index_t;
 
 size_t intlen(int x);
 

@@ -7,16 +7,7 @@
 #include "lib.h"
 #include "worker.h"
 #include "iodir.h"
-
-#ifndef WORKER_COUNT
-# define WORKER_COUNT 1024U
-#endif
-static_assert(WORKER_COUNT <= INT_MAX, "WORKER_COUNT too large");
-
-#ifndef NAME_LEN
-# define NAME_LEN 11U
-#endif
-static_assert(NAME_LEN <= INT8_MAX, "NAME_LEN too large");
+#include "../libjoza/joza_msg.h"
 
 extern int PARANOIA = 0;
 
@@ -31,9 +22,7 @@ extern int PARANOIA = 0;
   lcn   lcn_t                       Logical Channel Number
   role  role_t                      X (caller), Y (callee), or READY
   ctime uint64_t                    time this worker was created
-  atime uint64_t                    time of last message from this worker
-  mtime uint64_t                    time of last modification to
-                                       hash/name/addr/iodir/lcn/role
+  mtime uint64_t                    time of last message dispatched by this worker
 
   nidx  size_t     [secondary key]  an array that keeps the sort indices
                                     for the secondary key
@@ -43,14 +32,13 @@ extern int PARANOIA = 0;
 static size_t   _count = 0;
 
 // Data for the workers
-static uint32_t w_zhash[WORKER_COUNT];
-static char     w_name[WORKER_COUNT][NAME_LEN + 1];
-static void     *w_zaddr[WORKER_COUNT];
-static iodir_t  w_iodir[WORKER_COUNT];
-static ukey_t   w_lcn[WORKER_COUNT];
-static role_t   w_role[WORKER_COUNT];
+uint32_t w_zhash[WORKER_COUNT];
+char     w_name[WORKER_COUNT][NAME_LEN + 1];
+void     *w_zaddr[WORKER_COUNT];
+iodir_t  w_iodir[WORKER_COUNT];
+ukey_t   w_lcn[WORKER_COUNT];
+role_t   w_role[WORKER_COUNT];
 static double   w_ctime[WORKER_COUNT];
-static double   w_atime[WORKER_COUNT];
 static double   w_mtime[WORKER_COUNT];
 
 // List of the sort order of the strings in w_name
@@ -67,7 +55,7 @@ void init_pname(void)
 // Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
 // bytes 1 to 5 of the address would work as a unique ID for a
 // given connection.
-static uint32_t addr2hash (zframe_t *z)
+uint32_t addr2hash (zframe_t *z)
 {
     uint32_t x[1];
 #ifdef HAVE_CZMQ
@@ -132,7 +120,6 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
         PUSH(w_lcn, i, _count);
         PUSH(w_role, i, _count);
         pushd(w_ctime, i, _count);
-        pushd(w_atime, i, _count);
         pushd(w_mtime, i, _count);
     }
 
@@ -146,11 +133,25 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
     
     w_ctime[i] = elapsed_time;
     w_mtime[i] = elapsed_time;
-    w_atime[i] = elapsed_time;
 
     // Update the index table that alphabetizes the names.
     qisort(w_pname, _count, w_nidx);
     return hash;
+}
+
+bool_index_t get_worker(uint32_t hash)
+{
+    bool_index_t bi;
+    bi.flag = FALSE;
+    bi.index = 0;
+
+    if (hash != 0)
+    {
+        bi.index = ifind(w_zhash, _count, hash);
+        if (w_zhash[bi.index] == hash)
+            bi.flag = TRUE;
+    }
+    return bi;
 }
 
 void remove_worker(uint32_t hash)
@@ -170,19 +171,147 @@ void remove_worker(uint32_t hash)
         REMOVE(w_lcn, i, _count);
         REMOVE(w_role, i, _count);
         removed(w_ctime, i, _count);
-        removed(w_atime, i, _count);
         removed(w_mtime, i, _count);
     }
     _count --;
     w_zhash[_count] = 0;
     memset(w_name[_count], 0, NAME_LEN + 1);
     w_zaddr[_count] = NULL;
-    w_iodir[i] = BIDIRECTIONAL;
+    w_iodir[i] = FREE;
     w_lcn[i] = UKEY_C(0);
     w_role[i] = READY;
     w_ctime[i] = -1.0;
     w_mtime[i] = -1.0;
-    w_atime[i] = -1.0;
 }
 
 #undef REMOVE
+
+
+bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I)
+{
+    bool_t more = FALSE;        /* When TRUE, message needs dowmstream processing.  */
+    const char *cmdname, *name;
+    int id;
+
+    cmdname = joza_msg_const_address(M);
+    id = joza_msg_id(M);
+    name = w_name[I];
+    w_mtime[I] = now();
+
+    INFO("handling %s from connected worker '%s'", cmdname, name);
+    switch(id) {
+    case JOZA_MSG_CALL_REQUEST:
+        // Worker has requested a channel to another worker
+        do_call_request();
+        break;
+    case JOZA_MSG_DISCONNECT:
+        // Worker has requested to be disconnected
+        do_disconnect();
+        break;
+    default:
+        break;
+    }
+    return more;
+}
+    
+#define DSELF(X) do {joza_msg_send_diagnostic(g_sock, addr, SELF, (X))} while (0)
+#define DBROKER(X) do {joza_msg_send_diagnostic(g_sock, addr, BROKER, (X))} while (0)
+#define DOTHER(X) do {joza_msg_send_diagnostic(g_sock, addr, OTHER, (X))} while (0)
+
+void do_call_request(joza_msg_t *M, size_t I)
+{
+    zframe_t *addr       = joza_msg_address(M);
+    char     *xname      = joza_msg_calling_address(M);
+    char     *yname      = joza_msg_called_address(M);
+    packet_t pkt         = (packet_t) joza_msg_packet(M);
+    int      pkt_rcheck  = rngchk_packet(pkt);
+    tput_t   tput        = (tput_t) joza_msg_throughput(M);
+    int      tput_rcheck = rngchk_tput(tput);
+    seq_t    window      = joza_msg_window(M);
+    int      window_rcheck = rngchk_window(window);
+    uint8_t  *data       = zframe_data(joza_msg_data(M));
+    size_t   data_len    = zframe_size(joza_msg_data(M));
+    bool_index_t bi_y    = get_worker_by_name(yname);
+
+    // Validate the message
+
+    if (strnlen(xname, NAME_LEN + 1) == 0)
+        DSELF(D_CALLING_ADDRESS_TOO_SHORT);
+    else if (strnlen(xname, NAME_LEN + 1) > NAME_LEN)
+        DSELF(D_CALLING_ADDRESS_TOO_LONG);
+    else if (!safeascii(xname))
+        DSELF(D_CALLING_ADDRESS_INVALID);
+    else if (strnlen(yname, NAME_LEN + 1) == 0)
+        DSELF(D_CALLED_ADDRESS_TOO_SHORT);
+    else if (strnlen(yname, NAME_LEN + 1) > NAME_LEN)
+        DSELF(D_CALLED_ADDRESS_TOO_LONG);
+    else if (!safeascii(yname))
+        DSELF(D_CALLED_ADDRESS_INVALID);
+    else if (pkt_rcheck < 0)
+        DSELF(D_PACKET_FACILITY_TOO_SMALL);
+    else if (pkt_rcheck > 0)
+        DSELF(D_PACKET_FACILITY_TOO_LARGE);
+    else if (tput_rcheck < 0)
+        DSELF(D_THROUGHPUT_FACILITY_TOO_SMALL);
+    else if (tput_rcheck > 0)
+        DSELF(D_THROUGHPUT_FACILITY_TOO_LARGE);
+    else if (window_rcheck < 0)
+        DSELF(D_WINDOW_FACILITY_TOO_SMALL);
+    else if (window_rcheck > 0)
+        DSELF(D_WINDOW_FACILITY_TOO_LARGE);
+    else if (data_len > CALL_REQUEST_DATA_LEN)
+        DSELF(D_DATA_TOO_LARGE);
+
+    // Check that the other peer is ready to receive a call
+
+    else if (bi_y.flag == FALSE)
+        DBROKER(D_CALLEE_UNKNOWN_ADDRESS);
+    else if (w_role[bi_y.index] != READY)
+        DBROKER(D_CALLEE_BUSY);
+    else if (w_iodir[bi_y.index] == OUTPUT)
+        DBROKER(D_CALLEE_INCOMING_CALLS_BARRED);
+
+    // Check that there is a free channel to the message
+
+    else if (channel_available() == FALSE)
+        // FIXME: logic to destroy unused channels goes here
+        DBROKER(D_NO_CHANNELS_AVAILABLE);
+        
+    else {
+
+        // Finally, create the raw channel
+        ukey_t lcn = add_channel(addr, xname, w_addr[bi_y.index], yname);
+        w_lcn[I] = lcn;
+        w_lcn[bi_y.index] = lcn;
+        w_role[I] = X_CALLER;
+        w_role[bi_y.index] = Y_CALLEE;
+        
+        // Throttle the facilities to this broker's maxima.
+        pkt    = packet_throttle(pkt, opt_packet);
+        window = window_throttle(window, opt_window);
+        tput   = tput_throttle(tput, opt_tput);
+
+        // Set the initial facilities values
+        size_t idx = keyfind(c_lcn, _count, lcn);
+        c_pkt[idx] = pkg;
+        c_tput[idx] = tput;
+        c_window[idx] = window;
+
+        // Transition state to X_CALL
+        c_state[idx] = state_x_call;
+
+        // FIXME: set the call request timer
+
+        // Send the call request to the peer
+        joza_msg_send_call_request (g_sock, addr, xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(msg)));
+    }
+}
+
+// Disconnect this channel, which is not currently on a call.
+void do_disconnect(joza_msg_t *M, size_t I)
+{
+    zframe_t *addr = joza_msg_addr(m);
+    uint32_t hash = addr2hash(addr);
+    joza_msg_send_addr_disconnect_indication(g_sock, addr);
+    remove_worker (hash);
+}

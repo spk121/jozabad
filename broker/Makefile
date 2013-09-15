@@ -10,10 +10,17 @@ INCLUDES = \
     state.h \
     msg.h
 
-CSRC = lib.c \
+VPATH = ../libjoza
+
+CSRC = channel.c \
+	lib.c \
 	main.c \
 	pgetopt.c \
-	tput.c
+	poll.c \
+	tput.c \
+	worker.c \
+	joza_lib.c \
+	joza_msg.c
 
 CPPSRC = 
 
