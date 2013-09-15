@@ -1,3 +1,25 @@
+/*
+    tput.c
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
 #include "tput.h"
 
 static const uint32_t tput_rate[t_last + 1] = {
@@ -48,7 +70,7 @@ static const uint32_t tput_rate[t_last + 1] = {
     2048000
 };
 
-static const char tput_names[t_last + 1][11] = {
+static const char tput_names[t_last + 1][TPUT_NAME_LEN] = {
     "reserved",
     "reserved",
     "reserved",
@@ -96,6 +118,41 @@ static const char tput_names[t_last + 1][11] = {
     "2.048 Mbps"
 };
 
+uint32_t tput_bps(tput_t x)
+{
+    assert (tput_rngchk(x) == 0);
+    return tput_rate[x];
+}
+
+char const *tput_name(tput_t x)
+{
+    assert (tput_rngchk(x) == 0);
+    return tput_names[x];
+}
+
+// Checks to see if, in the context of an CALL_REQUEST negotiation, it
+// is valid to set the throughput from CURRENT to REQUEST.  Returns
+// non-zero if true.
+int tput_negotiate(tput_t request, tput_t current)
+{
+    assert (tput_rngchk(request) == 0);
+    assert (tput_rngchk(current) == 0);
+
+    if (request > t_negotiate) {
+        if (request <= current)
+            return 1;
+        else
+            return 0;
+    } else if (request == t_negotiate)
+        return 1;
+    else if (request < t_negotiate) {
+        if (request >= current)
+            return 1;
+        else
+            return 0;
+    }
+}
+
 // Check the range of the tput value X.  Return -1 if it is too small,
 // 0 if it is valid, or 1 if it is too large.
 int tput_rngchk(tput_t x)
@@ -107,7 +164,7 @@ int tput_rngchk(tput_t x)
     return 0;
 }
 
-// Return the lesser of REQUEST and LIMIT.  
+// Return the lesser of REQUEST and LIMIT.
 tput_t tput_throttle(tput_t request, tput_t limit)
 {
     assert (tput_rngchk(request) == 0);
@@ -118,36 +175,5 @@ tput_t tput_throttle(tput_t request, tput_t limit)
     return limit;
 }
 
-char const *tput_name(tput_t x) {
-    assert (tput_rngchk(x) == 0);
-    return tput_names[x];
-}
 
-// Checks to see if, in the context of an CALL_REQUEST negotiation, it
-// is valid to set the throughput from CURRENT to REQUEST.  Returns
-// TRUE if that is valid.
-bool_t tput_negotiate(tput_t request, tput_t current)
-{
-    assert (tput_rngchk(request) == 0);
-    assert (tput_rngchk(current) == 0);
 
-    if (request > t_negotiate) {
-        if (request <= current)
-            return TRUE;
-        else
-            return FALSE;
-    }
-    else if (request == t_negotiate)
-        return TRUE;
-    else if (request < t_negotiate) {
-        if (request >= current)
-            return TRUE;
-        else
-            return FALSE;
-    }
-}
-
-uint32_t tput_bps(tput_t x) {
-    assert (tput_rngchk(x) == 0);
-    return tput_rate[x];
-}

@@ -1,18 +1,31 @@
 /*
- * File:   parch_throughput.h
- * Author: mike
- *
- * Created on August 21, 2013, 5:04 PM
- */
+    tput.h
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
 
 #ifndef PARCH_THROUGHPUT_H
 #define	PARCH_THROUGHPUT_H
 
-#include <assert.h>
 #include <stdint.h>
-#include "lib.h"
 
-#define THROUGHPUT_NAME_MAX_LEN (12)
+#define TPUT_NAME_LEN (12)
 
 typedef enum {
     t_unspecified,
@@ -63,16 +76,13 @@ typedef enum {
 
     t_negotiate = t_9600bps,
     t_default = t_64kbps,
-    t_modem_upload = t_19200bps,
-    t_dsl_upload_tier_1 = t_384kbps,
-    t_dsl_upload_tier_2 = t_768kbps,
     t_last = t_2048kbps
 } tput_t;
 
+uint32_t    tput_bps(tput_t p);
 const char *tput_name(tput_t c);
-int tput_rngchk(tput_t p);
-tput_t tput_throttle(tput_t request, tput_t limit);
-bool_t tput_negotiate(tput_t r, tput_t c);
-uint32_t tput_bps(tput_t p);
+int         tput_negotiate(tput_t r, tput_t c);
+int         tput_rngchk(tput_t p);
+tput_t      tput_throttle(tput_t request, tput_t limit);
 #endif	/* PARCH_TPUT_H */
 
