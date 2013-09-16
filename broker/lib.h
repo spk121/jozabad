@@ -8,19 +8,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-
+#include "bool.h"
 
 //----------------------------------------------------------------------------
 // BASICS
 //----------------------------------------------------------------------------
-typedef int8_t bool_t;
-#define TRUE INT8_C(1)
-#define FALSE INT8_C(0)
-#pragma GCC diagnostic error "-w"
-#define bool _DONT_USE_STD_BOOL;
-#define true _DONT_USE_STD_BOOL;
-#define false _DONT_USE_STD_BOOL;
-#pragma GCC diagnostic pop
 
 typedef struct {
     bool_t flag;
@@ -51,6 +43,7 @@ const char *unpack121(uint32_t x);
 //----------------------------------------------------------------------------
 
 void qisort(char *arr[], size_t n, size_t indx[]);
+size_t namefind(const char *arr[], size_t n, size_t nidx[], const char *str);
 
 //----------------------------------------------------------------------------
 // SEARCHING ORDERED UINT32_T ARRAYS

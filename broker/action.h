@@ -1,19 +1,33 @@
 /*
- * File:   action.h
- * Author: mike
- *
- * Created on August 25, 2013, 11:20 AM
- */
+    action.h - state machine action table
 
-#ifndef ACTION_H
-#define	ACTION_H
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
-#include <czmq.h>
-#include "state.h"
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+#ifndef JOZA_ACTION_H
+#define	JOZA_ACTION_H
 
 #define ACTION_NAME_MAX_LEN (21)
+#define ACTION_STATE_COUNT (9)
+#define ACTION_MESSAGE_COUNT (14)
 
-typedef enum _action_t {
+typedef enum {
     // These are actions takes by the broker itself.
     a_unspecified = 0,
     a_discard,
@@ -26,7 +40,6 @@ typedef enum _action_t {
     a_x_disconnect,
     a_x_call_request,
     a_x_call_accepted,
-    a_x_call_collision,
     a_x_clear_request,
     a_x_clear_confirmation,
     a_x_data,
@@ -50,9 +63,8 @@ typedef enum _action_t {
     a_last = a_y_reset_confirmation
 } action_t;
 
-char const* name(action_t a);
-bool        validate(action_t a);
-action_t    find_action(state_t s, int msg_id, bool is_y);
+char const* action_name(action_t a);
+action_t    action_get(int state, int msg_id, int is_y);
 
-#endif	/* ACTION_H */
+#endif
 

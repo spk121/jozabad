@@ -6,9 +6,18 @@
 #include <string.h>
 #include "lib.h"
 #include "worker.h"
+#include "packet.h"
+#include "tput.h"
 #include "iodir.h"
+#include "seq.h"
+#include "cause.h"
+#include "diag.h"
+#include "channel.h"
+#include "packet.h"
+#include "poll.h"
 #include "../libjoza/joza_msg.h"
 
+#define CALL_REQUEST_DATA_LEN (16)
 extern int PARANOIA = 0;
 
 /*
@@ -69,7 +78,7 @@ uint32_t addr2hash (zframe_t *z)
     return x[0];
 }
 
-#define PUSH(arr,idx,count)                               \
+#define INSERT(arr,idx,count)                               \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
 static void pushd(double arr[], size_t idx, size_t count)
@@ -86,9 +95,8 @@ static void pushd(double arr[], size_t idx, size_t count)
         memmove(&arr[idx+1], &arr[idx], sizeof(double) * (count - idx));
 }
 
-// Add a new worker to the store.  Returns true on success or false
-// on failure.  Everything is supposed to be pre-validated, so 
-// invalid means that this message is ignored.
+// Add a new worker to the store.  Returns the hash key of the new
+// worker, or zero on failure.
 uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
 {
     uint32_t hash;
@@ -113,14 +121,14 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
         return 0;
     
     if (i < _count) {
-        PUSH(w_zhash, i, _count);
-        PUSH(w_zaddr, i, _count);
-        PUSH(w_name, i, _count);
-        PUSH(w_iodir, i, _count);
-        PUSH(w_lcn, i, _count);
-        PUSH(w_role, i, _count);
-        pushd(w_ctime, i, _count);
-        pushd(w_mtime, i, _count);
+        INSERT(w_zhash, i, _count);
+        INSERT(w_zaddr, i, _count);
+        INSERT(w_name, i, _count);
+        INSERT(w_iodir, i, _count);
+        INSERT(w_lcn, i, _count);
+        INSERT(w_role, i, _count);
+        INSERT(w_ctime, i, _count);
+        INSERT(w_mtime, i, _count);
     }
 
     w_zhash[i] = hash;
@@ -154,10 +162,35 @@ bool_index_t get_worker(uint32_t hash)
     return bi;
 }
 
+bool_index_t get_worker_by_name(const char *name)
+{
+    bool_index_t bi;
+    bi.flag = FALSE;
+    bi.index = 0;
+
+    if (name != 0)
+    {
+        bi.index = namefind(w_name, _count, w_nidx, name);
+        if (bi.index < _count && strcmp(w_name[bi.index], name) == 0)
+            bi.flag = TRUE;
+    }
+    return bi;
+}
+
+
+#define REMOVE(arr,idx,count)                                           \
+    do {                                                                \
+        memmove(arr + idx, arr + idx + 1, sizeof(arr[0]) * (count - idx - 1)); \
+        memset(arr + count - 1, 0, sizeof(arr[0]));                     \
+    }                                                                   \
+    while(0) 
+
 void remove_worker(uint32_t hash)
 {
 	size_t i;
     if (_count == 0)
+        return;
+    if (hash == 0)
         return;
     i = ifind(w_zhash, _count, hash);
     if (w_zhash[i] != hash)
@@ -170,18 +203,10 @@ void remove_worker(uint32_t hash)
         REMOVE(w_iodir, i, _count);
         REMOVE(w_lcn, i, _count);
         REMOVE(w_role, i, _count);
-        removed(w_ctime, i, _count);
-        removed(w_mtime, i, _count);
+        REMOVE(w_ctime, i, _count);
+        REMOVE(w_mtime, i, _count);
     }
     _count --;
-    w_zhash[_count] = 0;
-    memset(w_name[_count], 0, NAME_LEN + 1);
-    w_zaddr[_count] = NULL;
-    w_iodir[i] = FREE;
-    w_lcn[i] = UKEY_C(0);
-    w_role[i] = READY;
-    w_ctime[i] = -1.0;
-    w_mtime[i] = -1.0;
 }
 
 #undef REMOVE
@@ -202,11 +227,11 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I)
     switch(id) {
     case JOZA_MSG_CALL_REQUEST:
         // Worker has requested a channel to another worker
-        do_call_request();
+        do_call_request(M, I);
         break;
     case JOZA_MSG_DISCONNECT:
         // Worker has requested to be disconnected
-        do_disconnect();
+        do_disconnect(M, I);
         break;
     default:
         break;
@@ -236,82 +261,82 @@ void do_call_request(joza_msg_t *M, size_t I)
     // Validate the message
 
     if (strnlen(xname, NAME_LEN + 1) == 0)
-        DSELF(D_CALLING_ADDRESS_TOO_SHORT);
+        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_short);
     else if (strnlen(xname, NAME_LEN + 1) > NAME_LEN)
-        DSELF(D_CALLING_ADDRESS_TOO_LONG);
-    else if (!safeascii(xname))
-        DSELF(D_CALLING_ADDRESS_INVALID);
+        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_long);
+    else if (!safeascii(xname, NAME_LEN))
+        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_format_invalid);
     else if (strnlen(yname, NAME_LEN + 1) == 0)
-        DSELF(D_CALLED_ADDRESS_TOO_SHORT);
+        DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_short);
     else if (strnlen(yname, NAME_LEN + 1) > NAME_LEN)
-        DSELF(D_CALLED_ADDRESS_TOO_LONG);
-    else if (!safeascii(yname))
-        DSELF(D_CALLED_ADDRESS_INVALID);
+        DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_long);
+    else if (!safeascii(yname, NAME_LEN))
+        DIAGNOSTIC(addr, c_malformed_message, d_called_address_format_invalid);
     else if (pkt_rcheck < 0)
-        DSELF(D_PACKET_FACILITY_TOO_SMALL);
+        DIAGNOSTIC(addr, c_malformed_message, d_packet_facility_too_small);
     else if (pkt_rcheck > 0)
-        DSELF(D_PACKET_FACILITY_TOO_LARGE);
+        DIAGNOSTIC(addr, c_malformed_message, d_packet_facility_too_large);
     else if (tput_rcheck < 0)
-        DSELF(D_THROUGHPUT_FACILITY_TOO_SMALL);
+        DIAGNOSTIC(addr, c_malformed_message, d_throughput_facility_too_small);
     else if (tput_rcheck > 0)
-        DSELF(D_THROUGHPUT_FACILITY_TOO_LARGE);
+        DIAGNOSTIC(addr, c_malformed_message, d_throughput_facility_too_large);
     else if (window_rcheck < 0)
-        DSELF(D_WINDOW_FACILITY_TOO_SMALL);
+        DIAGNOSTIC(addr, c_malformed_message, d_window_facility_too_small);
     else if (window_rcheck > 0)
-        DSELF(D_WINDOW_FACILITY_TOO_LARGE);
+        DIAGNOSTIC(addr, c_malformed_message, d_window_facility_too_large);
     else if (data_len > CALL_REQUEST_DATA_LEN)
-        DSELF(D_DATA_TOO_LARGE);
+        DIAGNOSTIC(addr, c_malformed_message, d_data_too_long);
 
     // Check that the other peer is ready to receive a call
 
     else if (bi_y.flag == FALSE)
-        DBROKER(D_CALLEE_UNKNOWN_ADDRESS);
+        DIAGNOSTIC(addr, c_unknown_address, d_unknown_worker_address);
     else if (w_role[bi_y.index] != READY)
-        DBROKER(D_CALLEE_BUSY);
+        DIAGNOSTIC(addr, c_number_busy, d_number_busy);
     else if (w_iodir[bi_y.index] == OUTPUT)
-        DBROKER(D_CALLEE_INCOMING_CALLS_BARRED);
+        DIAGNOSTIC(addr, c_access_barred, d_input_barred);
 
     // Check that there is a free channel to the message
 
     else if (channel_available() == FALSE)
         // FIXME: logic to destroy unused channels goes here
-        DBROKER(D_NO_CHANNELS_AVAILABLE);
+        DIAGNOSTIC(addr, c_network_congestion, d_no_channels_available);
         
     else {
 
         // Finally, create the raw channel
-        ukey_t lcn = add_channel(addr, xname, w_addr[bi_y.index], yname);
+        ukey_t lcn = add_channel(addr, xname, w_zaddr[bi_y.index], yname);
         w_lcn[I] = lcn;
         w_lcn[bi_y.index] = lcn;
         w_role[I] = X_CALLER;
         w_role[bi_y.index] = Y_CALLEE;
         
         // Throttle the facilities to this broker's maxima.
-        pkt    = packet_throttle(pkt, opt_packet);
-        window = window_throttle(window, opt_window);
-        tput   = tput_throttle(tput, opt_tput);
+        //pkt    = packet_throttle(pkt, opt_packet);
+        //window = window_throttle(window, opt_window);
+        //tput   = tput_throttle(tput, opt_tput);
 
         // Set the initial facilities values
         size_t idx = keyfind(c_lcn, _count, lcn);
-        c_pkt[idx] = pkg;
+        c_pkt[idx] = pkt;
         c_tput[idx] = tput;
         c_window[idx] = window;
 
         // Transition state to X_CALL
-        c_state[idx] = state_x_call;
+        c_state[idx] = state_x_call_request;
 
         // FIXME: set the call request timer
 
         // Send the call request to the peer
-        joza_msg_send_call_request (g_sock, addr, xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(msg)));
+        joza_msg_send_addr_call_request (g_poll_sock, w_zaddr[bi_y.index], xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(M)));
     }
 }
 
 // Disconnect this channel, which is not currently on a call.
 void do_disconnect(joza_msg_t *M, size_t I)
 {
-    zframe_t *addr = joza_msg_addr(m);
+    zframe_t *addr = joza_msg_addr(M);
     uint32_t hash = addr2hash(addr);
-    joza_msg_send_addr_disconnect_indication(g_sock, addr);
+    joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
     remove_worker (hash);
 }

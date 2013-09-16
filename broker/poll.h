@@ -7,8 +7,10 @@
 
 #ifndef POLL_H_INCLUDED
 #define	POLL_H_INCLUDED
-#include "lib.h"
 
+#include "bool.h"
+
+extern void *g_poll_sock;
 void poll_init(bool_t verbose, const char *endpoint);
 void poll_start (void);
 #endif

@@ -79,6 +79,8 @@ typedef enum {
     t_last = t_2048kbps
 } tput_t;
 
+tput_t g_tput_threshold;
+
 uint32_t    tput_bps(tput_t p);
 const char *tput_name(tput_t c);
 int         tput_negotiate(tput_t r, tput_t c);

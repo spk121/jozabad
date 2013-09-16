@@ -348,6 +348,26 @@ void qisort(char *arr[], size_t n, size_t indx[])
 #undef SWAP
 }
 
+// Using an unordered matrix of stringx ARR of length N, an an index
+// matrix whose contents order the string matrix return the location
+// of the STR, or, if it is not found, the last location checked.  A
+// return value of N indicates after the end of the matrix.
+size_t namefind(const char *arr[], size_t n, size_t nidx[], const char *str)
+{
+    size_t lo, hi, mid;
+
+    lo = 0;
+    hi = n + 1;
+    while (hi - lo > 1) {
+        mid = (hi + lo) >> 1;
+        if (strcmp(str, arr[nidx[mid-1]]) >= 0)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    return lo;
+}
+
 
 //----------------------------------------------------------------------------
 // UNIQUE-KEY VECTORS

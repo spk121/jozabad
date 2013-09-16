@@ -10,32 +10,26 @@
 
 #include <zmq.h>
 #include <czmq.h>
-#include <map>
-#include <string>
-#include <memory>
-#include <vector>
 #include "../libjoza/joza_msg.h"
 #include "../libjoza/joza_lib.h"
 #include "state.h"
 #include "flow.h"
 
-using namespace std;
-
 #define X121_ADDRESS_LENGTH (15)
 #define CONNECTIONS_MAX (256)
 
-class Connection {
-public:
+struct Connection {
     int id;
     zframe_t *zmq_address; 
     char x121_address[X121_ADDRESS_LENGTH]; 
     direction_t direction;
     uint8_t busy;
 
-    Connection(zframe_t *address, const char *name, direction_t d);
-    Connection(zframe_t const* address, const char *name, direction_t d);
-    ~Connection();
 };
+
+Connection(zframe_t *address, const char *name, direction_t d);
+Connection(zframe_t const* address, const char *name, direction_t d);
+~Connection();
 
 typedef map<string, Connection*> connection_store_t;
 

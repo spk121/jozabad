@@ -22,6 +22,8 @@
 
 #include "tput.h"
 
+tput_t g_tput_threshold = t_last;
+
 static const uint32_t tput_rate[t_last + 1] = {
     0,
     0,

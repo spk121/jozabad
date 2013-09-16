@@ -3,32 +3,10 @@
 
 #include "../libjoza/joza_msg.h"
 #include "worker.h"
-
-#ifndef SEQ_WIDTH
-# define SEQ_WIDTH 2
-#endif
-
-#if SEQ_WIDTH == 1
-typedef uint8_t seq_t;
-typedef uint16_t dseq_t;
-# define SEQ_MIN UINT8_C(0)
-# define SEQ_MAX UINT8_C(SCHAR_MAX)
-# define SEQ_C(x) UINT8_C(x)
-#elif SEQ_WIDTH == 2
-typedef uint16_t seq_t;
-typedef uint32_t dseq_t;
-# define SEQ_MIN UINT16_C(0)
-# define SEQ_MAX UINT16_C(INT16_MAX)
-# define SEQ_C(x) UINT16_C(x)
-#elif SEQ_WIDTH == 4
-typedef uint32_t seq_t;
-typedef uint64_t dseq_t;
-# define SEQ_MIN UINT32_C(0)
-# define SEQ_MAX UINT32_C(INT32_MAX)
-# define SEQ_C(x) UINT32_C(x)
-#else
-#error "Bad SEQ_WIDTH"
-#endif
+#include "packet.h"
+#include "tput.h"
+#include "seq.h"
+#include "state.h"
 
 #ifndef WINDOW_DEFAULT
 # define WINDOW_DEFAULT SEQ_C(2)
@@ -39,11 +17,21 @@ typedef uint64_t dseq_t;
 #endif
 static_assert(CHANNEL_COUNT < UKEY_MAX, "CHANNEL_COUNT too large for ukey_t");
 
+#ifndef CALL_REQUEST_DATA_LEN
+# define CALL_REQUEST_DATA_LEN (16)
+#endif
+
+extern ukey_t c_lcn[CHANNEL_COUNT];
 extern void *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
 extern void *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
 extern size_t c_yidx[CHANNEL_COUNT]; /* index array that sorts ykey array */
 extern char *c_xname[CHANNEL_COUNT];
 extern char *c_yname[CHANNEL_COUNT];
+extern packet_t c_pkt[CHANNEL_COUNT];
+extern tput_t c_tput[CHANNEL_COUNT]; /* bits/sec permitted on this channel */
+extern seq_t c_window[CHANNEL_COUNT];
+extern state_t c_state[CHANNEL_COUNT];
+
 
 void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R);
 

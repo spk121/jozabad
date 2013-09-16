@@ -98,37 +98,5 @@ extern int    popterr;  /* The pgetopt() function returns a question mark (?)
 
 int pgetopt(int argc, char *argv[], char *optstring);
 
-/* Example code by PlexFX to demonstrate calling of and parsing optional extra
- * args.  This is a sample code fragment, untested, minimal or non-existent 
- * error handling, and some headers variable declarations are omitted.
- */
-
-#if 0 /* remove, for example purposes only */
-
-/* Note the ':' shown below in the pattern string, to specify additional arg */
-char opt_pattern[] = "s:V?";
-
-while ((c = pgetopt(argc, argv, opt_pattern)) != -1) 
-{
-	switch(c) 
-	{
-      case 's':      /* specify a /s option with a numeric size parameter 
-							 * which is provided in poptarg, a char *
-		                * Example: $ someprogram /s 100
-		                */
-			
-			some_size = atoi(poptarg);   /* should use strtol() in new code */
-         break;
-		case 'V':		/* specify a /V version option, with no parameter */
-			puts("someprogram: Version 1.0");
-			break;
-		case '?':		/* explicit allows of -? or /? */
-		default:			/* and give usage any time invalid arguments are given */
-			PrintUsage();						/* call some function to show usage */
-			break;
-	}
-}
-#endif /* 0 */
-
 #endif /* ! H_GETOPT */
 

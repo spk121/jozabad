@@ -1,19 +1,59 @@
-#include <czmq.h>
-#include "../libjoza/joza_lib.h"
-#include "../libjoza/joza_msg.h"
+/*
+    action.c - state machine action table
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+#include <assert.h>
 #include "action.h"
 
-const char action_names[a_last + 2][ACTION_NAME_MAX_LEN + 1] = {
-    "UNSPECIFIED", "DISCARD", "RESET", "CLEAR", "DISCONNECT",
-    "X_CONNECT", "X_DISCONNECT", "X_CALL_REQUEST", "X_CALL_ACCEPTED",
-    "X_CLEAR_REQUEST", "X_CLEAR_CONFIRMATION", "X_DATA", "X_RR",
-    "X_RNR" "X_RESET", "X_RESET_CONFIRMATION", "Y_DISCONNECT",
-    "Y_CALL_REQUEST", "Y_CALL_ACCEPTED", "Y_CLEAR_REQUEST",
-    "Y_CLEAR_CONFIRMATION", "Y_DATA", "Y_RR", "Y_RNR", "Y_RESET",
-    "Y_RESET_CONFIRMATION", "invalid action"
+const char action_names[a_last + 1][ACTION_NAME_MAX_LEN + 1] = {
+    "UNSPECIFIED",
+    "DISCARD",
+    "RESET",
+    "CLEAR",
+    "DISCONNECT",
+
+    "X_CONNECT",
+    "X_DISCONNECT",
+    "X_CALL_REQUEST",
+    "X_CALL_ACCEPTED",
+    "X_CLEAR_REQUEST",
+    "X_CLEAR_CONFIRMATION",
+    "X_DATA",
+    "X_RR",
+    "X_RNR",
+    "X_RESET",
+    "X_RESET_CONFIRMATION",
+
+    "Y_DISCONNECT",
+    "Y_CALL_REQUEST",
+    "Y_CALL_ACCEPTED",
+    "Y_CLEAR_REQUEST",
+    "Y_CLEAR_CONFIRMATION",
+    "Y_DATA",
+    "Y_RR",
+    "Y_RNR",
+    "Y_RESET",
+    "Y_RESET_CONFIRMATION"
 };
 
-const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
+const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
     // state_ready
     {
         a_clear, // data
@@ -29,6 +69,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // connect indication
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_x_call_request
     {
@@ -45,6 +86,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // connect indication
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_y_call_request
     {
@@ -61,6 +103,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // connect indication
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_data_transfer
     {
@@ -77,6 +120,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_reset, // connect indication
         a_x_disconnect, // disconnect
         a_reset, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_call_collision
     {
@@ -93,6 +137,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // connect indication
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_x_clear_request
     {
@@ -109,6 +154,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // connect indication
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_y_clear_request
     {
@@ -125,6 +171,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_discard, // connect indication
         a_x_disconnect, // disconnect
         a_discard, // disconnect indicatio
+        a_discard, // diagnostic
     },
     // state_x_reset_request
     {
@@ -141,6 +188,7 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_reset, // connect indication
         a_x_disconnect, // disconnect
         a_reset, // disconnect indication
+        a_discard, // diagnostic
     },
     // state_y_reset_request
     {
@@ -157,10 +205,11 @@ const action_t x_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_discard, // connect indication,
         a_x_disconnect, // disconnect
         a_discard, // disconnect indication
+        a_discard, // diagnostic
     }
 };
 
-const action_t y_action_table[state_last + 1][JOZA_MSG_COUNT] = {
+const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
     // state_ready
     {
         a_clear, // data
@@ -231,7 +280,7 @@ const action_t y_action_table[state_last + 1][JOZA_MSG_COUNT] = {
         a_clear, // rr
         a_clear, // rnr
         a_clear, // call request
-        a_clear, // call accepted
+        a_y_call_accepted, // call accepted
         a_y_clear_request, // clear request
         a_clear, // clear confirmation
         a_clear, // reset request
@@ -307,27 +356,19 @@ const action_t y_action_table[state_last + 1][JOZA_MSG_COUNT] = {
     }
 };
 
-char const *
-name(action_t a) {
-    if (!validate (a))
-        return action_names[a_last + 1];
+char const *action_name(action_t a)
+{
+    assert (a <= a_last);
     return action_names[a];
 }
 
-bool
-validate(action_t a) {
-    bool ret = true;
-    if (a > a_last) {
-        ret = false;
-    }
-    return ret;
-}
-
-action_t find_action(state_t s, int msg_id, bool is_y) {
-    assert (msg_id < JOZA_MSG_COUNT);
-    assert (validate (s));
-
+action_t action_get(int s, int msg_id, int is_y)
+{
     action_t a;
+
+    assert (msg_id < ACTION_MESSAGE_COUNT);
+    assert (s < ACTION_STATE_COUNT);
+
     if (is_y)
         a = y_action_table[s][msg_id];
     else

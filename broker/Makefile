@@ -12,11 +12,16 @@ INCLUDES = \
 
 VPATH = ../libjoza
 
-CSRC = channel.c \
+CSRC = action.c \
+	channel.c \
+	diag.c \
 	lib.c \
+        log.c \
 	main.c \
+	packet.c \
 	pgetopt.c \
 	poll.c \
+	state.c \
 	tput.c \
 	worker.c \
 	joza_lib.c \
