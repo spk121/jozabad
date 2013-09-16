@@ -1,5 +1,5 @@
 /*
-    seq.h - numeric type for sequence numbers
+    seq.h - message sequence numbers and flow control
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
@@ -22,6 +22,8 @@
 
 #ifndef JOZA_SEQ_H
 #define	JOZA_SEQ_H
+
+#include <stdint.h>
 
 #ifndef SEQ_WIDTH
 # define SEQ_WIDTH 2
@@ -48,5 +50,12 @@ typedef uint64_t dseq_t;
 #else
 # error "Bad SEQ_WIDTH"
 #endif
+
+#define WINDOW_MIN (1)
+#define WINDOW_MAX (SEQ_MAX)
+#define WINDOW_NEGOTIATE (2)
+
+int seq_rngchk(seq_t x);
+int window_negotiate(seq_t request, seq_t current);
 
 #endif

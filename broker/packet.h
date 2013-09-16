@@ -41,9 +41,12 @@ typedef enum _packet_t {
         
     p_first = p_16_bytes,
     p_default = p_128_bytes,
+	p_negotiate = p_128_bytes,
     p_last = p_4_Kbytes
 } packet_t;
 
-int rngchk_packet(packet_t p);
+uint32_t packet_bytes(packet_t x);
+int packet_rngchk(packet_t p);
+int packet_negotiate(packet_t request, packet_t current);
 
 #endif

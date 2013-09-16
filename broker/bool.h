@@ -23,6 +23,7 @@
 #ifndef JOZA_BOOL_H
 #define JOZA_BOOL_H
 
+#include <stdint.h>
 // Since this project has a strict policy agains #ifdef, and there
 // seems to be no way to use GCC C11 bool (which requires <stdbool.h>)
 // as well as Microsoft CL C++11 bool (which doesn't have a <stdbool.h>),
@@ -36,10 +37,12 @@ typedef int8_t bool_t;
 
 // These statements cause intentional compile errors when I forget to
 // use my custom bool type.
+#if 0
 #pragma GCC diagnostic error "-w"
 #define bool _DONT_USE_STD_BOOL;
 #define true _DONT_USE_STD_BOOL;
 #define false _DONT_USE_STD_BOOL;
 #pragma GCC diagnostic pop
+#endif
 
 #endif

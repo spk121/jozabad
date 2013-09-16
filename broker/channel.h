@@ -22,8 +22,8 @@ static_assert(CHANNEL_COUNT < UKEY_MAX, "CHANNEL_COUNT too large for ukey_t");
 #endif
 
 extern ukey_t c_lcn[CHANNEL_COUNT];
-extern void *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
-extern void *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
+extern zframe_t *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
+extern zframe_t *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
 extern size_t c_yidx[CHANNEL_COUNT]; /* index array that sorts ykey array */
 extern char *c_xname[CHANNEL_COUNT];
 extern char *c_yname[CHANNEL_COUNT];
@@ -34,5 +34,6 @@ extern state_t c_state[CHANNEL_COUNT];
 
 
 void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R);
-
+bool_t channel_available(void);
+ukey_t add_channel(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname);
 #endif

@@ -1,10 +1,8 @@
 #include <czmq.h>
 
-#include "../libjoza/joza_lib.h"
 #include "../libjoza/joza_msg.h"
 
 //#include "connections.h"
-#include "dname.h"
 #include "lib.h"
 #include "log.h"
 #include "poll.h"
@@ -129,7 +127,7 @@ do_more:
             INFO("handling %s from unconnected worker", cmdname);
             add_worker(joza_msg_const_address(msg),
                        joza_msg_const_calling_address(msg),
-                       (direction_t) joza_msg_const_directionality(msg));
+                       (iodir_t) joza_msg_const_directionality(msg));
         } else {
             INFO("ignoring %s from unconnected worker", cmdname);
         }

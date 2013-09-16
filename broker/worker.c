@@ -15,6 +15,8 @@
 #include "channel.h"
 #include "packet.h"
 #include "poll.h"
+#include "log.h"
+#include "msg.h"
 #include "../libjoza/joza_msg.h"
 
 #define CALL_REQUEST_DATA_LEN (16)
@@ -43,7 +45,7 @@ static size_t   _count = 0;
 // Data for the workers
 uint32_t w_zhash[WORKER_COUNT];
 char     w_name[WORKER_COUNT][NAME_LEN + 1];
-void     *w_zaddr[WORKER_COUNT];
+zframe_t *w_zaddr[WORKER_COUNT];
 iodir_t  w_iodir[WORKER_COUNT];
 ukey_t   w_lcn[WORKER_COUNT];
 role_t   w_role[WORKER_COUNT];
@@ -55,6 +57,10 @@ static size_t   w_nidx[WORKER_COUNT];
 // FIXME: PEDANTIC - pointers to the names in w_name;
 static char     *w_pname[WORKER_COUNT];
 
+static void do_call_request(joza_msg_t *M, size_t I);
+static void do_disconnect(joza_msg_t *M, size_t I);
+
+
 void init_pname(void)
 {
     for (size_t i = 0; i < WORKER_COUNT; i ++)
@@ -64,7 +70,7 @@ void init_pname(void)
 // Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
 // bytes 1 to 5 of the address would work as a unique ID for a
 // given connection.
-uint32_t addr2hash (zframe_t *z)
+uint32_t addr2hash (const zframe_t *z)
 {
     uint32_t x[1];
 #ifdef HAVE_CZMQ
@@ -97,7 +103,7 @@ static void pushd(double arr[], size_t idx, size_t count)
 
 // Add a new worker to the store.  Returns the hash key of the new
 // worker, or zero on failure.
-uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
+uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
 {
     uint32_t hash;
     size_t i;
@@ -117,7 +123,7 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
     if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN
         || !safeascii(N, NAME_LEN))
         return 0;
-    if (!VAL_IODIR(I))
+    if (!iodir_validate(I))
         return 0;
     
     if (i < _count) {
@@ -134,7 +140,7 @@ uint32_t add_worker(zframe_t *A, const char *N, iodir_t I)
     w_zhash[i] = hash;
     memset(w_name[i], 0, NAME_LEN + 1);
     strncpy(w_name[i], N, NAME_LEN);
-    w_zaddr[i] = A;
+    w_zaddr[i] = zframe_dup((zframe_t *)A);
     w_iodir[i] = I;
     w_lcn[i] = UKEY_C(0);
     w_role[i] = READY;
@@ -162,6 +168,26 @@ bool_index_t get_worker(uint32_t hash)
     return bi;
 }
 
+// Using an unordered matrix of stringx ARR of length N, an an index
+// matrix whose contents order the string matrix return the location
+// of the STR, or, if it is not found, the last location checked.  A
+// return value of N indicates after the end of the matrix.
+static size_t find_name(const char *str)
+{
+    size_t lo, hi, mid;
+
+    lo = 0;
+    hi = _count;
+    while (hi - lo > 1) {
+        mid = (hi + lo) >> 1;
+        if (strcmp(str, w_name[w_nidx[mid-1]]) >= 0)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    return lo;
+}
+
 bool_index_t get_worker_by_name(const char *name)
 {
     bool_index_t bi;
@@ -170,7 +196,7 @@ bool_index_t get_worker_by_name(const char *name)
 
     if (name != 0)
     {
-        bi.index = namefind(w_name, _count, w_nidx, name);
+        bi.index = find_name(name);
         if (bi.index < _count && strcmp(w_name[bi.index], name) == 0)
             bi.flag = TRUE;
     }
@@ -184,6 +210,11 @@ bool_index_t get_worker_by_name(const char *name)
         memset(arr + count - 1, 0, sizeof(arr[0]));                     \
     }                                                                   \
     while(0) 
+
+void remove_worker_by_hash(uint32_t hash)
+{
+	remove_worker(hash);
+}
 
 void remove_worker(uint32_t hash)
 {
@@ -218,7 +249,7 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I)
     const char *cmdname, *name;
     int id;
 
-    cmdname = joza_msg_const_address(M);
+    cmdname = joza_msg_const_command(M);
     id = joza_msg_id(M);
     name = w_name[I];
     w_mtime[I] = now();
@@ -239,21 +270,17 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I)
     return more;
 }
     
-#define DSELF(X) do {joza_msg_send_diagnostic(g_sock, addr, SELF, (X))} while (0)
-#define DBROKER(X) do {joza_msg_send_diagnostic(g_sock, addr, BROKER, (X))} while (0)
-#define DOTHER(X) do {joza_msg_send_diagnostic(g_sock, addr, OTHER, (X))} while (0)
-
-void do_call_request(joza_msg_t *M, size_t I)
+static void do_call_request(joza_msg_t *M, size_t I)
 {
     zframe_t *addr       = joza_msg_address(M);
     char     *xname      = joza_msg_calling_address(M);
     char     *yname      = joza_msg_called_address(M);
     packet_t pkt         = (packet_t) joza_msg_packet(M);
-    int      pkt_rcheck  = rngchk_packet(pkt);
+    int      pkt_rcheck  = packet_rngchk(pkt);
     tput_t   tput        = (tput_t) joza_msg_throughput(M);
-    int      tput_rcheck = rngchk_tput(tput);
+    int      tput_rcheck = tput_rngchk(tput);
     seq_t    window      = joza_msg_window(M);
-    int      window_rcheck = rngchk_window(window);
+    int      window_rcheck = seq_rngchk(window);
     uint8_t  *data       = zframe_data(joza_msg_data(M));
     size_t   data_len    = zframe_size(joza_msg_data(M));
     bool_index_t bi_y    = get_worker_by_name(yname);
@@ -293,7 +320,7 @@ void do_call_request(joza_msg_t *M, size_t I)
         DIAGNOSTIC(addr, c_unknown_address, d_unknown_worker_address);
     else if (w_role[bi_y.index] != READY)
         DIAGNOSTIC(addr, c_number_busy, d_number_busy);
-    else if (w_iodir[bi_y.index] == OUTPUT)
+    else if (w_iodir[bi_y.index] == io_incoming_calls_barred)
         DIAGNOSTIC(addr, c_access_barred, d_input_barred);
 
     // Check that there is a free channel to the message
@@ -317,7 +344,7 @@ void do_call_request(joza_msg_t *M, size_t I)
         //tput   = tput_throttle(tput, opt_tput);
 
         // Set the initial facilities values
-        size_t idx = keyfind(c_lcn, _count, lcn);
+        size_t idx = ukey_find(c_lcn, _count, lcn);
         c_pkt[idx] = pkt;
         c_tput[idx] = tput;
         c_window[idx] = window;
@@ -333,9 +360,9 @@ void do_call_request(joza_msg_t *M, size_t I)
 }
 
 // Disconnect this channel, which is not currently on a call.
-void do_disconnect(joza_msg_t *M, size_t I)
+static void do_disconnect(joza_msg_t *M, size_t I)
 {
-    zframe_t *addr = joza_msg_addr(M);
+    const zframe_t *addr = joza_msg_const_address(M);
     uint32_t hash = addr2hash(addr);
     joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
     remove_worker (hash);

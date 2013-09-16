@@ -1,8 +1,13 @@
 #ifndef JOZA_IODIR_H
 #define JOZA_IODIR_H
 
-typedef enum { FREE, INPUT, OUTPUT, BLOCK } iodir_t;
+typedef enum { 
+	io_bidirectional, 
+	io_incoming_calls_barred, 
+	io_outgoing_calls_barred, 
+	io_calls_barred 
+} iodir_t;
 
-#define VAL_IODIR(x) ((x)==FREE || (x)==INPUT || (x)==OUTPUT)
+int iodir_validate(iodir_t x);
 
 #endif

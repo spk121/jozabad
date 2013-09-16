@@ -372,7 +372,7 @@ size_t namefind(const char *arr[], size_t n, size_t nidx[], const char *str)
 //----------------------------------------------------------------------------
 // UNIQUE-KEY VECTORS
 //----------------------------------------------------------------------------
-
+#if 0
 #if UKEY_WIDTH == 1
 typedef uint16_t double_ukey_t;
 # define UKEY_SHIFT 8
@@ -499,7 +499,7 @@ void indexx(ukey_t arr[], size_t n, ukey_t indx[])
         indx[i] = (ukey_t) (arrindx[i] & UKEY_MASK);
     free (arrindx);
 }
-
+#endif
 //----------------------------------------------------------------------------
 // STRICT C11 TIME
 //----------------------------------------------------------------------------

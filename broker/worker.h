@@ -1,12 +1,13 @@
 #ifndef JOZA_WORKER_H
 #define JOZA_WORKER_H
-#ifndef COMPILE_WITHOUT_CZMQ
-# include <czmq.h>
-#endif
+
+#include <czmq.h>
 #include <assert.h>
 #include <stdint.h>
 #include "lib.h"
 #include "iodir.h"
+#include "ukey.h"
+#include "../libjoza/joza_msg.h"
 
 #ifdef COMPILE_WITHOUT_CZMQ
 typedef void zframe_t;
@@ -27,13 +28,15 @@ typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
 
 extern uint32_t w_zhash[WORKER_COUNT];
 extern char     w_name[WORKER_COUNT][NAME_LEN + 1];
-extern void     *w_zaddr[WORKER_COUNT];
+extern zframe_t *w_zaddr[WORKER_COUNT];
 extern iodir_t  w_iodir[WORKER_COUNT];
 extern ukey_t   w_lcn[WORKER_COUNT];
 extern role_t   w_role[WORKER_COUNT];
 
-uint32_t addr2hash (zframe_t *z);
-uint32_t add_worker(zframe_t *A, const char *N, iodir_t I);
+uint32_t addr2hash (const zframe_t *z);
+uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I);
 bool_index_t get_worker(uint32_t key);
-
+bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I);
+void remove_worker_by_hash(uint32_t hash);
+void remove_worker(uint32_t hash);
 #endif

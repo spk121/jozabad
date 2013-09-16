@@ -24,6 +24,7 @@ typedef enum _state_t {
     state_last = state_y_reset_request
 } state_t;
 
+#define STATE_CLEAR_REQUEST(is_y) ((is_y)?state_y_clear_request:state_x_clear_request)
 extern const char state_names[state_last + 1][STATE_NAME_MAX_LEN + 1];
 
 char const *

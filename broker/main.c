@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <czmq.h>
+#include "lib.h"
 #include "log.h"
 #include "pgetopt.h"
 #include "poll.h"
@@ -102,8 +103,8 @@ int main (int argc, char *argv[])
     INFO("per-channel tput = %s", tput_name(g_tput_threshold));
 
     size_t len = intlen(main_port) + strlen(PROTOCOL) + 1;
-    char *s = calloc(len, sizeof(char));
-    snprintf(s, "%s%d", PROTOCOL, main_port);
+    char *s = (char *)calloc(len, sizeof(char));
+    snprintf(s, len, "%s%d", PROTOCOL, main_port);
 
     poll_init(TRUE, s);
     poll_start();

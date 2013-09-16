@@ -14,6 +14,8 @@
 #include "packet.h"
 #include "log.h"
 #include "msg.h"
+#include "packet.h"
+#include "ukey.h"
 #include <czmq.h>
 // #include "../libjoza/joza_lib.h"
 
@@ -41,8 +43,8 @@ mtime double                       time of last message from either peer
 static size_t _count = 0;
 static ukey_t _lcn = UKEY_MIN;
 ukey_t c_lcn[CHANNEL_COUNT];
-void *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
-void *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
+zframe_t *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
+zframe_t *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
 size_t c_yidx[CHANNEL_COUNT]; /* index array that sorts ykey array */
 char *c_xname[CHANNEL_COUNT];
 char *c_yname[CHANNEL_COUNT];
@@ -58,6 +60,25 @@ static double c_ctime[CHANNEL_COUNT]; /* time this channel was activated */
 static double c_mtime[CHANNEL_COUNT]; /* timestamp of last messate dispatched */
 
 #define C_ADDR(idx,y) ((y)?c_yzaddr[(idx)]:c_xzaddr[(idx)])
+#define C_PR(idx,y)   ((y)?c_ypr[(idx)]:c_xpr[(idx)])
+#define C_PS(idx,y)   ((y)?c_yps[(idx)]:c_xps[(idx)])
+#define SET_C_PR(idx,y,val) \
+	do {                    \
+	    if(y)               \
+	        c_ypr[(idx)] = (val); \
+	    else                 \
+	        c_xpr[(idx)] = (val); \
+	} \
+	while (0)
+#define SET_C_PS(idx,y,val) \
+	do {                    \
+	    if(y)               \
+	        c_yps[(idx)] = (val); \
+	    else                 \
+	        c_xps[(idx)] = (val); \
+	} \
+	while (0)
+
 #define PUSH(arr,idx,count)                                             \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 #define STATE2DIAG(s) ((diag_t)((s) - state_ready + d_invalid_message_for_state_ready))
@@ -77,7 +98,7 @@ ukey_t add_channel(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
 
     size_t idx;
 
-    idx = keyfind(c_lcn, _count, _lcn);
+    idx = ukey_find(c_lcn, _count, _lcn);
     assert (c_lcn[idx] != _lcn);
 
     if (idx < _count)
@@ -96,8 +117,8 @@ ukey_t add_channel(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
     }
     c_xzaddr[idx] = xzaddr;
     c_yzaddr[idx] = yzaddr;
-    c_xname[idx] = xname;
-    c_yname[idx] = yname;
+    c_xname[idx] = strdup(xname);
+    c_yname[idx] = strdup(yname);
     c_state[idx] = state_ready;
     c_xps[idx] = SEQ_MIN;
     c_xps[idx] = SEQ_MIN;
@@ -108,6 +129,32 @@ ukey_t add_channel(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
 
     _count ++;
 };    
+
+#define REMOVE(arr,idx,count)                                           \
+    do {                                                                \
+        memmove(arr + idx, arr + idx + 1, sizeof(arr[0]) * (count - idx - 1)); \
+        memset(arr + count - 1, 0, sizeof(arr[0]));                     \
+    }                                                                   \
+    while(0) 
+
+void remove_channel_by_idx(size_t idx)
+{
+    if (idx < _count)
+    {
+        REMOVE(c_xzaddr, idx, _count);
+        REMOVE(c_yzaddr, idx, _count);
+        REMOVE(c_xname, idx, _count);
+        REMOVE(c_yname, idx, _count);
+        REMOVE(c_state, idx, _count);
+        REMOVE(c_xps, idx, _count);
+        REMOVE(c_yps, idx, _count);
+        REMOVE(c_xpr, idx, _count);
+        REMOVE(c_ypr, idx, _count);
+        REMOVE(c_window, idx, _count);
+        REMOVE(c_tput, idx, _count);
+	}
+    _count ++;
+};
 
 void reset_flow_by_idx(unsigned int idx)
 {
@@ -166,11 +213,11 @@ void do_y_call_accepted(joza_msg_t *M, int I)
     char     *xname      = joza_msg_calling_address(M);
     char     *yname      = joza_msg_called_address(M);
     packet_t pkt         = (packet_t) joza_msg_packet(M);
-    int      pkt_rcheck  = rngchk_packet(pkt);
+    int      pkt_rcheck  = packet_rngchk(pkt);
     tput_t   tput        = (tput_t) joza_msg_throughput(M);
-    int      tput_rcheck = rngchk_tput(tput);
+    int      tput_rcheck = tput_rngchk(tput);
     seq_t    window      = joza_msg_window(M);
-    int      window_rcheck = rngchk_window(window);
+    int      window_rcheck = seq_rngchk(window);
     uint8_t  *data       = zframe_data(joza_msg_data(M));
     size_t   data_len    = zframe_size(joza_msg_data(M));
     int      me          = 1;
@@ -322,7 +369,7 @@ void do_i_data(joza_msg_t *M, int I, bool_t me)
     else if (!flow_sequence_in_range(pr, C_PR(I, me), C_PS(I, !me)))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
     else {
-        joza_msg_send_addr_data (g_poll_sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, data);
+        joza_msg_send_addr_data (g_poll_sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, zframe_new(data, data_len));
         SET_C_PS(I, me, (C_PS(I, me) + 1) % SEQ_MAX);
         SET_C_PR(I, me, pr);
     }
@@ -387,7 +434,7 @@ void do_i_reset_confirmation(joza_msg_t *M, int I, bool_t me)
     // The worker's reset request shall only use the diagnostic D_WORKER_REQUESTED.
     joza_msg_send_addr_reset_confirmation (g_poll_sock, C_ADDR(I, !me));
     reset_flow_by_idx(I);
-    c_state[I] = STATE_FLOW_CONTROL(me);
+    c_state[I] = state_data_transfer;
 }
 
 
@@ -404,8 +451,8 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R)
     state_t state_orig;
     action_t a;
     
-    cmdname = joza_msg_const_address(M);
-    I = ifind(c_lcn, _count, LCN);
+    cmdname = joza_msg_const_command(M);
+    I = ukey_find(c_lcn, _count, LCN);
     assert (c_lcn[I] == LCN);
 
     c_mtime[I] = now();
@@ -449,32 +496,32 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R)
 		break;
 
 	case a_x_disconnect:
-        do_x_disconnect(M, I);
+        do_i_disconnect(M, I, 0);
 		break;
 	case a_x_clear_request:
-        do_x_clear_request(M, I);
+        do_i_clear_request(M, I, 0);
 		break;
 	case a_x_clear_confirmation:
-		do_x_clear_confirmation(M, I);
+		do_i_clear_confirmation(M, I, 0);
 		break;
 	case a_x_data:
-        do_x_data(M, I);
+        do_i_data(M, I, 0);
 		break;
 	case a_x_rr:
-        do_x_rr(M, I);
+        do_i_rr(M, I, 0);
 		break;
 	case a_x_rnr:
-		do_x_rnr(M, I);
+		do_i_rnr(M, I, 0);
 		break;
 	case a_x_reset:
-		do_x_reset(M, I);
+		do_i_reset(M, I, 0);
 		break;
 	case a_x_reset_confirmation:
-		do_x_reset_confirmation(M, I);
+		do_i_reset_confirmation(M, I, 0);
 		break;
 
 	case a_y_disconnect:
-		do_y_disconnect(M, I);
+		do_i_disconnect(M, I, 1);
 		break;
 	case a_y_call_accepted:
 		do_y_call_accepted(M, I);
@@ -483,25 +530,25 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R)
 		do_y_call_collision(M, I);
 		break;
 	case a_y_clear_request:
-		do_y_clear_request(M, I);
+		do_i_clear_request(M, I, 1);
 		break;
 	case a_y_clear_confirmation:
-		do_y_clear_confirmation(M, I);
+		do_i_clear_confirmation(M, I, 1);
 		break;
 	case a_y_data:
-		do_y_data(M, I);
+		do_i_data(M, I, 1);
 		break;
 	case a_y_rr:
-		do_y_rr(M, I);
+		do_i_rr(M, I, 1);
 		break;
 	case a_y_rnr:
-		do_y_rnr(M, I);
+		do_i_rnr(M, I, 1);
 		break;
 	case a_y_reset:
-		do_y_reset(M, I);
+		do_i_reset(M, I, 1);
 		break;
 	case a_y_reset_confirmation:
-		do_y_reset_confirmation(M, I);
+		do_i_reset_confirmation(M, I, 1);
 		break;
 	}
 }

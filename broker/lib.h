@@ -54,6 +54,7 @@ size_t ifind(uint32_t arr[], size_t n, uint32_t X);
 //----------------------------------------------------------------------------
 // UNIQUE-KEY VECTORS
 //----------------------------------------------------------------------------
+#if 0
 #ifndef UKEY_WIDTH
 # define UKEY_WIDTH 2
 #endif
@@ -85,7 +86,7 @@ typedef struct {
 size_t keyfind(ukey_t arr[], size_t n, ukey_t key);
 index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key);
 void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
-
+#endif
 //----------------------------------------------------------------------------
 // STRICT C11 TIME
 //----------------------------------------------------------------------------
