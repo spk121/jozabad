@@ -8,8 +8,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "broker", "broker\broker.vcx
 		{1A3311F5-C83B-4490-B584-B72BCCD70160} = {1A3311F5-C83B-4490-B584-B72BCCD70160}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hack", "hack\hack.vcxproj", "{9C3545AA-4A7E-45BE-B067-54F5C26503BC}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -28,12 +26,6 @@ Global
 		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.ActiveCfg = Release|Win32
 		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.Build.0 = Release|Win32
 		{3F573162-13F1-40A5-8557-2C8B276F159D}.Release|Win32.Deploy.0 = Release|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Debug|Win32.ActiveCfg = Debug|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Debug|Win32.Build.0 = Debug|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Debug|Win32.Deploy.0 = Debug|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Release|Win32.ActiveCfg = Release|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Release|Win32.Build.0 = Release|Win32
-		{9C3545AA-4A7E-45BE-B067-54F5C26503BC}.Release|Win32.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

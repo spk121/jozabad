@@ -83,20 +83,43 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\broker\action.h" />
+    <ClInclude Include="..\..\broker\bool.h" />
+    <ClInclude Include="..\..\broker\cause.h" />
+    <ClInclude Include="..\..\broker\channel.h" />
+    <ClInclude Include="..\..\broker\connections.h" />
+    <ClInclude Include="..\..\broker\diag.h" />
     <ClInclude Include="..\..\broker\iodir.h" />
     <ClInclude Include="..\..\broker\lib.h" />
     <ClInclude Include="..\..\broker\log.h" />
+    <ClInclude Include="..\..\broker\msg.h" />
+    <ClInclude Include="..\..\broker\name.h" />
+    <ClInclude Include="..\..\broker\packet.h" />
     <ClInclude Include="..\..\broker\pgetopt.h" />
+    <ClInclude Include="..\..\broker\poll.h" />
+    <ClInclude Include="..\..\broker\seq.h" />
+    <ClInclude Include="..\..\broker\state.h" />
     <ClInclude Include="..\..\broker\tput.h" />
+    <ClInclude Include="..\..\broker\ukey.h" />
     <ClInclude Include="..\..\broker\worker.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\broker\action.c" />
+    <ClCompile Include="..\..\broker\channel.c" />
+    <ClCompile Include="..\..\broker\diag.c" />
+    <ClCompile Include="..\..\broker\iodir.c" />
     <ClCompile Include="..\..\broker\lib.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClCompile Include="..\..\broker\log.c" />
     <ClCompile Include="..\..\broker\main.c" />
+    <ClCompile Include="..\..\broker\name.c" />
+    <ClCompile Include="..\..\broker\packet.c" />
     <ClCompile Include="..\..\broker\pgetopt.c" />
+    <ClCompile Include="..\..\broker\poll.c" />
+    <ClCompile Include="..\..\broker\seq.c" />
     <ClCompile Include="..\..\broker\tput.c" />
+    <ClCompile Include="..\..\broker\ukey.c" />
     <ClCompile Include="..\..\broker\worker.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
