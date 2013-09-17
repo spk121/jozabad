@@ -1,5 +1,6 @@
 #include <assert.h>
 #include "seq.h"
+#include "bool.h"
 
 int seq_rngchk(seq_t x)
 {
@@ -8,6 +9,21 @@ int seq_rngchk(seq_t x)
 	else if (x >= SEQ_MAX)
 		return 1;
 	return 0;
+}
+
+// To do this comparison, we use double-wide integer types to avoid worrying about
+// numerical overflow.
+bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi)
+{
+    if (hi < lo) {
+        if (x <= hi || x >= lo)
+            return TRUE;
+    }
+    else if (hi > lo) {
+        if (x >= lo && x <= hi)
+            return TRUE;
+    }
+    return FALSE;
 }
 
 // Checks to see if, in the context of an CALL_REQUEST negotiation, it

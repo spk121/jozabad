@@ -1,3 +1,25 @@
+/*
+    worker.c - connected peers
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
@@ -67,23 +89,6 @@ void init_pname(void)
         w_pname[i] = &(w_name[i][0]);
 }
 
-// Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
-// bytes 1 to 5 of the address would work as a unique ID for a
-// given connection.
-uint32_t addr2hash (const zframe_t *z)
-{
-    uint32_t x[1];
-#ifdef HAVE_CZMQ
-    memcpy(x, (char *) zframe_data(z) + 1, sizeof(uint32_t));
-#else
-	// Unsafe dependency on data format knowledge!!
-	// Skip two byte frame header and the initial zero
-	// that the router socket places in a router address frame.
-	memcpy(x, (char *) z + 3, sizeof(uint32_t));
-#endif
-    return x[0];
-}
-
 #define INSERT(arr,idx,count)                               \
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
@@ -112,7 +117,7 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
     if (_count >= WORKER_COUNT)
         return 0;
 
-    hash = addr2hash(A);
+    hash = msg_addr2hash(A);
     if (hash == 0)
         return 0;
 
@@ -153,7 +158,7 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
     return hash;
 }
 
-bool_index_t get_worker(uint32_t hash)
+static bool_index_t worker_get_idx_by_hash(uint32_t hash)
 {
     bool_index_t bi;
     bi.flag = FALSE;
@@ -188,7 +193,7 @@ static size_t find_name(const char *str)
     return lo;
 }
 
-bool_index_t get_worker_by_name(const char *name)
+bool_index_t worker_get_idx_by_name(const char *name)
 {
     bool_index_t bi;
     bi.flag = FALSE;
@@ -283,7 +288,7 @@ static void do_call_request(joza_msg_t *M, size_t I)
     int      window_rcheck = seq_rngchk(window);
     uint8_t  *data       = zframe_data(joza_msg_data(M));
     size_t   data_len    = zframe_size(joza_msg_data(M));
-    bool_index_t bi_y    = get_worker_by_name(yname);
+    bool_index_t bi_y    = worker_get_idx_by_name(yname);
 
     // Validate the message
 
@@ -332,7 +337,7 @@ static void do_call_request(joza_msg_t *M, size_t I)
     else {
 
         // Finally, create the raw channel
-        ukey_t lcn = add_channel(addr, xname, w_zaddr[bi_y.index], yname);
+        ukey_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname);
         w_lcn[I] = lcn;
         w_lcn[bi_y.index] = lcn;
         w_role[I] = X_CALLER;
@@ -363,7 +368,7 @@ static void do_call_request(joza_msg_t *M, size_t I)
 static void do_disconnect(joza_msg_t *M, size_t I)
 {
     const zframe_t *addr = joza_msg_const_address(M);
-    uint32_t hash = addr2hash(addr);
+    uint32_t hash = msg_addr2hash(addr);
     joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
     remove_worker (hash);
 }

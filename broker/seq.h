@@ -24,6 +24,7 @@
 #define	JOZA_SEQ_H
 
 #include <stdint.h>
+#include "bool.h"
 
 #ifndef SEQ_WIDTH
 # define SEQ_WIDTH 2
@@ -56,6 +57,7 @@ typedef uint64_t dseq_t;
 #define WINDOW_NEGOTIATE (2)
 
 int seq_rngchk(seq_t x);
+bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi);
 int window_negotiate(seq_t request, seq_t current);
 
 #endif

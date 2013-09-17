@@ -87,7 +87,6 @@
     <ClInclude Include="..\..\broker\bool.h" />
     <ClInclude Include="..\..\broker\cause.h" />
     <ClInclude Include="..\..\broker\channel.h" />
-    <ClInclude Include="..\..\broker\connections.h" />
     <ClInclude Include="..\..\broker\diag.h" />
     <ClInclude Include="..\..\broker\iodir.h" />
     <ClInclude Include="..\..\broker\lib.h" />
@@ -113,6 +112,7 @@
     </ClCompile>
     <ClCompile Include="..\..\broker\log.c" />
     <ClCompile Include="..\..\broker\main.c" />
+    <ClCompile Include="..\..\broker\msg.c" />
     <ClCompile Include="..\..\broker\name.c" />
     <ClCompile Include="..\..\broker\packet.c" />
     <ClCompile Include="..\..\broker\pgetopt.c" />

@@ -1,3 +1,24 @@
+/*
+    worker.h - connected peers
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
 #ifndef JOZA_WORKER_H
 #define JOZA_WORKER_H
 
@@ -8,10 +29,6 @@
 #include "iodir.h"
 #include "ukey.h"
 #include "../libjoza/joza_msg.h"
-
-#ifdef COMPILE_WITHOUT_CZMQ
-typedef void zframe_t;
-#endif
 
 #ifndef WORKER_COUNT
 # define WORKER_COUNT 1024U
@@ -33,9 +50,8 @@ extern iodir_t  w_iodir[WORKER_COUNT];
 extern ukey_t   w_lcn[WORKER_COUNT];
 extern role_t   w_role[WORKER_COUNT];
 
-uint32_t addr2hash (const zframe_t *z);
 uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I);
-bool_index_t get_worker(uint32_t key);
+bool_index_t worker_get_idx_by_hash(uint32_t key);
 bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I);
 void remove_worker_by_hash(uint32_t hash);
 void remove_worker(uint32_t hash);
