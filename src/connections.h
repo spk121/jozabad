@@ -6,12 +6,11 @@
  */
 
 #ifndef CONNECTIONS_H
-#define	CONNECTIONS_H
+#define CONNECTIONS_H
 
 #include <zmq.h>
 #include <czmq.h>
-#include "../libjoza/joza_msg.h"
-#include "../libjoza/joza_lib.h"
+#include "joza_msg.h"
 #include "state.h"
 #include "flow.h"
 
@@ -20,8 +19,8 @@
 
 struct Connection {
     int id;
-    zframe_t *zmq_address; 
-    char x121_address[X121_ADDRESS_LENGTH]; 
+    zframe_t *zmq_address;
+    char x121_address[X121_ADDRESS_LENGTH];
     direction_t direction;
     uint8_t busy;
 
@@ -34,20 +33,20 @@ Connection(zframe_t const* address, const char *name, direction_t d);
 typedef map<string, Connection*> connection_store_t;
 
 const char*
-    find_dname(const char *key);
+find_dname(const char *key);
 Connection*
-    find_worker(const char* key);
+find_worker(const char* key);
 void
-    connection_msg_send(const char *key, joza_msg_t **msg);
+connection_msg_send(const char *key, joza_msg_t **msg);
 void
-    add_connection(const char *key, zframe_t const* zmq_addr,
-                   char const* x121_addr, direction_t d);
+add_connection(const char *key, zframe_t const* zmq_addr,
+               char const* x121_addr, direction_t d);
 bool
-    connection_dispatch(const char *key, joza_msg_t *msg);
+connection_dispatch(const char *key, joza_msg_t *msg);
 Connection*
-    find_worker_by_x121_address(const char* addr);
+find_worker_by_x121_address(const char* addr);
 void
-    connection_disconnect(const char *key);
+connection_disconnect(const char *key);
 
 
 class Channel {
@@ -98,5 +97,5 @@ void add_channel(const char *x_key, const char *y_key);
 void remove_channel(Channel* c);
 Channel* find_channel(const char *key);
 
-#endif	/* CONNECTIONS_H */
+#endif  /* CONNECTIONS_H */
 

@@ -17,8 +17,8 @@
 #if 0
 bool val_name(name_t N)
 {
-	return safeascii(N.str, NAME_LEN);
- }
+    return safeascii(N.str, NAME_LEN);
+}
 #endif
-        
-        
+
+

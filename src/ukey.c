@@ -1,9 +1,10 @@
 #include <assert.h>
+#include <stdint.h>
 #include "ukey.h"
 #include "bool.h"
 
-size_t ukey_find(ukey_t arr[], size_t n, ukey_t key);
-index_ukey_t ukey_next(ukey_t arr[], size_t n, ukey_t key);
+uint32_t ukey_find(ukey_t arr[], uint32_t n, ukey_t key);
+index_ukey_t ukey_next(ukey_t arr[], uint32_t n, ukey_t key);
 
 #if UKEY_WIDTH == 1
 typedef uint16_t double_ukey_t;
@@ -27,14 +28,14 @@ typedef uint64_t double_ukey_t;
 // unique key integers, return the location of the key, or, if it is
 // not found, the location where the key would be inserted.  A return
 // value of N indicates after the end of the matrix.
-size_t ukey_find(ukey_t arr[], size_t n, ukey_t key)
+uint32_t ukey_find(ukey_t arr[], uint32_t n, ukey_t key)
 {
-    size_t lo, hi, mid;
+    uint32_t lo, hi, mid;
 
-	assert(key < UKEY_MAX);
+    assert(key < UKEY_MAX);
 
-	if (n == 0)
-		return 0;
+    if (n == 0)
+        return 0;
 
     lo = 0;
     hi = n + 1;
@@ -54,10 +55,10 @@ size_t ukey_find(ukey_t arr[], size_t n, ukey_t key)
 // doesn't appear in the array, KEY is returned.  If it does appear,
 // the next avaialble unique integer key is returned.  J is an array
 // index that is the starting point of the search.
-static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
+static ukey_t _keynext(ukey_t arr[], uint32_t n, ukey_t key, uint32_t j)
 {
     assert (n < UKEY_MAX);  // infinite loop when all integers are being used as keys
-	assert (key < UKEY_MAX);
+    assert (key < UKEY_MAX);
     assert (j <= n);
 
     while (j < n) {
@@ -69,9 +70,9 @@ static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 
             // Check if ID has numerically wrapped back to zero
             if (key == UKEY_MAX) {
-				key = 0;
+                key = 0;
                 j = 0;
-			}
+            }
         } else
             break;
     }
@@ -83,14 +84,14 @@ static ukey_t _keynext(ukey_t arr[], size_t n, ukey_t key, size_t j)
 // - find the next free unique KEY
 // - find the location where that KEY could be inserted into the array
 // The KEY parameter is the starting point for the search for a new key.
-index_ukey_t ukey_next(ukey_t arr[], size_t n, ukey_t key)
+index_ukey_t ukey_next(ukey_t arr[], uint32_t n, ukey_t key)
 {
     index_ukey_t ret;
     int index;
     bool_t did_loop = FALSE;
 
-	assert(n < UKEY_MAX);
-	assert(key < UKEY_MAX);
+    assert(n < UKEY_MAX);
+    assert(key < UKEY_MAX);
 
 loop:
     index = ukey_find(arr, n, key);

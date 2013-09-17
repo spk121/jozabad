@@ -39,7 +39,7 @@
 #include "poll.h"
 #include "log.h"
 #include "msg.h"
-#include "../libjoza/joza_msg.h"
+#include "joza_msg.h"
 
 #define CALL_REQUEST_DATA_LEN (16)
 extern int PARANOIA = 0;
@@ -94,15 +94,12 @@ void init_pname(void)
 
 static void pushd(double arr[], size_t idx, size_t count)
 {
-    if (PARANOIA)
-    {
-        for (size_t i = _count; i >= idx + 1; i --)
-        {
+    if (PARANOIA) {
+        for (size_t i = _count; i >= idx + 1; i --) {
             arr[i] = arr[i-1];
         }
         arr[idx] = 0.0;
-    }
-    else
+    } else
         memmove(&arr[idx+1], &arr[idx], sizeof(double) * (count - idx));
 }
 
@@ -126,11 +123,11 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
         return 0;
 
     if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN
-        || !safeascii(N, NAME_LEN))
+            || !safeascii(N, NAME_LEN))
         return 0;
     if (!iodir_validate(I))
         return 0;
-    
+
     if (i < _count) {
         INSERT(w_zhash, i, _count);
         INSERT(w_zaddr, i, _count);
@@ -149,7 +146,7 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
     w_iodir[i] = I;
     w_lcn[i] = UKEY_C(0);
     w_role[i] = READY;
-    
+
     w_ctime[i] = elapsed_time;
     w_mtime[i] = elapsed_time;
 
@@ -158,14 +155,13 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
     return hash;
 }
 
-static bool_index_t worker_get_idx_by_hash(uint32_t hash)
+bool_index_t worker_get_idx_by_hash(uint32_t hash)
 {
     bool_index_t bi;
     bi.flag = FALSE;
     bi.index = 0;
 
-    if (hash != 0)
-    {
+    if (hash != 0) {
         bi.index = ifind(w_zhash, _count, hash);
         if (w_zhash[bi.index] == hash)
             bi.flag = TRUE;
@@ -199,8 +195,7 @@ bool_index_t worker_get_idx_by_name(const char *name)
     bi.flag = FALSE;
     bi.index = 0;
 
-    if (name != 0)
-    {
+    if (name != 0) {
         bi.index = find_name(name);
         if (bi.index < _count && strcmp(w_name[bi.index], name) == 0)
             bi.flag = TRUE;
@@ -214,16 +209,16 @@ bool_index_t worker_get_idx_by_name(const char *name)
         memmove(arr + idx, arr + idx + 1, sizeof(arr[0]) * (count - idx - 1)); \
         memset(arr + count - 1, 0, sizeof(arr[0]));                     \
     }                                                                   \
-    while(0) 
+    while(0)
 
 void remove_worker_by_hash(uint32_t hash)
 {
-	remove_worker(hash);
+    remove_worker(hash);
 }
 
 void remove_worker(uint32_t hash)
 {
-	size_t i;
+    size_t i;
     if (_count == 0)
         return;
     if (hash == 0)
@@ -231,8 +226,7 @@ void remove_worker(uint32_t hash)
     i = ifind(w_zhash, _count, hash);
     if (w_zhash[i] != hash)
         return;
-    if (i < _count - 1)
-    {
+    if (i < _count - 1) {
         REMOVE(w_zhash, i, _count);
         REMOVE(w_zaddr, i, _count);
         REMOVE(w_name, i, _count);
@@ -274,7 +268,7 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, size_t I)
     }
     return more;
 }
-    
+
 static void do_call_request(joza_msg_t *M, size_t I)
 {
     zframe_t *addr       = joza_msg_address(M);
@@ -333,7 +327,7 @@ static void do_call_request(joza_msg_t *M, size_t I)
     else if (channel_available() == FALSE)
         // FIXME: logic to destroy unused channels goes here
         DIAGNOSTIC(addr, c_network_congestion, d_no_channels_available);
-        
+
     else {
 
         // Finally, create the raw channel
@@ -342,7 +336,7 @@ static void do_call_request(joza_msg_t *M, size_t I)
         w_lcn[bi_y.index] = lcn;
         w_role[I] = X_CALLER;
         w_role[bi_y.index] = Y_CALLEE;
-        
+
         // Throttle the facilities to this broker's maxima.
         //pkt    = packet_throttle(pkt, opt_packet);
         //window = window_throttle(window, opt_window);

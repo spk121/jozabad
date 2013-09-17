@@ -31,7 +31,7 @@ typedef enum {
 
     // CLEAR and RESET messages from workers must have this cause
     c_worker_originated,
-    
+
     // As a response to a CALL_REQUEST where the other worker is busy.
     c_number_busy,
 
@@ -68,7 +68,7 @@ typedef enum {
     // unknown
     c_unknown_address,
 
-    // As a response when 
+    // As a response when
     // - a CONNECTION request when all worker slots in use
     // - CALL_REQUEST when all channels are in use
     c_network_congestion,
@@ -80,8 +80,8 @@ typedef enum {
 
     // When the broker shuts down a worker for sending data too quickly
     c_quota_exceeded,
-    
+
     c_last = c_quota_exceeded
 } cause_t;
-    
+
 #endif

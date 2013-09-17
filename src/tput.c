@@ -146,15 +146,14 @@ int tput_negotiate(tput_t request, tput_t current)
             return 1;
         else
             return 0;
-    }
-    else if (request < t_negotiate) {
+    } else if (request < t_negotiate) {
         if (request >= current)
             return 1;
         else
             return 0;
     }
-	/* else request == t_negotiate */
-	return 1;
+    /* else request == t_negotiate */
+    return 1;
 }
 
 // Check the range of the tput value X.  Return -1 if it is too small,

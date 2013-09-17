@@ -30,7 +30,7 @@
 #include "channel.h"
 #include "msg.h"
 
-#include "../libjoza/joza_msg.h"
+#include "joza_msg.h"
 
 // Zero MQ socket
 void *g_poll_sock;
@@ -46,9 +46,9 @@ static zctx_t *zctx_new_or_die (void)
 {
     zctx_t *c = NULL;
 
-	TRACE("In %s()", __FUNCTION__);
+    TRACE("In %s()", __FUNCTION__);
 
-	c = zctx_new();
+    c = zctx_new();
     if (c == NULL) {
         ERR("failed to create a ZeroMQ context");
         exit(1);
@@ -60,10 +60,10 @@ static void *zsocket_new_or_die(zctx_t *ctx, int type)
 {
     void *sock;
 
-	TRACE("In %s(ctx = %p, type = %d)", __FUNCTION__, ctx, type);
-	assert(ctx != NULL);
+    TRACE("In %s(ctx = %p, type = %d)", __FUNCTION__, ctx, type);
+    assert(ctx != NULL);
 
-	sock = zsocket_new(ctx, type);
+    sock = zsocket_new(ctx, type);
     if (sock == NULL) {
         ERR("failed to create a new ZeroMQ socket");
         exit(1);
@@ -75,9 +75,9 @@ static zloop_t *zloop_new_or_die(void)
 {
     zloop_t *L = NULL;
 
-	TRACE("In %s()", __FUNCTION__);
+    TRACE("In %s()", __FUNCTION__);
 
-	L = zloop_new();
+    L = zloop_new();
     if (L == NULL) {
         ERR("failed to create a new ZeroMQ main loop");
         exit (1);
@@ -88,7 +88,7 @@ static zloop_t *zloop_new_or_die(void)
 
 void poll_init(bool_t verbose, const char *endpoint)
 {
-	TRACE("In %s(verbose = %d, endpoint = %s)", __FUNCTION__, verbose, endpoint);
+    TRACE("In %s(verbose = %d, endpoint = %s)", __FUNCTION__, verbose, endpoint);
 
     //  Initialize broker state
     ctx = zctx_new_or_die();
@@ -99,7 +99,10 @@ void poll_init(bool_t verbose, const char *endpoint)
     zloop_set_verbose(loop, verbose);
     poll_input.socket = g_poll_sock;
     int rc = zloop_poller(loop, &poll_input, s_recv_, NULL);
-    assert(rc != -1);
+    if (rc == -1) {
+        ERR("failed to start a new ZeroMQ main loop poller");
+        exit(1);
+    }
 }
 
 // This is the main callback that gets called whenever a
@@ -109,7 +112,7 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
     joza_msg_t *msg = NULL;
     int ret = 0;
 
-	TRACE("In %s(loop = %p, iterm = %p, arg = %p)", __FUNCTION__, loop, item, arg);
+    TRACE("In %s(loop = %p, iterm = %p, arg = %p)", __FUNCTION__, loop, item, arg);
 
     if (item->revents & ZMQ_POLLIN) {
         msg = joza_msg_recv(g_poll_sock);
@@ -131,7 +134,7 @@ static int s_process_(joza_msg_t *msg)
     bool_t more = FALSE;
     role_t role = READY;
 
-	TRACE("In %s(msg = %p)", __FUNCTION__);
+    TRACE("In %s(msg = %p)", __FUNCTION__);
 
     hash = msg_addr2hash(joza_msg_address(msg));
 do_more:
@@ -144,7 +147,10 @@ do_more:
     // If this worker is connected and part of a virtual call, the
     // call's state machine processes the message.
     if (role == X_CALLER || role == Y_CALLEE) {
-        channel_dispatch_by_lcn(msg, w_lcn[bi_worker.index], role);
+        if (X_CALLER)
+            channel_dispatch_by_lcn(msg, w_lcn[bi_worker.index], 0);
+        else
+            channel_dispatch_by_lcn(msg, w_lcn[bi_worker.index], 1);
     }
 
     // If this worker is connected, but, not part of a call, the
@@ -177,7 +183,7 @@ do_more:
 void poll_start(void)
 {
     // Takes over control of the thread.
-	TRACE("In %s()", __FUNCTION__);
+    TRACE("In %s()", __FUNCTION__);
 
     NOTE("starting main loop");
     zloop_start(loop);

@@ -23,12 +23,13 @@
 #ifndef JOZA_CHANNEL_H
 #define JOZA_CHANNEL_H
 
-#include "../libjoza/joza_msg.h"
-#include "worker.h"
+#include "joza_msg.h"
+// #include "worker.h"
 #include "packet.h"
 #include "tput.h"
 #include "seq.h"
 #include "state.h"
+#include "ukey.h"
 
 #ifndef WINDOW_DEFAULT
 # define WINDOW_DEFAULT SEQ_C(2)
@@ -54,7 +55,7 @@ extern tput_t c_tput[CHANNEL_COUNT]; /* bits/sec permitted on this channel */
 extern seq_t c_window[CHANNEL_COUNT];
 extern state_t c_state[CHANNEL_COUNT];
 
-void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, role_t R);
+void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y);
 bool_t channel_available(void);
 ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname);
 #endif

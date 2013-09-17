@@ -1,5 +1,5 @@
 /*
-    poll.h - event loop
+    pkt.h -
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
@@ -20,13 +20,33 @@
 
 */
 
-#ifndef JOZA_POLL_H
-#define	JOZA_POLL_H
+#ifndef JOZA_PKT_H
+#define JOZA_PKT_H
 
-#include "bool.h"
+/* This enum holds the maximum allowed packet size. */
+typedef enum _packet_t {
+    p_unspecified = 0,
+    p_reserved = 1,
+    p_reserved2 = 2,
+    p_reserved3 = 3,
+    p_16_bytes = 4,
+    p_32_bytes = 5,
+    p_64_bytes = 6,
+    p_128_bytes = 7,
+    p_256_bytes = 8,
+    p_512_bytes = 9,
+    p_1_Kbyte = 10,
+    p_2_Kbytes = 11,
+    p_4_Kbytes = 12,
 
-extern void *g_poll_sock;
-void poll_init(bool_t verbose, const char *endpoint);
-void poll_start (void);
+    p_first = p_16_bytes,
+    p_default = p_128_bytes,
+    p_negotiate = p_128_bytes,
+    p_last = p_4_Kbytes
+} packet_t;
+
+uint32_t packet_bytes(packet_t x);
+int packet_rngchk(packet_t p);
+int packet_negotiate(packet_t request, packet_t current);
+
 #endif
-

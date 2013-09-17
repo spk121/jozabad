@@ -21,7 +21,7 @@
 */
 
 #ifndef JOZA_ACTION_H
-#define	JOZA_ACTION_H
+#define JOZA_ACTION_H
 
 #define ACTION_NAME_MAX_LEN (21)
 #define ACTION_STATE_COUNT (9)

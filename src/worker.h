@@ -28,10 +28,10 @@
 #include "lib.h"
 #include "iodir.h"
 #include "ukey.h"
-#include "../libjoza/joza_msg.h"
+#include "joza_msg.h"
 
 #ifndef WORKER_COUNT
-# define WORKER_COUNT 1024U
+#define WORKER_COUNT 1024U
 #endif
 static_assert(WORKER_COUNT <= INT_MAX, "WORKER_COUNT too large");
 

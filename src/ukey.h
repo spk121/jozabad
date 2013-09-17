@@ -53,12 +53,12 @@ typedef uint32_t ukey_t;
 #endif
 
 typedef struct {
-    size_t index;
+    uint32_t index;
     ukey_t key;
 } index_ukey_t;
 
-size_t ukey_find(ukey_t arr[], size_t n, ukey_t key);
-index_ukey_t ukey_next(ukey_t arr[], size_t n, ukey_t key);
+uint32_t ukey_find(ukey_t arr[], uint32_t n, ukey_t key);
+index_ukey_t ukey_next(ukey_t arr[], uint32_t n, ukey_t key);
 
-void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
+void indexx(ukey_t arr[], uint32_t n, ukey_t indx[]);
 #endif

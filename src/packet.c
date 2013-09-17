@@ -28,7 +28,7 @@
 packet_t g_packet_threshold = p_last;
 
 static const uint32_t packet_rate[p_last + 1] = {
-	1,
+    1,
     2,
     4,
     8,
@@ -42,22 +42,22 @@ static const uint32_t packet_rate[p_last + 1] = {
     2048,
     4096
 };
-    
+
 
 static const char packet_names[p_last + 1][PACKET_NAME_LEN] = {
     "reserved",
     "reserved",
     "reserved",
-	"reserved",
-	"16 B",
+    "reserved",
+    "16 B",
     "32 B",
     "64 B",
     "128 B",
-	"256 B",
-	"512 B",
+    "256 B",
+    "512 B",
     "1 KiB",
-	"2 KiB",
-	"4 KiB"
+    "2 KiB",
+    "4 KiB"
 };
 
 
@@ -86,15 +86,14 @@ int packet_negotiate(packet_t request, packet_t current)
             return 1;
         else
             return 0;
-    }
-    else if (request < p_negotiate) {
+    } else if (request < p_negotiate) {
         if (request >= current)
             return 1;
         else
             return 0;
     }
-	/* else request == t_negotiate */
-	return 1;
+    /* else request == t_negotiate */
+    return 1;
 }
 
 // Check the range of the packet value X.  Return -1 if it is too small,

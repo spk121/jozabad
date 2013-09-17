@@ -1,27 +1,27 @@
 /*
- *  pgetopt.h - Portable implementation of getopt() command line args parser, 
+ *  pgetopt.h - Portable implementation of getopt() command line args parser,
  *              originally made available by IBM and the authors listed below.
- *     
- *  Created on 8/8/08.
- *  Portions of this document are Copyright (C) 2008, PlexFX, 
- *											               All Rights Reserved.
  *
- *  History: 
+ *  Created on 8/8/08.
+ *  Portions of this document are Copyright (C) 2008, PlexFX,
+ *                                                         All Rights Reserved.
+ *
+ *  History:
  *  Original Date Unknown
- *              This code is quite old, but it was originally called GETOPT.H 
- *              in the comments, along with a GETOPT.C source file, and used the 
- *              same namespace as the getopt() implementation on my UNIX variant 
- *              platforms.  The original date has been lost.  It may date back 
- *              to even pre-ANSI C.  The development team at PlexFX has been 
+ *              This code is quite old, but it was originally called GETOPT.H
+ *              in the comments, along with a GETOPT.C source file, and used the
+ *              same namespace as the getopt() implementation on my UNIX variant
+ *              platforms.  The original date has been lost.  It may date back
+ *              to even pre-ANSI C.  The development team at PlexFX has been
  *              using it (primarily for Windows command line tools, but also on
  *              other platforms for many years.  A search for historical dates
  *              via web search engines found it widely used, but no date stamps
  *              on its original form seem to have been preserved.
- *              It can be found in various forms in open source packages, such 
- *              as using a search engine on one or both of the author strings 
- *              shown in the original comment block below.  For example, as of 
- *              the creation date on this file, a slightly modified verion of 
- *              it was used in library code found in the CVS tree for 
+ *              It can be found in various forms in open source packages, such
+ *              as using a search engine on one or both of the author strings
+ *              shown in the original comment block below.  For example, as of
+ *              the creation date on this file, a slightly modified verion of
+ *              it was used in library code found in the CVS tree for
  *              OpenSolaris.
  *
  *              It was also included on at least some of the MSDN Library discs
@@ -30,11 +30,11 @@
  *  2008-08-08  This version is a modified version of the original IBM code, but
  *              the filename and namespace used has been altered along with some
  *              calling convention changes.  As such, it can be used as a drop-
- *              in replacement for getopt() even on UNIX or Linux systems that 
+ *              in replacement for getopt() even on UNIX or Linux systems that
  *              have their own getopt() implementations in libc without naming
  *              collisions.  This means it can be used portably on any OS with
  *              a conforming C compiler.  It does *not* attempt to implement the
- *              more long-winded getopt_long() interface.  Naming of APIs, 
+ *              more long-winded getopt_long() interface.  Naming of APIs,
  *              headers and the optarg/optind externs have been prefixed with
  *              'p' to accomplish this.  Examples: pgetopt(), poptarg, poptind,
  *              pgetopt.c, pgetopt.h.  Also added some comments to clarify usage
@@ -42,7 +42,7 @@
  *              Note: This interface keeps external state (to match original
  *                    calling conventions).  As such, it is not thread safe,
  *                    and should be called in only one thread (use from main()
- *							 before additional threads are started).  As the command
+ *                           before additional threads are started).  As the command
  *                    line should never change, this should not be an issue.
  *
  */
@@ -89,11 +89,11 @@ extern char * poptarg;  /* carries the optional argument when a command line
                          * arg is specified with a ':' after it in the optstring
                          * and is usually handled by the caller in a switch()
                          * block. */
-extern int    poptind;	/* The caller should not need to adjust this normally */
-extern int    popterr;  /* The pgetopt() function returns a question mark (?) 
-                         * when it encounters an option character not included in 
-								 * optstring.  This error message can be disabled by 
-                         * setting popterr to zero.  Otherwise, it returns the 
+extern int    poptind;  /* The caller should not need to adjust this normally */
+extern int    popterr;  /* The pgetopt() function returns a question mark (?)
+                         * when it encounters an option character not included in
+                                 * optstring.  This error message can be disabled by
+                         * setting popterr to zero.  Otherwise, it returns the
                          * option character that was detected. */
 
 int pgetopt(int argc, char *argv[], char *optstring);

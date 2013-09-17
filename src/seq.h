@@ -21,7 +21,7 @@
 */
 
 #ifndef JOZA_SEQ_H
-#define	JOZA_SEQ_H
+#define JOZA_SEQ_H
 
 #include <stdint.h>
 #include "bool.h"

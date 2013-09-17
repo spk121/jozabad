@@ -6,7 +6,7 @@
  */
 
 #ifndef PARCH_STATE_H_INCLUDE
-#define	PARCH_STATE_H_INCLUDE
+#define PARCH_STATE_H_INCLUDE
 
 #define STATE_NAME_MAX_LEN (24)
 
@@ -28,7 +28,7 @@ typedef enum _state_t {
 extern const char state_names[state_last + 1][STATE_NAME_MAX_LEN + 1];
 
 char const *
-    name(state_t a);
+name(state_t a);
 
 bool
 validate(state_t i);

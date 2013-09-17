@@ -1,7 +1,7 @@
 #ifndef JOZA_NAME_H
 #define JOZA_NAME_H
 
-/* 
+/*
 #ifndef WIN32
 # include <stdbool.h>
 #else

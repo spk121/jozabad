@@ -18,6 +18,6 @@ diag_t errno2diag()
         return d_zmq_eintr;
     else if (errno == EFAULT)
         return d_zmq_efault;
-    else 
+    else
         return d_zmq_error;
 }

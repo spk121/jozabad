@@ -22,7 +22,7 @@
 
 
 #ifndef JOZA_LOG_H
-#define	JOZA_LOG_H
+#define JOZA_LOG_H
 
 #include <czmq.h>
 

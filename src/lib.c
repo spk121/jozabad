@@ -30,7 +30,7 @@ These are functions or procedures
 
 size_t intlen(int x)
 {
-	double dx = (double)x;
+    double dx = (double)x;
     if (x == 0)
         return 1;
 
@@ -38,6 +38,17 @@ size_t intlen(int x)
     if (x < 0)
         d++;
     return d;
+}
+
+char *cstrdup (const char *s)
+{
+  size_t len = strlen (s) + 1;
+  void *new = malloc (len);
+
+  if (new == NULL)
+    return NULL;
+
+  return (char *) memcpy (new, s, len);
 }
 
 #if __GLIBC__ == 2

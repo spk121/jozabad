@@ -21,7 +21,7 @@
 */
 
 #ifndef PARCH_THROUGHPUT_H
-#define	PARCH_THROUGHPUT_H
+#define PARCH_THROUGHPUT_H
 
 #include <stdint.h>
 
@@ -86,5 +86,5 @@ const char *tput_name(tput_t c);
 int         tput_negotiate(tput_t r, tput_t c);
 int         tput_rngchk(tput_t p);
 tput_t      tput_throttle(tput_t request, tput_t limit);
-#endif	/* PARCH_TPUT_H */
+#endif  /* PARCH_TPUT_H */
 

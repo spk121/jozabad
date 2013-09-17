@@ -72,7 +72,7 @@ typedef enum {
     d_data_too_short,
     d_data_too_long,
     d_invalid_directionality_facility,
-    
+
     // For c_invalid_facility_request
     d_invalid_packet_facility_negotiation,
     d_invalid_window_facility_negotiation,

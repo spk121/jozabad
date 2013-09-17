@@ -3,7 +3,7 @@
    - CL 11.0 - C11 subset of C++11 only (/TP) + no local includes
 */
 #ifndef _PARCH_LIB_H_INCLUDE
-#define	_PARCH_LIB_H_INCLUDE
+#define _PARCH_LIB_H_INCLUDE
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -20,6 +20,7 @@ typedef struct {
 } bool_index_t;
 
 size_t intlen(int x);
+char *cstrdup (const char *s);
 
 #if __GLIBC__ == 2
 // This can be removed once Annex K hits GNU libc
@@ -93,5 +94,5 @@ void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
 
 double now(void);
 
-#endif	/* LIB_H */
+#endif  /* LIB_H */
 
