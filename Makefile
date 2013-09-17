@@ -1,201 +1,82 @@
-INCLUDES = \
-    include/action.h \
-    include/cause.h \
-    include/connections.h \
-    include/diagnostic.h \
-    include/direction.h \
-    include/dname.h \
-    include/flow.h \
-    include/lib.h \
-    include/log.h \
-    include/name.h \
-    include/packet.h \
-    include/pgetopt.h \
-    include/poll.h \
-    include/state.h \
-    include/msg.h \
-    include/throughput.h \
-    include/window.h
+# The basic outline for this came from "Learning C the Hard Way"
 
-CSRC = src/pgetopt.c
+CFLAGS=-std=c11 -g -O2 -Wall -Wextra -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
+LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
+PREFIX?=/usr/local
 
-CPPSRC = src/action.cpp \
-    src/cause.cpp \
-    src/connections.cpp \
-    src/dname.cpp \
-    src/flow.cpp \
-    src/diagnostic.cpp \
-    src/direction.cpp \
-    src/lib.cpp \
-    src/main.cpp \
-    src/msg.cpp \
-    src/name.cpp \
-    src/packet.cpp \
-    src/poll.cpp \
-    src/state.cpp \
-    src/throughput.cpp \
-    src/window.cpp \
+HEADERS=$(wildcard src/**/*.h src/*.h)
+GCH=$(patsubst %.h,%.gch,$(HEADERS))
+SOURCES=$(wildcard src/**/*.c src/*.c)
+OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
+MAINS=src/main.o
 
-#ISRC := $(patsubst %.c,%.o,$(SRC))
+TEST_SRC=$(wildcard tests/*_tests.c)
+TESTS=$(patsubst %.c,%,$(TEST_SRC))
 
-OBJ := $(patsubst %.c,%.o,$(CSRC)) $(patsubst %.cpp,%.o,$(CPPSRC))
+EXE_TARGET=build/jozabad
+LIB_TARGET=build/libjoza.a
+SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 
-CPPFLAGS = \
-    -I/usr/local/include \
-    -Wall \
-    -Wunused-macros \
-    -Wendif-labels \
-    -pedantic
+# The Target Build
+all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests
 
-CFLAGS = \
-    -fstrict-aliasing \
-    -fstrict-overflow \
-    -ftree-vrp \
-    -ggdb \
-    -march=native \
-    -O0
+dev: CFLAGS=-std=c11 -g -O0 -Isrc -Wall -Wextra $(OPTFLAGS)
+dev: all
 
-CXXFLAGS = \
-    -std=c++11
+$(LIB_TARGET): CFLAGS += -fPIC
+$(LIB_TARGET): build $(filter-out $(MAINS),$(OBJECTS))
+	ar rcs $@ $(filter-out $(MAINS),$(OBJECTS))
+	ranlib $@
 
-CWARN = \
-    -Wall \
-    -Warray-bounds \
-    -Wcast-align \
-    -Wno-cast-qual \
-    -Wextra \
-    -Wmissing-declarations \
-    -Wpointer-arith \
-    -Wstrict-aliasing \
-    -Wstrict-overflow=5 \
-    -Wundef \
-    -Wunreachable-code \
-    -Winvalid-pch
+$(SO_TARGET): $(LIB_TARGET) $(filter-out $(MAINS),$(OBJECTS))
+	$(CC) -shared -o $@ $(filter-out $(MAINS),$(OBJECTS))
 
-#    -fmudflapth \
+$(EXE_TARGET): $(LIB_TARGET) $(MAINS)
+	$(CC) -o $@ $(MAINS) $(LIB_TARGET) $(LIBS)
 
-CC = gcc
-CXX = g++
-# CC = /home/mike/studio/SolarisStudio12.3-linux-x86-bin/solarisstudio12.3/bin/cc
-# CXX = /usr/lib/clang-analyzer/scan-build/ccc-analyzer
-# CXX = clang
-# CFLAGS = -std=c99  -Wall -Wextra -g -O0
+build:
+	@mkdir -p build
+	@mkdir -p bin
 
-# compile the data but tell the compiler to separate the code into
-# separate sections within the translation unit. This will be done for
-# functions, classes, and external variables by using the following
-# two compiler flags:
+# The Unit Tests
+.PHONY: tests
+$(TESTS): %: %.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
+tests: $(TESTS)
+	sh ./tests/runtests.sh
 
-ifeq (CXX, g++)
-CXXFLAGS += -std=c++11
-CXXFLAGS += -fdata-sections -ffunction-sections
-endif
+valgrind:
+	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE)
 
-LDFLAGS_LARGE = --verbose -Wl,-L/usr/local/lib
-LDFLAGS_MEDIUM = -Wl,--gc-sections --verbose
-LDFLAGS_SMALL = -Wl,--gc-sections -Wl,--strip-all --verbose
-
-all: src/broker src/w_echo src/w_flood
-#	tmp_broker_med tmp_broker_small
-
-################################################3
-# source files
-
-src/msg.cpp: src/parch_msg.xml src/codec_c.gsl
-include/msg.h: src/parch_msg.xml src/codec_c.gsl
-	./generate
-
-################################################3
-# header files
-
-#include/svc.h.gch : include/svc.h $(INCLUDES)
-#	$(CXX) $(CXXFLAGS) $<
-
-################################################3
-# object files
-
-src/action.o : src/action.cpp include/action.h include/msg.h
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
-
-src/cause.o : src/cause.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
-
-#src/channel.o : src/channel.cpp
-#	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
-
-src/connections.o : src/connections.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/diagnostic.o : src/diagnostic.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN) -c -o $@ $<
-
-src/direction.o : src/direction.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/dname.o : src/dname.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/flow.o : src/flow.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/lib.o : src/lib.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/main.o : src/main.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-# Auto-generated file would have too many warnings if warnings were enabled.
-src/msg.o : src/msg.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/name.o : src/name.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/packet.o : src/packet.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-#
-src/pgetopt.o : src/pgetopt.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(CWARN)  -c -o $@ $<
-
-src/poll.o : src/poll.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/state.o : src/state.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/throughput.o : src/throughput.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/window.o : src/window.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/w_echo.o : src/w_echo.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-src/w_flood.o : src/w_flood.cpp
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(CWARN)  -c -o $@ $<
-
-################################################3
-# executable files
-
-
-src/broker: $(OBJ)
-	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
-
-src/w_echo: src/w_echo.o src/diagnostic.o src/direction.o src/msg.o src/packet.o src/throughput.o
-	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
-
-src/w_flood: src/w_flood.o src/diagnostic.o src/direction.o src/msg.o src/packet.o src/throughput.o
-	$(CXX)  $(CPPFLAGS) $(CXXFLAGS) $(CWARN) -o $@ $^ $(LDFLAGS) -lczmq -lzmq
-
+# The Cleaner
 clean:
-	-rm include/svc.h.gch
-	-rm $(OBJ) src/test_node1.o  src/parch_node.o
-	-rm src/w_echo src/broker
+	rm -rf build $(OBJECTS) $(TESTS)
+	rm -f tests/tests.log
+	find . -name "*.gc*" -exec rm {} \;
+	rm -rf `find . -name "*.dSYM" -print`
+
+# The Install
+install: all
+	install -d $(DESTDIR)/$(PREFIX)/lib/
+	install $(TARGET) $(DESTDIR)/$(PREFIX)/lib/
+
+# The Checker
+BADFUNCS='[^_.>a-zA-Z0-9](str(n?cpy|n?cat|xfrm|n?dup|str|pbrk|tok|_)|stpn?cpy|a?sn?printf|byte_)'
+check:
+	@echo Files with potentially dangerous functions.
+	@egrep $(BADFUNCS) $(SOURCES) || true
+
+# Enforce some style
+pretty:
+	astyle --style=stroustrup --lineend=linux --convert-tabs $(SOURCES) $(HEADERS)
+
+%.gch: %.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+headercheck: $(GCH)
 
 .PHONY: check-syntax
 
 check-syntax:
-	$(CXX) -Wall -Wextra -pedantic -fsyntax-only $(SRCS) $(ISRCS)
+	$(CC) -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
 
