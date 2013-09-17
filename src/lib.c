@@ -43,12 +43,12 @@ size_t intlen(int x)
 char *cstrdup (const char *s)
 {
   size_t len = strlen (s) + 1;
-  void *new = malloc (len);
+  void *s2 = malloc (len);
 
-  if (new == NULL)
+  if (s2 == NULL)
     return NULL;
 
-  return (char *) memcpy (new, s, len);
+  return (char *) memcpy (s2, s, len);
 }
 
 #if __GLIBC__ == 2

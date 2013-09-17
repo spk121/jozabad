@@ -71,6 +71,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -83,44 +84,45 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\broker\action.h" />
-    <ClInclude Include="..\..\broker\bool.h" />
-    <ClInclude Include="..\..\broker\cause.h" />
-    <ClInclude Include="..\..\broker\channel.h" />
-    <ClInclude Include="..\..\broker\diag.h" />
-    <ClInclude Include="..\..\broker\iodir.h" />
-    <ClInclude Include="..\..\broker\lib.h" />
-    <ClInclude Include="..\..\broker\log.h" />
-    <ClInclude Include="..\..\broker\msg.h" />
-    <ClInclude Include="..\..\broker\name.h" />
-    <ClInclude Include="..\..\broker\packet.h" />
-    <ClInclude Include="..\..\broker\pgetopt.h" />
-    <ClInclude Include="..\..\broker\poll.h" />
-    <ClInclude Include="..\..\broker\seq.h" />
-    <ClInclude Include="..\..\broker\state.h" />
-    <ClInclude Include="..\..\broker\tput.h" />
-    <ClInclude Include="..\..\broker\ukey.h" />
-    <ClInclude Include="..\..\broker\worker.h" />
+    <ClCompile Include="..\..\src\action.c" />
+    <ClCompile Include="..\..\src\channel.c" />
+    <ClCompile Include="..\..\src\diag.c" />
+    <ClCompile Include="..\..\src\iodir.c" />
+    <ClCompile Include="..\..\src\joza_msg.c" />
+    <ClCompile Include="..\..\src\lib.c" />
+    <ClCompile Include="..\..\src\log.c" />
+    <ClCompile Include="..\..\src\main.c" />
+    <ClCompile Include="..\..\src\msg.c" />
+    <ClCompile Include="..\..\src\name.c" />
+    <ClCompile Include="..\..\src\packet.c" />
+    <ClCompile Include="..\..\src\pgetopt.c" />
+    <ClCompile Include="..\..\src\poll.c" />
+    <ClCompile Include="..\..\src\seq.c" />
+    <ClCompile Include="..\..\src\tput.c" />
+    <ClCompile Include="..\..\src\ukey.c" />
+    <ClCompile Include="..\..\src\worker.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\broker\action.c" />
-    <ClCompile Include="..\..\broker\channel.c" />
-    <ClCompile Include="..\..\broker\diag.c" />
-    <ClCompile Include="..\..\broker\iodir.c" />
-    <ClCompile Include="..\..\broker\lib.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
-    </ClCompile>
-    <ClCompile Include="..\..\broker\log.c" />
-    <ClCompile Include="..\..\broker\main.c" />
-    <ClCompile Include="..\..\broker\msg.c" />
-    <ClCompile Include="..\..\broker\name.c" />
-    <ClCompile Include="..\..\broker\packet.c" />
-    <ClCompile Include="..\..\broker\pgetopt.c" />
-    <ClCompile Include="..\..\broker\poll.c" />
-    <ClCompile Include="..\..\broker\seq.c" />
-    <ClCompile Include="..\..\broker\tput.c" />
-    <ClCompile Include="..\..\broker\ukey.c" />
-    <ClCompile Include="..\..\broker\worker.c" />
+    <ClInclude Include="..\..\src\action.h" />
+    <ClInclude Include="..\..\src\bool.h" />
+    <ClInclude Include="..\..\src\cause.h" />
+    <ClInclude Include="..\..\src\channel.h" />
+    <ClInclude Include="..\..\src\diag.h" />
+    <ClInclude Include="..\..\src\flow.h" />
+    <ClInclude Include="..\..\src\iodir.h" />
+    <ClInclude Include="..\..\src\joza_msg.h" />
+    <ClInclude Include="..\..\src\lib.h" />
+    <ClInclude Include="..\..\src\log.h" />
+    <ClInclude Include="..\..\src\msg.h" />
+    <ClInclude Include="..\..\src\name.h" />
+    <ClInclude Include="..\..\src\packet.h" />
+    <ClInclude Include="..\..\src\pgetopt.h" />
+    <ClInclude Include="..\..\src\poll.h" />
+    <ClInclude Include="..\..\src\seq.h" />
+    <ClInclude Include="..\..\src\state.h" />
+    <ClInclude Include="..\..\src\tput.h" />
+    <ClInclude Include="..\..\src\ukey.h" />
+    <ClInclude Include="..\..\src\worker.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
