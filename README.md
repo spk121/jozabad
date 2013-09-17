@@ -8,9 +8,8 @@ The basic goals of the protocol are these:
 * A node can request that the hub create a persistent, exclusive, asynchronous, bilateral communication channel with any other idle node willing to communcate.
 * The communication between connected node pairs is stateful (not REST).  It allows for Telnet-like protocols.
 * The hub prevents nodes from discovering one-another's IP address and port.
-* It has safeguards to allow multiple connections to fairly share a low-speed (384 kbit/sec) DSL link.
-* * Each node can use a flow control scheme to limit the amount and rate of information that it receives.
-* * The hub itself can also limit the amount and rate of information passing through it.
+* A node can ask the hub to limit the amount of data sent to the node.
+* The hub itself can also limit the amount and rate of information passing through it.
 
 The name "Jozabad" refers to a talented archer that fought with the biblical King David.  The image the archer is a metaphor for hub-to-node information transmission.
 
