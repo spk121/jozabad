@@ -121,25 +121,20 @@ uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
     if (strnlen_s(N, NAME_LEN + 1) == 0) {
         DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_short);
         WARN("%s: calling address too short", N);
-    }
-    else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
+    } else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
         DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_long);
         WARN("%s: calling address too long", N);
-    }
-    else if (!safeascii(N, NAME_LEN)) {
+    } else if (!safeascii(N, NAME_LEN)) {
         DIAGNOSTIC(A, c_malformed_message, d_calling_address_format_invalid);
         WARN("%s: calling address invalid format", N);
-    }
-    else if (!iodir_validate(I)) {
+    } else if (!iodir_validate(I)) {
         DIAGNOSTIC(A, c_malformed_message, d_invalid_directionality_facility);
         WARN("%s: directionality invalid - %d", I);
-    }
-    else if (_count >= WORKER_COUNT) {
+    } else if (_count >= WORKER_COUNT) {
         // FIXME: culling of old connections would go here.
         DIAGNOSTIC(A, c_network_congestion, d_no_connections_available);
         WARN("%s: cannot add. No free connections", N);
-    }
-    else {
+    } else {
         if (i < _count) {
             INSERT(w_zhash, i, _count);
             INSERT(w_zaddr, i, _count);

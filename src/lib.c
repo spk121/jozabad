@@ -42,13 +42,13 @@ size_t intlen(int x)
 
 char *cstrdup (const char *s)
 {
-  size_t len = strlen (s) + 1;
-  void *s2 = malloc (len);
+    size_t len = strlen (s) + 1;
+    void *s2 = malloc (len);
 
-  if (s2 == NULL)
-    return NULL;
+    if (s2 == NULL)
+        return NULL;
 
-  return (char *) memcpy (s2, s, len);
+    return (char *) memcpy (s2, s, len);
 }
 
 #if __GLIBC__ == 2
@@ -109,12 +109,11 @@ bool_t safeascii(const char *mem, size_t n)
             if (!_val_init(mem[i]))
                 bad = i;
             state = 2;
-        }
-        else if (state == 2) {
+        } else if (state == 2) {
             if (!_val_mid(mem[i]))
                 state = 3;
         }
-        
+
         /* Note that it is valid to go straight from INIT to FINAL */
         if (state == 3) {
             if (mem[i] != '\0')

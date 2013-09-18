@@ -10,7 +10,7 @@
 #ifndef __JOZA_MSG_H_INCLUDED__
 #define __JOZA_MSG_H_INCLUDED__
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 extern "C" {
 #endif
 
@@ -113,305 +113,305 @@ typedef struct _joza_msg_t joza_msg_t;
 //  @interface
 //  Create a new joza_msg
 joza_msg_t *
-    joza_msg_new (int id);
+joza_msg_new (int id);
 
 //  Destroy the joza_msg
 void
-    joza_msg_destroy (joza_msg_t **self_p);
+joza_msg_destroy (joza_msg_t **self_p);
 
 //  Receive and parse a joza_msg from the input
 joza_msg_t *
-    joza_msg_recv (void *input);
+joza_msg_recv (void *input);
 
 //  Send the joza_msg to the output, and destroy it
 int
-    joza_msg_send (joza_msg_t **self_p, void *output);
+joza_msg_send (joza_msg_t **self_p, void *output);
 
 //  Send the DATA to the output in one step
 int
-    joza_msg_send_data (void *output,
-        byte q,
-        uint16_t pr,
-        uint16_t ps,
-        zframe_t *data);
+joza_msg_send_data (void *output,
+                    byte q,
+                    uint16_t pr,
+                    uint16_t ps,
+                    zframe_t *data);
 
 int
-    joza_msg_send_addr_data (void *output, const zframe_t *addr,
-        byte q,
-        uint16_t pr,
-        uint16_t ps,
-        zframe_t *data);
+joza_msg_send_addr_data (void *output, const zframe_t *addr,
+                         byte q,
+                         uint16_t pr,
+                         uint16_t ps,
+                         zframe_t *data);
 
 //  Send the RR to the output in one step
 int
-    joza_msg_send_rr (void *output,
-        uint16_t pr);
+joza_msg_send_rr (void *output,
+                  uint16_t pr);
 
 int
-    joza_msg_send_addr_rr (void *output, const zframe_t *addr,
-        uint16_t pr);
+joza_msg_send_addr_rr (void *output, const zframe_t *addr,
+                       uint16_t pr);
 
 //  Send the RNR to the output in one step
 int
-    joza_msg_send_rnr (void *output,
-        uint16_t pr);
+joza_msg_send_rnr (void *output,
+                   uint16_t pr);
 
 int
-    joza_msg_send_addr_rnr (void *output, const zframe_t *addr,
-        uint16_t pr);
+joza_msg_send_addr_rnr (void *output, const zframe_t *addr,
+                        uint16_t pr);
 
 //  Send the CALL_REQUEST to the output in one step
 int
-    joza_msg_send_call_request (void *output,
-        char *calling_address,
-        char *called_address,
-        byte packet,
-        uint16_t window,
-        byte throughput,
-        zframe_t *data);
+joza_msg_send_call_request (void *output,
+                            char *calling_address,
+                            char *called_address,
+                            byte packet,
+                            uint16_t window,
+                            byte throughput,
+                            zframe_t *data);
 
 int
-    joza_msg_send_addr_call_request (void *output, const zframe_t *addr,
-        char *calling_address,
-        char *called_address,
-        byte packet,
-        uint16_t window,
-        byte throughput,
-        zframe_t *data);
+joza_msg_send_addr_call_request (void *output, const zframe_t *addr,
+                                 char *calling_address,
+                                 char *called_address,
+                                 byte packet,
+                                 uint16_t window,
+                                 byte throughput,
+                                 zframe_t *data);
 
 //  Send the CALL_ACCEPTED to the output in one step
 int
-    joza_msg_send_call_accepted (void *output,
-        char *calling_address,
-        char *called_address,
-        byte packet,
-        uint16_t window,
-        byte throughput,
-        zframe_t *data);
+joza_msg_send_call_accepted (void *output,
+                             char *calling_address,
+                             char *called_address,
+                             byte packet,
+                             uint16_t window,
+                             byte throughput,
+                             zframe_t *data);
 
 int
-    joza_msg_send_addr_call_accepted (void *output, const zframe_t *addr,
-        char *calling_address,
-        char *called_address,
-        byte packet,
-        uint16_t window,
-        byte throughput,
-        zframe_t *data);
+joza_msg_send_addr_call_accepted (void *output, const zframe_t *addr,
+                                  char *calling_address,
+                                  char *called_address,
+                                  byte packet,
+                                  uint16_t window,
+                                  byte throughput,
+                                  zframe_t *data);
 
 //  Send the CLEAR_REQUEST to the output in one step
 int
-    joza_msg_send_clear_request (void *output,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_clear_request (void *output,
+                             byte cause,
+                             byte diagnostic);
 
 int
-    joza_msg_send_addr_clear_request (void *output, const zframe_t *addr,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_addr_clear_request (void *output, const zframe_t *addr,
+                                  byte cause,
+                                  byte diagnostic);
 
 //  Send the CLEAR_CONFIRMATION to the output in one step
 int
-    joza_msg_send_clear_confirmation (void *output);
+joza_msg_send_clear_confirmation (void *output);
 
 int
-    joza_msg_send_addr_clear_confirmation (void *output, const zframe_t *addr);
+joza_msg_send_addr_clear_confirmation (void *output, const zframe_t *addr);
 
 //  Send the RESET_REQUEST to the output in one step
 int
-    joza_msg_send_reset_request (void *output,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_reset_request (void *output,
+                             byte cause,
+                             byte diagnostic);
 
 int
-    joza_msg_send_addr_reset_request (void *output, const zframe_t *addr,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_addr_reset_request (void *output, const zframe_t *addr,
+                                  byte cause,
+                                  byte diagnostic);
 
 //  Send the RESET_CONFIRMATION to the output in one step
 int
-    joza_msg_send_reset_confirmation (void *output);
+joza_msg_send_reset_confirmation (void *output);
 
 int
-    joza_msg_send_addr_reset_confirmation (void *output, const zframe_t *addr);
+joza_msg_send_addr_reset_confirmation (void *output, const zframe_t *addr);
 
 //  Send the CONNECT to the output in one step
 int
-    joza_msg_send_connect (void *output,
-        char *calling_address,
-        byte directionality);
+joza_msg_send_connect (void *output,
+                       char *calling_address,
+                       byte directionality);
 
 int
-    joza_msg_send_addr_connect (void *output, const zframe_t *addr,
-        char *calling_address,
-        byte directionality);
+joza_msg_send_addr_connect (void *output, const zframe_t *addr,
+                            char *calling_address,
+                            byte directionality);
 
 //  Send the CONNECT_INDICATION to the output in one step
 int
-    joza_msg_send_connect_indication (void *output);
+joza_msg_send_connect_indication (void *output);
 
 int
-    joza_msg_send_addr_connect_indication (void *output, const zframe_t *addr);
+joza_msg_send_addr_connect_indication (void *output, const zframe_t *addr);
 
 //  Send the DISCONNECT to the output in one step
 int
-    joza_msg_send_disconnect (void *output);
+joza_msg_send_disconnect (void *output);
 
 int
-    joza_msg_send_addr_disconnect (void *output, const zframe_t *addr);
+joza_msg_send_addr_disconnect (void *output, const zframe_t *addr);
 
 //  Send the DISCONNECT_INDICATION to the output in one step
 int
-    joza_msg_send_disconnect_indication (void *output);
+joza_msg_send_disconnect_indication (void *output);
 
 int
-    joza_msg_send_addr_disconnect_indication (void *output, const zframe_t *addr);
+joza_msg_send_addr_disconnect_indication (void *output, const zframe_t *addr);
 
 //  Send the DIAGNOSTIC to the output in one step
 int
-    joza_msg_send_diagnostic (void *output,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_diagnostic (void *output,
+                          byte cause,
+                          byte diagnostic);
 
 int
-    joza_msg_send_addr_diagnostic (void *output, const zframe_t *addr,
-        byte cause,
-        byte diagnostic);
+joza_msg_send_addr_diagnostic (void *output, const zframe_t *addr,
+                               byte cause,
+                               byte diagnostic);
 
 //  Send the COUNT to the output in one step
 int
-    joza_msg_send_count (void *output);
+joza_msg_send_count (void *output);
 
 int
-    joza_msg_send_addr_count (void *output, const zframe_t *addr);
+joza_msg_send_addr_count (void *output, const zframe_t *addr);
 
 //  Duplicate the joza_msg message
 joza_msg_t *
-    joza_msg_dup (joza_msg_t *self);
+joza_msg_dup (joza_msg_t *self);
 
 //  Print contents of message to stdout
 void
-    joza_msg_dump (joza_msg_t *self);
+joza_msg_dump (joza_msg_t *self);
 
 //  Get/set the message address
 zframe_t *
-    joza_msg_address (joza_msg_t *self);
+joza_msg_address (joza_msg_t *self);
 const zframe_t *
-    joza_msg_const_address (const joza_msg_t *self);
+joza_msg_const_address (const joza_msg_t *self);
 void
-    joza_msg_set_address (joza_msg_t *self, zframe_t *address);
+joza_msg_set_address (joza_msg_t *self, zframe_t *address);
 
 //  Get the joza_msg id and printable command
 int
-    joza_msg_id (joza_msg_t *self);
+joza_msg_id (joza_msg_t *self);
 int
-    joza_msg_const_id (const joza_msg_t *self);
+joza_msg_const_id (const joza_msg_t *self);
 void
-    joza_msg_set_id (joza_msg_t *self, int id);
+joza_msg_set_id (joza_msg_t *self, int id);
 const char *
-    joza_msg_const_command (const joza_msg_t *self);
+joza_msg_const_command (const joza_msg_t *self);
 
 //  Get/set the q field
 byte
-    joza_msg_q (joza_msg_t *self);
+joza_msg_q (joza_msg_t *self);
 byte
-    joza_msg_const_q (const joza_msg_t *self);
+joza_msg_const_q (const joza_msg_t *self);
 void
-    joza_msg_set_q (joza_msg_t *self, byte q);
+joza_msg_set_q (joza_msg_t *self, byte q);
 
 //  Get/set the pr field
 uint16_t
-    joza_msg_pr (joza_msg_t *self);
+joza_msg_pr (joza_msg_t *self);
 uint16_t
-    joza_msg_const_pr (const joza_msg_t *self);
+joza_msg_const_pr (const joza_msg_t *self);
 void
-    joza_msg_set_pr (joza_msg_t *self, uint16_t pr);
+joza_msg_set_pr (joza_msg_t *self, uint16_t pr);
 
 //  Get/set the ps field
 uint16_t
-    joza_msg_ps (joza_msg_t *self);
+joza_msg_ps (joza_msg_t *self);
 uint16_t
-    joza_msg_const_ps (const joza_msg_t *self);
+joza_msg_const_ps (const joza_msg_t *self);
 void
-    joza_msg_set_ps (joza_msg_t *self, uint16_t ps);
+joza_msg_set_ps (joza_msg_t *self, uint16_t ps);
 
 //  Get/set the data field
 zframe_t *
-    joza_msg_data (joza_msg_t *self);
+joza_msg_data (joza_msg_t *self);
 const zframe_t *
-    joza_msg_const_data (const joza_msg_t *self);
+joza_msg_const_data (const joza_msg_t *self);
 void
-    joza_msg_set_data (joza_msg_t *self, zframe_t *frame);
+joza_msg_set_data (joza_msg_t *self, zframe_t *frame);
 
 //  Get/set the calling_address field
 char *
-    joza_msg_calling_address (joza_msg_t *self);
+joza_msg_calling_address (joza_msg_t *self);
 const char *
-    joza_msg_const_calling_address (const joza_msg_t *self);
+joza_msg_const_calling_address (const joza_msg_t *self);
 void
-    joza_msg_set_calling_address (joza_msg_t *self, const char *format, ...);
+joza_msg_set_calling_address (joza_msg_t *self, const char *format, ...);
 
 //  Get/set the called_address field
 char *
-    joza_msg_called_address (joza_msg_t *self);
+joza_msg_called_address (joza_msg_t *self);
 const char *
-    joza_msg_const_called_address (const joza_msg_t *self);
+joza_msg_const_called_address (const joza_msg_t *self);
 void
-    joza_msg_set_called_address (joza_msg_t *self, const char *format, ...);
+joza_msg_set_called_address (joza_msg_t *self, const char *format, ...);
 
 //  Get/set the packet field
 byte
-    joza_msg_packet (joza_msg_t *self);
+joza_msg_packet (joza_msg_t *self);
 byte
-    joza_msg_const_packet (const joza_msg_t *self);
+joza_msg_const_packet (const joza_msg_t *self);
 void
-    joza_msg_set_packet (joza_msg_t *self, byte packet);
+joza_msg_set_packet (joza_msg_t *self, byte packet);
 
 //  Get/set the window field
 uint16_t
-    joza_msg_window (joza_msg_t *self);
+joza_msg_window (joza_msg_t *self);
 uint16_t
-    joza_msg_const_window (const joza_msg_t *self);
+joza_msg_const_window (const joza_msg_t *self);
 void
-    joza_msg_set_window (joza_msg_t *self, uint16_t window);
+joza_msg_set_window (joza_msg_t *self, uint16_t window);
 
 //  Get/set the throughput field
 byte
-    joza_msg_throughput (joza_msg_t *self);
+joza_msg_throughput (joza_msg_t *self);
 byte
-    joza_msg_const_throughput (const joza_msg_t *self);
+joza_msg_const_throughput (const joza_msg_t *self);
 void
-    joza_msg_set_throughput (joza_msg_t *self, byte throughput);
+joza_msg_set_throughput (joza_msg_t *self, byte throughput);
 
 //  Get/set the cause field
 byte
-    joza_msg_cause (joza_msg_t *self);
+joza_msg_cause (joza_msg_t *self);
 byte
-    joza_msg_const_cause (const joza_msg_t *self);
+joza_msg_const_cause (const joza_msg_t *self);
 void
-    joza_msg_set_cause (joza_msg_t *self, byte cause);
+joza_msg_set_cause (joza_msg_t *self, byte cause);
 
 //  Get/set the diagnostic field
 byte
-    joza_msg_diagnostic (joza_msg_t *self);
+joza_msg_diagnostic (joza_msg_t *self);
 byte
-    joza_msg_const_diagnostic (const joza_msg_t *self);
+joza_msg_const_diagnostic (const joza_msg_t *self);
 void
-    joza_msg_set_diagnostic (joza_msg_t *self, byte diagnostic);
+joza_msg_set_diagnostic (joza_msg_t *self, byte diagnostic);
 
 //  Get/set the directionality field
 byte
-    joza_msg_directionality (joza_msg_t *self);
+joza_msg_directionality (joza_msg_t *self);
 byte
-    joza_msg_const_directionality (const joza_msg_t *self);
+joza_msg_const_directionality (const joza_msg_t *self);
 void
-    joza_msg_set_directionality (joza_msg_t *self, byte directionality);
+joza_msg_set_directionality (joza_msg_t *self, byte directionality);
 
 //  Self test of this class
 int
-    joza_msg_test (bool verbose);
+joza_msg_test (bool verbose);
 //  @end
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 
