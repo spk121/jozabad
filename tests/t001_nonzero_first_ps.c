@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     void *sock2 = NULL;
     throughput_t thru = t_2048kbps;
     packet_t packet = p_4_Kbytes;
-    uint16_t window = WINDOW_MAX;
+    uint16_t window = 2;
     int ret;
 
     initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
@@ -119,7 +119,7 @@ static void initialize(int verbose, const char *preface, zctx_t **ctx, void **so
     // Broker must respond within timeout
     timeout1 = true;
     signal (SIGALRM, catch_alarm);
-    alarm(10);
+    //alarm(10);
 
     if (verbose)
         printf("%s: waiting for connect indication\n", preface);

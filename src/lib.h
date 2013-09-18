@@ -2,8 +2,8 @@
    - GCC - C11 only + no local includes
    - CL 11.0 - C11 subset of C++11 only (/TP) + no local includes
 */
-#ifndef _PARCH_LIB_H_INCLUDE
-#define _PARCH_LIB_H_INCLUDE
+#ifndef JOZA_LIB_INCLUDE
+#define JOZA_LIB_INCLUDE
 
 #include <stdint.h>
 #include <stdlib.h>

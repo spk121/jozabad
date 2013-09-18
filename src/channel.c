@@ -134,7 +134,7 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
     assert(yzaddr);
 
     iu = ukey_next(c_lcn, _count, _lcn);
-    assert (c_lcn[iu.index] != _lcn);
+    assert (_count == 0 || c_lcn[iu.index] != _lcn);
 
     if (iu.index < _count) {
         PUSH(c_xzaddr, iu.index, _count);

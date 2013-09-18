@@ -224,15 +224,17 @@ size_t ifind(uint32_t arr[], size_t n, uint32_t X)
     size_t lo, hi, mid;
 
     lo = 0;
-    hi = n + 1;
+    hi = n;
     while (hi - lo > 1) {
         mid = (hi + lo) >> 1;
-        if (X >= arr[mid - 1])
+        if (X >= arr[mid])
             lo = mid;
         else
             hi = mid;
     }
-    return lo;
+    if (X <= arr[lo])
+        return lo;
+    return hi;
 }
 
 //----------------------------------------------------------------------------

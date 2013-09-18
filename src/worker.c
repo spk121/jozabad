@@ -361,7 +361,14 @@ static void do_call_request(joza_msg_t *M, size_t I)
         //tput   = tput_throttle(tput, opt_tput);
 
         // Set the initial facilities values
-        size_t idx = ukey_find(c_lcn, _count, lcn);
+
+
+        // FIXME, this is the wrong _count!
+        // I want Channel's _count.
+        // FIXME: I just looked up channel index in channel_add().
+        // Don't do it again.
+
+        size_t idx = find(c_lcn, _count, lcn);
         c_pkt[idx] = pkt;
         c_tput[idx] = tput;
         c_window[idx] = window;

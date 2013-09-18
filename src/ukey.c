@@ -38,15 +38,17 @@ uint32_t ukey_find(ukey_t arr[], uint32_t n, ukey_t key)
         return 0;
 
     lo = 0;
-    hi = n + 1;
+    hi = n;
     while (hi - lo > 1) {
         mid = (hi + lo) >> 1;
-        if (key >= arr[mid - 1])
+        if (key >= arr[mid])
             lo = mid;
         else
             hi = mid;
     }
-    return lo;
+    if (key <= arr[lo])
+        return lo;
+    return hi;
 }
 
 // Given a table ARR of strictly monotonically increasing integers
