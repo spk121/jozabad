@@ -96,7 +96,7 @@ typedef enum {
     d_unknown_reserved_address, /* the "operator" is not online */
 
     // for c_network_congestion
-    d_no_connections_availabie,
+    d_no_connections_available,
     d_no_channels_available,
 
     // for procedure errors

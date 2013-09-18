@@ -28,7 +28,8 @@
     joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
 #define DIAGNOSTIC(A,C,D) \
     joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
-
+#define CONNECT_INDICATION(A) \
+    joza_msg_send_addr_connect_indication(g_poll_sock, (A))
 uint32_t msg_addr2hash (const zframe_t *z);
 
 #endif

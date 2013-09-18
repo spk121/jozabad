@@ -107,51 +107,70 @@ static void pushd(double arr[], size_t idx, size_t count)
 // worker, or zero on failure.
 uint32_t add_worker(const zframe_t *A, const char *N, iodir_t I)
 {
-    uint32_t hash;
+    uint32_t hash = 0;
     size_t i;
     double elapsed_time = now();
 
-    if (_count >= WORKER_COUNT)
-        return 0;
+    TRACE("In %s(A = %p, N = %s, I = %d)", __FUNCTION__, A, N, I);
 
     hash = msg_addr2hash(A);
-    if (hash == 0)
-        return 0;
-
     i = ifind(w_zhash, _count, hash);
-    if (w_zhash[i] == hash)
-        return 0;
+    assert (w_zhash[i] != hash);
 
-    if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN
-            || !safeascii(N, NAME_LEN))
-        return 0;
-    if (!iodir_validate(I))
-        return 0;
-
-    if (i < _count) {
-        INSERT(w_zhash, i, _count);
-        INSERT(w_zaddr, i, _count);
-        INSERT(w_name, i, _count);
-        INSERT(w_iodir, i, _count);
-        INSERT(w_lcn, i, _count);
-        INSERT(w_role, i, _count);
-        INSERT(w_ctime, i, _count);
-        INSERT(w_mtime, i, _count);
+    // First, validate the message
+    if (strnlen_s(N, NAME_LEN + 1) == 0) {
+        DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_short);
+        WARN("%s: calling address too short", N);
     }
+    else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
+        DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_long);
+        WARN("%s: calling address too long", N);
+    }
+    else if (!safeascii(N, NAME_LEN)) {
+        DIAGNOSTIC(A, c_malformed_message, d_calling_address_format_invalid);
+        WARN("%s: calling address invalid format", N);
+    }
+    else if (!iodir_validate(I)) {
+        DIAGNOSTIC(A, c_malformed_message, d_invalid_directionality_facility);
+        WARN("%s: directionality invalid - %d", I);
+    }
+    else if (_count >= WORKER_COUNT) {
+        // FIXME: culling of old connections would go here.
+        DIAGNOSTIC(A, c_network_congestion, d_no_connections_available);
+        WARN("%s: cannot add. No free connections", N);
+    }
+    else {
+        if (i < _count) {
+            INSERT(w_zhash, i, _count);
+            INSERT(w_zaddr, i, _count);
+            INSERT(w_name, i, _count);
+            INSERT(w_iodir, i, _count);
+            INSERT(w_lcn, i, _count);
+            INSERT(w_role, i, _count);
+            INSERT(w_ctime, i, _count);
+            INSERT(w_mtime, i, _count);
+        }
 
-    w_zhash[i] = hash;
-    memset(w_name[i], 0, NAME_LEN + 1);
-    strncpy(w_name[i], N, NAME_LEN);
-    w_zaddr[i] = zframe_dup((zframe_t *)A);
-    w_iodir[i] = I;
-    w_lcn[i] = UKEY_C(0);
-    w_role[i] = READY;
+        w_zhash[i] = hash;
+        memset(w_name[i], 0, NAME_LEN + 1);
+        strncpy(w_name[i], N, NAME_LEN);
+        w_zaddr[i] = zframe_dup((zframe_t *)A);
+        w_iodir[i] = I;
+        w_lcn[i] = UKEY_C(0);
+        w_role[i] = READY;
 
-    w_ctime[i] = elapsed_time;
-    w_mtime[i] = elapsed_time;
+        w_ctime[i] = elapsed_time;
+        w_mtime[i] = elapsed_time;
+        _count ++;
 
-    // Update the index table that alphabetizes the names.
-    qisort(w_pname, _count, w_nidx);
+        // Update the index table that alphabetizes the names.
+        init_pname();
+        qisort(w_pname, _count, w_nidx);
+        INFO("added new channel %s, %s at index %d", N, iodir_name(I), i);
+        CONNECT_INDICATION(A);
+    }
+    TRACE("%s(A = %p, N = %s, I = %d) returns %d", __FUNCTION__, A, N, I, hash);
+
     return hash;
 }
 
@@ -280,21 +299,20 @@ static void do_call_request(joza_msg_t *M, size_t I)
     int      tput_rcheck = tput_rngchk(tput);
     seq_t    window      = joza_msg_window(M);
     int      window_rcheck = seq_rngchk(window);
-    uint8_t  *data       = zframe_data(joza_msg_data(M));
     size_t   data_len    = zframe_size(joza_msg_data(M));
     bool_index_t bi_y    = worker_get_idx_by_name(yname);
 
     // Validate the message
 
-    if (strnlen(xname, NAME_LEN + 1) == 0)
+    if (strnlen_s(xname, NAME_LEN + 1) == 0)
         DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_short);
-    else if (strnlen(xname, NAME_LEN + 1) > NAME_LEN)
+    else if (strnlen_s(xname, NAME_LEN + 1) > NAME_LEN)
         DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_long);
     else if (!safeascii(xname, NAME_LEN))
         DIAGNOSTIC(addr, c_malformed_message, d_calling_address_format_invalid);
-    else if (strnlen(yname, NAME_LEN + 1) == 0)
+    else if (strnlen_s(yname, NAME_LEN + 1) == 0)
         DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_short);
-    else if (strnlen(yname, NAME_LEN + 1) > NAME_LEN)
+    else if (strnlen_s(yname, NAME_LEN + 1) > NAME_LEN)
         DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_long);
     else if (!safeascii(yname, NAME_LEN))
         DIAGNOSTIC(addr, c_malformed_message, d_called_address_format_invalid);

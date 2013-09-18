@@ -79,7 +79,7 @@ const char ecma1[65] =            \
 //----------------------------------------------------------------------------
 
 static const char p_ini[] = "%&+,.:=_";
-static const char p_mid[] = "%&+,.:=_ ";
+static const char p_mid[] = "%&+,.:=_- ";
 
 /* Returns TRUE if the character C is in the set of valid initial
 characters for a name.  */
@@ -101,21 +101,31 @@ NULLs may only appear at the end. */
 bool_t safeascii(const char *mem, size_t n)
 {
     assert(mem != NULL);
-    size_t i;
+    int state = 1;              /* init = 1, mid = 2, final = 3 */
+    int bad = -1;
 
-    if (n == 0)
+    for (size_t i = 0; i < n; i ++) {
+        if (state == 1) {
+            if (!_val_init(mem[i]))
+                bad = i;
+            state = 2;
+        }
+        else if (state == 2) {
+            if (!_val_mid(mem[i]))
+                state = 3;
+        }
+        
+        /* Note that it is valid to go straight from INIT to FINAL */
+        if (state == 3) {
+            if (mem[i] != '\0')
+                bad = i;
+            /* We only check for one NULL */
+            break;
+        }
+    }
+    if (bad == -1)
         return TRUE;
-    if (!_val_init(mem[0]))
-        return FALSE;
-    i = 1;
-    while (_val_mid(mem[i]) && i < n)
-        i++;
-    while (i < n)
-        if (mem[i] != '\0')
-            return FALSE;
-        else
-            i++;
-    return TRUE;
+    return FALSE;
 }
 
 //----------------------------------------------------------------------------

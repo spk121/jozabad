@@ -9,5 +9,5 @@ typedef enum {
 } iodir_t;
 
 int iodir_validate(iodir_t x);
-
+const char *iodir_name(iodir_t x);
 #endif

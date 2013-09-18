@@ -25,7 +25,11 @@ CSRC = action.c \
 	tput.c \
 	worker.c \
 	joza_lib.c \
-	joza_msg.c
+	joza_msg.c \
+	ukey.c \
+	msg.c \
+	seq.c \
+	iodir.c
 
 CPPSRC = 
 

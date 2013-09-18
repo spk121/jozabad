@@ -267,75 +267,10 @@ direction_t direction_negotiate (direction_t r, direction_t c, bool *valid) {
     }
     return ret;
 }
-
-char const *packet_name(packet_t p) {
-    if (p > p_last)
-        return packet_names[p_last + 1];
-    return packet_names[p];
-}
-
 bool packet_validate(packet_t p) {
     if (p < p_first || p > p_last)
         return false;
     return true;
-}
-
-packet_t packet_throttle (packet_t request, packet_t limit) {
-    packet_t R, L;
-    R = request;
-    L = limit;
-    if (R < p_first)
-        R = p_first;
-    if (R > p_last)
-        R = p_last;
-    if (L < p_first)
-        L = p_first;
-    if (L > p_last)
-        L = p_last;
-    if (R > L)
-        R = L;
-    return R;
-}
-
-packet_t packet_negotiate (packet_t request, packet_t current, bool *valid)
-{
-    packet_t R, C, ret;
-    R = request;
-    C = current;
-    if (R < p_first)
-        R = p_first;
-    if (R > p_last)
-        R = p_last;
-    if (C < p_first)
-        C = p_first;
-    if (C > p_last)
-        C = p_last;
-
-    if (C >= p_default && (R > C || R < p_default)) {
-        ret = C;
-        if (valid)
-            *valid = false;
-    }
-    else if (C <= p_default && (R < C || R > p_default)) {
-        ret = C;
-        if (valid)
-            *valid = false;
-    }
-    else {
-        ret = R;
-        if (valid)
-        *valid = true;
-    }
-    return ret;
-}
-
-uint32_t packet_bytes (packet_t p) {
-    uint32_t R = p;
-    if (R < p_first)
-        R = p_first;
-    if (R > p_last)
-        R = p_last;
-    return packet_byte_arr[R];
 }
 
 char const *throughput_name(throughput_t t) {
@@ -433,37 +368,6 @@ uint16_t window_throttle (uint16_t request, uint16_t limit) {
     return R;
 }
 
-uint16_t window_negotiate (uint16_t request, uint16_t current, bool *valid)
-{
-    uint16_t R, C, ret;
-    R = request;
-    C = current;
-    if (R < WINDOW_MIN)
-        R = WINDOW_MIN;
-    if (R > WINDOW_MAX)
-        R = WINDOW_MAX;
-    if (C < WINDOW_MIN)
-        C = WINDOW_MIN;
-    if (C > WINDOW_MAX)
-        C = WINDOW_MAX;
-
-    if (C >= WINDOW_DEFAULT && (R > C || R < WINDOW_DEFAULT)) {
-        ret = C;
-        if (valid)
-            *valid = false;
-    }
-    else if (C <= WINDOW_DEFAULT && (R < C || R > WINDOW_DEFAULT)) {
-        ret = C;
-        if (valid)
-            *valid = false;
-    }
-    else {
-        ret = R;
-        if (valid)
-        *valid = true;
-    }
-    return ret;
-}
 
 bool address_validate(const char *str) {
     bool safe = true;

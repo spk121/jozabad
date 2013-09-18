@@ -167,7 +167,7 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
 
     TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s) returns %d", __FUNCTION__, xzaddr, xname, yzaddr, yname, iu.key);
     return iu.key;
-};
+}
 
 #define REMOVE(arr,idx,count)                                           \
     do {                                                                \
@@ -192,7 +192,7 @@ static void remove_channel_by_idx(size_t idx)
         REMOVE(c_tput, idx, _count);
     }
     _count --;
-};
+}
 
 static void reset_flow_by_idx(unsigned int idx)
 {
