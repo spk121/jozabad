@@ -57,5 +57,7 @@ extern state_t c_state[CHANNEL_COUNT];
 
 void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y);
 bool_t channel_available(void);
-ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname);
+ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname, 
+                   packet_t pkt, seq_t window, tput_t tput);
+
 #endif

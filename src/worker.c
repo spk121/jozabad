@@ -343,38 +343,22 @@ static void do_call_request(joza_msg_t *M, size_t I)
 
     else {
 
-        // Finally, create the raw channel
-        ukey_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname);
-        w_lcn[I] = lcn;
-        w_lcn[bi_y.index] = lcn;
-        w_role[I] = X_CALLER;
-        w_role[bi_y.index] = Y_CALLEE;
-
         // Throttle the facilities to this broker's maxima.
         //pkt    = packet_throttle(pkt, opt_packet);
         //window = window_throttle(window, opt_window);
         //tput   = tput_throttle(tput, opt_tput);
 
-        // Set the initial facilities values
-
-
-        // FIXME, this is the wrong _count!
-        // I want Channel's _count.
-        // FIXME: I just looked up channel index in channel_add().
-        // Don't do it again.
-
-        size_t idx = find(c_lcn, _count, lcn);
-        c_pkt[idx] = pkt;
-        c_tput[idx] = tput;
-        c_window[idx] = window;
-
-        // Transition state to X_CALL
-        c_state[idx] = state_x_call_request;
+        // Finally, create the raw channel
+        ukey_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname, pkt, window, tput);
+        w_lcn[I] = lcn;
+        w_lcn[bi_y.index] = lcn;
+        w_role[I] = X_CALLER;
+        w_role[bi_y.index] = Y_CALLEE;
 
         // FIXME: set the call request timer
 
         // Send the call request to the peer
-        joza_msg_send_addr_call_request (g_poll_sock, w_zaddr[bi_y.index], xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(M)));
+        CALL_REQUEST(w_zaddr[bi_y.index], addr, xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(M)));
     }
 }
 

@@ -78,8 +78,8 @@ static seq_t c_xps[CHANNEL_COUNT]; /* sequence number of packets sent by X */
 static seq_t c_xpr[CHANNEL_COUNT]; /* lowest packet sequence permitted to send to X */
 static seq_t c_yps[CHANNEL_COUNT]; /* sequence number of packets sent by Y  */
 static seq_t c_ypr[CHANNEL_COUNT]; /* lowest packet sequence permitted to send to Y */
-seq_t c_window[CHANNEL_COUNT];
 packet_t c_pkt[CHANNEL_COUNT];
+seq_t c_window[CHANNEL_COUNT];
 tput_t c_tput[CHANNEL_COUNT]; /* bits/sec permitted on this channel */
 static double c_ctime[CHANNEL_COUNT]; /* time this channel was activated */
 static double c_mtime[CHANNEL_COUNT]; /* timestamp of last messate dispatched */
@@ -123,11 +123,13 @@ bool_t channel_available()
     return ret;
 }
 
-ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname)
+ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname, 
+                   packet_t pkt, seq_t window, tput_t tput)
 {
     index_ukey_t iu;
 
-    TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s)", __FUNCTION__, xzaddr, xname, yzaddr, yname);
+    TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d)",
+          __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput);
 
     assert(_count < CHANNEL_COUNT);
     assert(xzaddr);
@@ -146,6 +148,7 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
         PUSH(c_yps, iu.index, _count);
         PUSH(c_xpr, iu.index, _count);
         PUSH(c_ypr, iu.index, _count);
+        PUSH(c_pkt, iu.index, _count);
         PUSH(c_window, iu.index, _count);
         PUSH(c_tput, iu.index, _count);
     }
@@ -159,13 +162,19 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
     c_xps[iu.index] = SEQ_MIN;
     c_ypr[iu.index] = SEQ_MIN;
     c_ypr[iu.index] = SEQ_MIN;
-    c_window[iu.index] = WINDOW_DEFAULT;
-    c_tput[iu.index] = t_default;
+    c_pkt[iu.index] = pkt;
+    c_window[iu.index] = window;
+    c_tput[iu.index] = tput;
+
+    // Transition state to X_CALL
+    c_state[iu.index] = state_x_call_request;
 
     _count ++;
     _lcn = iu.key;
 
-    TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s) returns %d", __FUNCTION__, xzaddr, xname, yzaddr, yname, iu.key);
+    TRACE("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
+          __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput, iu.key);
+
     return iu.key;
 }
 
@@ -298,7 +307,7 @@ static void do_y_call_accepted(joza_msg_t *M, int I)
     // I don't know what that means, yet.
     else if(strcmp(xname, c_xname[I]) != 0)
         DIAGNOSTIC(C_ADDR(I, !me), c_invalid_forwarding_request, d_caller_forwarding_not_allowed);
-    else if(strcmp(xname, c_yname[I]) != 0)
+    else if(strcmp(yname, c_yname[I]) != 0)
         DIAGNOSTIC(C_ADDR(I, !me), c_invalid_forwarding_request, d_callee_forwarding_not_allowed);
 
     else {
@@ -457,7 +466,7 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y)
     state_t state_orig;
     action_t a;
 
-    TRACE("In %s(M = %p, LCN = %d, is_y = %d)", __FUNCTION__, M, LCN, is_y);
+    TRACE("In %s(%p,%d,%d)", __FUNCTION__, M, LCN, is_y);
 
     cmdname = joza_msg_const_command(M);
     I = ukey_find(c_lcn, _count, LCN);
@@ -476,7 +485,7 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y)
 
     /* Big fat dispatch table */
     a = action_get(c_state[I], joza_msg_const_id(M), is_y);
-    INFO("%s/%s dispatching %s in %d", xname, yname, action_name(a), state_orig);
+    INFO("%s/%s dispatching %s in %s", xname, yname, action_name(a), state_name(state_orig));
 
     switch (a) {
     case a_unspecified:
@@ -558,5 +567,8 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y)
         break;
     }
 
-    TRACE("%s(M = %p, LCN = %d, is_y = %d) returns", __FUNCTION__, M, LCN, is_y);
+    if (state_orig != c_state[I]) 
+        INFO("%s/%s after %s state is now %s", xname, yname, action_name(a), state_name(c_state[I]));
+
+    TRACE("%s(%p,%d,%d) returns void", __FUNCTION__, M, LCN, is_y);
 }

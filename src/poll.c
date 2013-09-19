@@ -112,9 +112,10 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
     joza_msg_t *msg = NULL;
     int ret = 0;
 
-    TRACE("In %s(loop = %p, iterm = %p, arg = %p)", __FUNCTION__, loop, item, arg);
+    TRACE("In %s(%p,%p,%p)", __FUNCTION__, loop, item, arg);
 
     if (item->revents & ZMQ_POLLIN) {
+        NOTE("Socket has POLLIN");
         msg = joza_msg_recv(g_poll_sock);
         if (msg != NULL) {
             // Process the valid message
@@ -122,6 +123,7 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
         }
     }
 
+    TRACE("%s(%p,%p,%p) returns %d", __FUNCTION__, loop, item, arg, ret);
     return ret;
 }
 
@@ -133,8 +135,9 @@ static int s_process_(joza_msg_t *msg)
     bool_index_t bi_worker;
     bool_t more = FALSE;
     role_t role = READY;
+    int ret = 0;
 
-    TRACE("In %s(msg = %p)", __FUNCTION__);
+    TRACE("In %s(%p)", __FUNCTION__, msg);
 
     hash = msg_addr2hash(joza_msg_address(msg));
 do_more:
@@ -147,7 +150,7 @@ do_more:
     // If this worker is connected and part of a virtual call, the
     // call's state machine processes the message.
     if (role == X_CALLER || role == Y_CALLEE) {
-        if (X_CALLER)
+        if (role == X_CALLER)
             channel_dispatch_by_lcn(msg, w_lcn[bi_worker.index], 0);
         else
             channel_dispatch_by_lcn(msg, w_lcn[bi_worker.index], 1);
@@ -176,7 +179,9 @@ do_more:
             INFO("ignoring %s from unconnected worker", cmdname);
         }
     }
-    return 0;
+
+    TRACE("%s(%p) returns %d", __FUNCTION__, msg, ret);
+    return ret;
 }
 
 

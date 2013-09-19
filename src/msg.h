@@ -22,14 +22,23 @@
 #ifndef JOZA_MSG_H
 #define JOZA_MSG_H
 
+#include "packet.h"
+#include "seq.h"
+#include "tput.h"
+
+uint32_t msg_addr2hash (const zframe_t *z);
+
+void call_request(zframe_t *call_addr, zframe_t *return_addr, char *xname, char *yname,
+                  packet_t pkt, seq_t window, tput_t tput, zframe_t *data);
+
 #define RESET_REQUEST(A,C,D) \
     joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
 #define CLEAR_REQUEST(A,C,D) \
-    joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
+    joza_msg_send_addr_clear_request(g_poll_sock, (A), (C), (D))
 #define DIAGNOSTIC(A,C,D) \
-    joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
+    joza_msg_send_addr_diagnostic(g_poll_sock, (A), (C), (D))
 #define CONNECT_INDICATION(A) \
     joza_msg_send_addr_connect_indication(g_poll_sock, (A))
-uint32_t msg_addr2hash (const zframe_t *z);
+#define CALL_REQUEST call_request
 
 #endif

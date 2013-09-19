@@ -9,7 +9,7 @@ All the documentation is missing. ;-)
 
 * Missing Test Cases
 ** Tests for Invalid ps
-*** TODO should error if first message sent has non-zero ps
+*** DONE should error if first message sent has non-zero ps
 *** TODO should error if ps increases by more than 1
 *** TODO should error if ps is repeated
 *** TODO should error if ps decreases

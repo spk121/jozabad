@@ -1,6 +1,6 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS=-std=c11 -g -O2 -Wall -Wextra -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
+CFLAGS=-std=c11 -g -O0 -Wall -Wextra -Wtype-limits -Wstrict-overflow=5 -fstrict-overflow -Wsign-compare -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
 LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
 PREFIX?=/usr/local
 
@@ -20,8 +20,8 @@ SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 # The Target Build
 all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests
 
-dev: CFLAGS=-std=c11 -g -O0 -Isrc -Wall -Wextra $(OPTFLAGS)
-dev: all
+release: CFLAGS=-std=c11 -O2 $(OPTFLAGS)
+release: all
 
 $(LIB_TARGET): CFLAGS += -fPIC
 $(LIB_TARGET): build $(filter-out $(MAINS),$(OBJECTS))
@@ -41,7 +41,7 @@ build:
 # The Unit Tests
 .PHONY: tests
 $(TESTS): %: %.c
-	$(CC) $(CFLAGS) -o $@ $< $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
 tests: $(TESTS)
 	sh ./tests/runtests.sh
 
