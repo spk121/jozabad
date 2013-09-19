@@ -1,8 +1,50 @@
-* Missing Functionality
-** TODO Add Timers
+* Functionality
+** TODO Integer correctness
+*** Use smallest integer sizes always
+*** Overflow-check all integer multiplication
+*** Overflow-check all integer addition
+
+** TODO Send failure messages
+The broker should inform a worker if it couldn't forward a message.
+It should send a diagnostic message back to the worker.
+
+** TODO Idle Channels and Workers
+Track time of last valid message received from each worker and on each channel.
+When a connection request occurs, if all connects are full, cull an idle connection.
+When a call request occurs, if all channels are full, cull an idle channel.
+
+** TODO Timeouts
+Every message forwarded to a client that requires a response should have a timeout.
+Call Request
+Clear Request
+Reset Request
+
+** TODO Throttling
+*** TODO Message rate
+For each worker, keep track of messages sent in the last XX (10?) seconds.
+Kick any worker that sends too many messages.
+*** TODO Data rate
+For each worker, keep track of data sent in the last XX seconds.
+Kick any worker that sends data too fast.
+
+** More useful diagnostic messages
+In a diagnostic, give more context on failure.
+
+** Worker->Broker messages
+DIRECTORY_REQUEST message asks broker for list of workers
+DIRECTORY response lists workers
+
+** Control->Broker interface
+Add a req/rep socket to all curses-based control program to query 
+List of workers and their stats
+List of channels
+Reset channel / clear channel
+Disconnect worker
+
+** Memory limitation
+Have broker monitor memory size in real-time.
+
 ** TODO Add OpenID registration
-** TODO Leaky Bucket Per-Channel Throttling
-** TODO Reject Packets
 
 * Missing Documentation
 All the documentation is missing. ;-)
