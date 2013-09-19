@@ -67,7 +67,7 @@ char *test_functions()
 {
     uint32_t arr3[3] = {10, 20, 30};
     size_t len3 = 3, len2 = 2;
-    uint32_t arr2[2] = {10, 20, 30};
+    uint32_t arr2[2] = {10, 20};
 
     mu_assert(check_func_ifind(arr2, len2, 0, 0), "find before 1st element");
     mu_assert(check_func_ifind(arr2, len2, 10, 0), "find 1st element");

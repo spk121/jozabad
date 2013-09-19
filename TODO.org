@@ -10,9 +10,9 @@ All the documentation is missing. ;-)
 * Missing Test Cases
 ** Tests for Invalid ps
 *** DONE should error if first message sent has non-zero ps
-*** TODO should error if ps increases by more than 1
+*** DONE should error if ps increases by more than 1
 *** TODO should error if ps is repeated
-*** TODO should error if ps decreases
+*** TODO should error if ps decreased
 *** TODO should error is ps is greater than 32767
 *** TODO should not error when ps wraps from 32767 to 0
 *** TODO should error is ps is not in window
@@ -40,7 +40,7 @@ None
 **  Missing tests for packet on unassigned logical channel
 *** TODO should reject all packets except for CONNECT
   
-**  Missing tests for reject not subscribec to
+**  Missing tests for reject not subscribed to
 
 **  Missing tests for packet too short
 *** TODO should reject short data packets

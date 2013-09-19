@@ -10,8 +10,13 @@ SOURCES=$(wildcard src/**/*.c src/*.c)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 MAINS=src/main.o
 
-TEST_SRC=$(wildcard tests/*_tests.c)
-TESTS=$(patsubst %.c,%,$(TEST_SRC))
+# Unit tests check single functions
+UTEST_SRC=$(wildcard tests/*_utest.c)
+UTESTS=$(patsubst %.c,%,$(UTEST_SRC))
+
+# Integration tests send messages to a broker
+ITEST_SRC=$(wildcard tests/*_itest.c)
+ITESTS=$(patsubst %.c,%,$(ITEST_SRC))
 
 EXE_TARGET=build/jozabad
 LIB_TARGET=build/libjoza.a
@@ -40,9 +45,11 @@ build:
 
 # The Unit Tests
 .PHONY: tests
-$(TESTS): %: %.c
+$(UTESTS): %: %.c
 	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
-tests: $(TESTS)
+$(ITESTS): %: %.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
+tests: $(UTESTS) $(ITESTS)
 	sh ./tests/runtests.sh
 
 valgrind:
@@ -65,6 +72,15 @@ BADFUNCS='[^_.>a-zA-Z0-9](str(n?cpy|n?cat|xfrm|n?dup|str|pbrk|tok|_)|stpn?cpy|a?
 check:
 	@echo Files with potentially dangerous functions.
 	@egrep $(BADFUNCS) $(SOURCES) || true
+	@echo
+	@echo Files where the file name doesn\'t appear in the second line of the file
+	@ls -1 src/*.[ch] tests/*.[ch] | xargs -I {} awk -v fname={} -f gnu/fname.awk {} || true
+	@echo
+	@echo Files that don\'t contain the word Copyright
+	@grep -L Copyright src/*.[ch] tests/*.[ch] || true
+	@echo
+	@echo Files that don\'t contain the phrase "GNU General Public License"
+	@grep -L "GNU General Public License" src/*.[ch] tests/*.[ch] || true
 
 # Enforce some style
 pretty:

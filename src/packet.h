@@ -1,5 +1,5 @@
 /*
-    pkt.h -
+    packet.h -
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 

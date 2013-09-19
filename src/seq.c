@@ -15,13 +15,12 @@ int seq_rngchk(seq_t x)
 // numerical overflow.
 bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi)
 {
-    if (hi < lo) {
-        if (x <= hi || x >= lo)
-            return TRUE;
-    } else if (hi > lo) {
-        if (x >= lo && x <= hi)
-            return TRUE;
-    }
+    if (hi < lo && (x <= hi || x >= lo))
+        return TRUE;
+    else if (hi > lo && (x >= lo && x <= hi))
+        return TRUE;
+    else if (hi == lo && lo == x)
+        return TRUE;
     return FALSE;
 }
 
