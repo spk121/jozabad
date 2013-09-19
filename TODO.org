@@ -1,3 +1,4 @@
+#_OPTIONS: todo:t
 * Functionality
 ** TODO Integer correctness
 *** Use smallest integer sizes always
