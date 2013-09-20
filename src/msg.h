@@ -25,8 +25,9 @@
 #include "packet.h"
 #include "seq.h"
 #include "tput.h"
+#include "mylimits.h"
 
-uint32_t msg_addr2hash (const zframe_t *z);
+wkey_t msg_addr2key (const zframe_t *z);
 
 void call_request(zframe_t *call_addr, zframe_t *return_addr, char *xname, char *yname,
                   packet_t pkt, seq_t window, tput_t tput, zframe_t *data);

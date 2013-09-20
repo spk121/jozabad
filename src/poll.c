@@ -131,7 +131,7 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
 // being processed start here.
 static int s_process_(joza_msg_t *msg)
 {
-    uint32_t hash;
+    wkey_t key;
     bool_index_t bi_worker;
     bool_t more = FALSE;
     role_t role = READY;
@@ -139,10 +139,10 @@ static int s_process_(joza_msg_t *msg)
 
     TRACE("In %s(%p)", __FUNCTION__, msg);
 
-    hash = msg_addr2hash(joza_msg_address(msg));
+    key = msg_addr2key(joza_msg_address(msg));
 do_more:
 
-    bi_worker = worker_get_idx_by_hash(hash);
+    bi_worker = worker_get_idx_by_key(key);
     if (bi_worker.flag == TRUE) {
         role = w_role[bi_worker.index];
     }
@@ -172,7 +172,7 @@ do_more:
 
         if (joza_msg_id(msg) == JOZA_MSG_CONNECT) {
             INFO("handling %s from unconnected worker", cmdname);
-            add_worker(joza_msg_const_address(msg),
+            worker_add(joza_msg_const_address(msg),
                        joza_msg_const_calling_address(msg),
                        (iodir_t) joza_msg_const_directionality(msg));
         } else {

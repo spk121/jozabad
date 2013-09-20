@@ -25,36 +25,13 @@
 
 #include <stdint.h>
 #include "bool.h"
+#include "mylimits.h"
 
-#ifndef SEQ_WIDTH
-# define SEQ_WIDTH 2
-#endif
 
-#if SEQ_WIDTH == 1
-typedef uint8_t seq_t;
-typedef uint16_t dseq_t;
-#define SEQ_MIN UINT8_C(0)
-#define SEQ_MAX UINT8_C(SCHAR_MAX)
-#define SEQ_C(x) UINT8_C(x)
-#elif SEQ_WIDTH == 2
-typedef uint16_t seq_t;
-typedef uint32_t dseq_t;
-#define SEQ_MIN UINT16_C(0)
-#define SEQ_MAX UINT16_C(INT16_MAX)
-#define SEQ_C(x) UINT16_C(x)
-#elif SEQ_WIDTH == 4
-typedef uint32_t seq_t;
-typedef uint64_t dseq_t;
-#define SEQ_MIN UINT32_C(0)
-#define SEQ_MAX UINT32_C(INT32_MAX)
-#define SEQ_C(x) UINT32_C(x)
-#else
-# error "Bad SEQ_WIDTH"
-#endif
-
-#define WINDOW_MIN (1)
-#define WINDOW_MAX (SEQ_MAX)
-#define WINDOW_NEGOTIATE (2)
+// SEQUENCE NUMBERS
+// These 16-bit integers are part of DATA messages and are used to check
+// if the messages are in order.  They are 16-bit because we assume that there won't
+// be more than SEQ_MAX packets "on the wire" between the client and server.
 
 int seq_rngchk(seq_t x);
 bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi);

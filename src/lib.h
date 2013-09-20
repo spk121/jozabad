@@ -1,9 +1,26 @@
-/* Guidance
-   - GCC - C11 only + no local includes
-   - CL 11.0 - C11 subset of C++11 only (/TP) + no local includes
+/*
+    lib.h - miscellaneous library functions
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
 */
-#ifndef JOZA_LIB_INCLUDE
-#define JOZA_LIB_INCLUDE
+#ifndef JOZA_LIB_H
+#define JOZA_LIB_H
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,11 +30,6 @@
 //----------------------------------------------------------------------------
 // BASICS
 //----------------------------------------------------------------------------
-
-typedef struct {
-    bool_t flag;
-    size_t index;
-} bool_index_t;
 
 size_t intlen(int x);
 char *cstrdup (const char *s);
@@ -43,51 +55,15 @@ const char *unpack121(uint32_t x);
 // INDEX SORTING OF STRINGS
 //----------------------------------------------------------------------------
 
-void qisort(char *arr[], size_t n, size_t indx[]);
-size_t namefind(const char *arr[], size_t n, size_t nidx[], const char *str);
+// void qisort(char *arr[], size_t n, size_t indx[]);
+// size_t namefind(const char *arr[], size_t n, size_t nidx[], const char *str);
 
 //----------------------------------------------------------------------------
 // SEARCHING ORDERED UINT32_T ARRAYS
 //----------------------------------------------------------------------------
 
-size_t ifind(uint32_t arr[], size_t n, uint32_t X);
+// size_t ifind(uint32_t arr[], size_t n, uint32_t X);
 
-//----------------------------------------------------------------------------
-// UNIQUE-KEY VECTORS
-//----------------------------------------------------------------------------
-#if 0
-#ifndef UKEY_WIDTH
-# define UKEY_WIDTH 2
-#endif
-
-#if UKEY_WIDTH == 1
-typedef uint8_t ukey_t;
-#define UKEY_MIN UINT8_C(0)
-#define UKEY_MAX UINT8_C(SCHAR_MAX)
-#define UKEY_C(x) UINT8_C(x)
-#elif UKEY_WIDTH == 2
-typedef uint16_t ukey_t;
-#define UKEY_MIN UINT16_C(0)
-#define UKEY_MAX UINT16_C(INT16_MAX)
-#define UKEY_C(x) UINT16_C(x)
-#elif UKEY_WIDTH == 4
-typedef uint32_t ukey_t;
-#define UKEY_MIN UINT32_C(0)
-#define UKEY_MAX UINT32_C(INT32_MAX)
-#define UKEY_C(x) UINT32_C(x)
-#else
-# error "Bad UKEY_WIDTH"
-#endif
-
-typedef struct {
-    size_t index;
-    ukey_t key;
-} index_ukey_t;
-
-size_t keyfind(ukey_t arr[], size_t n, ukey_t key);
-index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key);
-void indexx(ukey_t arr[], size_t n, ukey_t indx[]);
-#endif
 //----------------------------------------------------------------------------
 // STRICT C11 TIME
 //----------------------------------------------------------------------------

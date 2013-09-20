@@ -1,5 +1,5 @@
 /*
-    diagnostic.h - diagnostic information
+    diag.h - diagnostic information
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 

@@ -123,7 +123,7 @@ bool_t channel_available()
     return ret;
 }
 
-ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname, 
+ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                    packet_t pkt, seq_t window, tput_t tput)
 {
     index_ukey_t iu;
@@ -241,14 +241,14 @@ static void do_clear(int I, bool_t me)
 // close the channel immediately, and disconnect caller
 static void do_i_disconnect(int I, bool_t me)
 {
-    uint32_t hash;
+    wkey_t key;
     int ret;
     ret = CLEAR_REQUEST(C_ADDR(I, !me), c_worker_originated, d_worker_originated);
     if (ret == -1)
         DIAGNOSTIC(C_ADDR(I, me), c_zmq_sendmsg_err, errno2diag());
-    hash = msg_addr2hash(C_ADDR(I,me));
+    key = msg_addr2key(C_ADDR(I,me));
     remove_channel_by_idx(I);
-    remove_worker_by_hash(hash);
+    remove_worker_by_key(key);
 }
 
 static void do_y_call_accepted(joza_msg_t *M, int I)
@@ -385,7 +385,7 @@ static void do_i_data(joza_msg_t *M, int I, bool_t me)
     // window of packet numbers that callee has said it will accept.
     if (ps != C_PS(I, me))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_out_of_order);
-    else if (!seq_in_range(ps, C_PR(I, !me), ((dseq_t)C_PR(I, !me) + (dseq_t)c_window[I]) % SEQ_MAX))
+    else if (!seq_in_range(ps, C_PR(I, !me), (C_PR(I, !me) + c_window[I]) % SEQ_MAX))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_not_in_window);
     // When X updates its own window of packets that it will accept,
     // its new lowest packet number that X will allow should be
@@ -567,7 +567,7 @@ void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y)
         break;
     }
 
-    if (state_orig != c_state[I]) 
+    if (state_orig != c_state[I])
         INFO("%s/%s after %s state is now %s", xname, yname, action_name(a), state_name(c_state[I]));
 
     TRACE("%s(%p,%d,%d) returns void", __FUNCTION__, M, LCN, is_y);

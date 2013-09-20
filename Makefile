@@ -1,6 +1,6 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS=-std=c11 -g -O0 -Wall -Wextra -Wtype-limits -Wstrict-overflow=5 -fstrict-overflow -Wsign-compare -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
+CFLAGS?=-std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
 LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
 PREFIX?=/usr/local
 
