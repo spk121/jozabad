@@ -1,6 +1,6 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS?=-std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
+CFLAGS?=-std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS)
 LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
 PREFIX?=/usr/local
 
@@ -25,7 +25,7 @@ SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 # The Target Build
 all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests
 
-release: CFLAGS=-std=c11 -O2 $(OPTFLAGS)
+release: CFLAGS=-std=c11 -O2 -DNDEBUG $(OPTFLAGS)
 release: all
 
 $(LIB_TARGET): CFLAGS += -fPIC
