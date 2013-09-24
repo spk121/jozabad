@@ -84,4 +84,6 @@ typedef enum {
     c_last = c_quota_exceeded
 } cause_t;
 
+const char *cause_name(cause_t c);
+
 #endif
