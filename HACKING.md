@@ -1,21 +1,24 @@
-# Notes for Hackers #
+# HACKING NOTES #
 
 Lessons learned and info to remember.
 
 ## Logging ##
 
-ERR is for fatals
-WARN is for things that are fatal in debug, and just critical in release
-INFO is for messages that are sent and for how they are dispatched
-NOTE is for everything change of internal state
-TRACE is for entering / leaving critical functions
+ERR is for fatals.
+
+WARN is for things that are fatal in debug, and just critical in release.
+
+INFO is for messages that are sent and for how they are dispatched.  These should just before message is dispatched in the broker or just after it is sent by the broker.
+
+NOTE is for every change of internal state.  These should go just after each internal state change.
+
+TRACE is for entering / leaving critical functions.
 
 ## Cross platform issues ##
 
 **There will be no #ifdef or `configure`!**
 
 Herb at the MS team are working hard at implementing the C++1x standards and standard lib, but, have given up on C11.  Herb says that if you want C11 on Visual Studio, you should just use the C++ compiler and then skip the features of C11 that aren't in C++11. 
-
 
 The plan is to make code run on GNU `gcc` > 4.8.x and on Microsoft `cl` > 11.0. With `gcc`, we're compiling as C11.  With `cl`, we're compiling as C++11.  Also, the intention is that, _for code that I write_, we strictly use C11.
 
@@ -41,24 +44,29 @@ From [MSDN](http://msdn.microsoft.com/en-us/library/vstudio/tf4dy80a.aspx)
 
 > The __BOOL_DEFINED macro can be used to wrap code that is dependent on whether or not bool is supported.
 
+## Abbreviations ##
 
-Abbreviations
-=============
+Any abbreviated word should go in this list.
 
-tput    throughput (bits/sec)
-iodir   input/output direction
-dx      diagnostic
-actn    action
-enq     request aka enquiry
-ack     positive request acknowledgement or confirmation
-nak     negative request acknowledgement
+| Abbreviation | Meaning |
+|--------------|----------------------- |
+| tput         | throughput (bits/sec)
+| iodir        | incoming calls barred, outgoing calls barred, bidirectional calls ok
+| dx           | diagnostic
+| actn         | action
+| enq          | enquiry / request
+| ack          | positive request acknowledgement or confirmation
+| nak          | negative request acknowledgement
 
-Message formats
-===============
+## Address Formats ##
 
+Need to identify each worker with a short text string
 
-X.121 Addresses
----------------
+### Safe ASCII ###
+
+Keep it simple.
+
+### X.121 Addresses ###
 
 The original X.25 spec used X.121 addresses, which is as good a scheme as any, for now.
 
@@ -82,8 +90,8 @@ Also, if a worker calls CCCCCCCC and it is busy, there might someday be function
 
 For now, the last two DD should never be used.
 
-Stringprep / SASLPrep
---------------------
+### StringPrep / SASLPrep addresses ###
+
 X.121 is probably too restrictve, even for this kind of nonsense.
 
 Probably should just have a fixed-length UTF-8 string that passes rules like SASLPrep.
