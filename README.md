@@ -1,17 +1,26 @@
 # Jozabad
 
-*Jozabad* is a broker and a client library that implements a custom hub-and-spoke communication protocol for Telnet-like or chat-like applications.  A set of one or more *workers* connect to the *broker* and send messages to the *broker*.  The *broker* joins pairs of workers together in *channels*, and forwards message between connected workers.
+*Jozabad* is a broker and client library of a custom hub-and-spoke communication protocol.  *Workers* connect to a *broker* and send messages to the *broker*.  The *broker* joins pairs of workers together in *channels* and forwards messages between connected workers.
 
 Jozabad is thus, basically, like a telephone exchange.  It is inspired by the ITU's X.25 protocol.
 
 The basic goals of the protocol are these:
 
-* A *worker* can connect to or disconnect from the *broker* at any time.
-* A worker can request a list of connected workers from the broker.
-* A worker can request that the broker create a persistent, exclusive, asynchronous, bilateral communication *channel* with any other idle worker willing to communcate.
-* The *channel* between connected worker pairs is stateful (not REST).
-* The broker prevents workers from discovering one-another's IP address and port.
-* The broker ensures that every message a worker receives has valid a valid format, state, and doesn't exceed an agreed-upon data rate.
+
+The *broker* ensures that
+* messages are valid
+* data rates are obeyed
+
+A *worker* can
+* connect / disconnect to the *broker* at will
+* get a list of other workers from the broker.
+* request a *channel* with any other idle worker
+
+The *channel*
+* is exclusive -- a worker can have only one channel at a time
+* is persistent -- it exists as long as the workers want
+* is stateful
+* is pseudonymous -- the workers only know one-anothers' pseudonym
 
 The future goals of the protocol are these: 
 
