@@ -2,6 +2,14 @@
 
 Lessons learned and info to remember.
 
+## Logging ##
+
+ERR is for fatals
+WARN is for things that are fatal in debug, and just critical in release
+INFO is for messages that are sent and for how they are dispatched
+NOTE is for everything change of internal state
+TRACE is for entering / leaving critical functions
+
 ## Cross platform issues ##
 
 **There will be no #ifdef or `configure`!**
