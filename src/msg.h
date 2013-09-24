@@ -22,6 +22,8 @@
 #ifndef JOZA_MSG_H
 #define JOZA_MSG_H
 
+#include <czmq.h>
+#include "mylimits.h"
 #include "packet.h"
 #include "seq.h"
 #include "tput.h"

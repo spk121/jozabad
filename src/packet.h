@@ -23,6 +23,8 @@
 #ifndef JOZA_PKT_H
 #define JOZA_PKT_H
 
+#include <stdint.h>
+
 /* This enum holds the maximum allowed packet size. */
 typedef enum _packet_t {
     p_unspecified = 0,
