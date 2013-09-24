@@ -26,18 +26,22 @@
 #include "seq.h"
 #include "tput.h"
 #include "mylimits.h"
+#include "cause.h"
+#include "diag.h"
 
 wkey_t msg_addr2key (const zframe_t *z);
 
 void call_request(zframe_t *call_addr, zframe_t *return_addr, char *xname, char *yname,
                   packet_t pkt, seq_t window, tput_t tput, zframe_t *data);
+void diagnostic(const zframe_t *A, cause_t C, diag_t D);
 
 #define RESET_REQUEST(A,C,D) \
     joza_msg_send_addr_reset_request(g_poll_sock, (A), (C), (D))
 #define CLEAR_REQUEST(A,C,D) \
     joza_msg_send_addr_clear_request(g_poll_sock, (A), (C), (D))
 #define DIAGNOSTIC(A,C,D) \
-    joza_msg_send_addr_diagnostic(g_poll_sock, (A), (C), (D))
+    diagnostic(A,C,D)
+
 #define CONNECT_INDICATION(A) \
     joza_msg_send_addr_connect_indication(g_poll_sock, (A))
 #define CALL_REQUEST call_request

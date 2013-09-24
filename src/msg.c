@@ -4,6 +4,8 @@
 #include "joza_msg.h"
 #include "cause.h"
 #include "diag.h"
+#include "worker.h"
+#include "log.h"
 
 // Deep diving into the ZeroMQ source says that for ZeroMQ 3.x,
 // bytes 1 to 5 of the address would work as a unique ID for a
@@ -15,6 +17,17 @@ wkey_t msg_addr2key (const zframe_t *z)
     memcpy(x, (char *) zframe_data((zframe_t *) z) + 1, sizeof(wkey_t));
 
     return x[0];
+}
+
+void diagnostic(const zframe_t *A, cause_t C, diag_t D)
+{
+    wkey_t key;
+    bool_index_t bi; 
+
+    key = msg_addr2key(A);
+    bi = worker_get_idx_by_key(key);
+    INFO("sending DIAGNOSTIC to %s, %s", w_name[bi.index], cause_name(C));
+    joza_msg_send_addr_diagnostic(g_poll_sock, A, C, D);
 }
 
 void call_request(zframe_t *call_addr, zframe_t *return_addr, char *xname, char *yname,
