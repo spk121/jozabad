@@ -30,7 +30,7 @@
 #include "tput.h"
 #include "seq.h"
 #include "state.h"
-#include "ukey.h"
+#include "lcn.h"
 
 #ifndef CALL_REQUEST_DATA_LEN
 # define CALL_REQUEST_DATA_LEN (16)

@@ -1,5 +1,5 @@
 /*
-    ukey.h - unique key integers
+    lcn.h - unique key integers
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 

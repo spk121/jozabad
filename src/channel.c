@@ -40,7 +40,7 @@
 #include "log.h"
 #include "msg.h"
 #include "packet.h"
-#include "ukey.h"
+#include "lcn.h"
 
 // #include "../libjoza/joza_lib.h"
 

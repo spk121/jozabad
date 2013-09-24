@@ -26,7 +26,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "iodir.h"
-#include "ukey.h"
+#include "lcn.h"
 #include "joza_msg.h"
 #include "mylimits.h"
 #include "bool.h"
