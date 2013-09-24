@@ -65,24 +65,24 @@ mtime double                       time of last message from either peer
 */
 
 
-static size_t _count = 0;
-static ukey_t _lcn = UKEY_MIN;
-ukey_t c_lcn[CHANNEL_COUNT];
-zframe_t *c_xzaddr[CHANNEL_COUNT]; /* ZMQ address of caller X */
-zframe_t *c_yzaddr[CHANNEL_COUNT]; /* ZMQ address of callee Y */
-size_t c_yidx[CHANNEL_COUNT]; /* index array that sorts ykey array */
-char *c_xname[CHANNEL_COUNT];
-char *c_yname[CHANNEL_COUNT];
-state_t c_state[CHANNEL_COUNT];
-static seq_t c_xps[CHANNEL_COUNT]; /* sequence number of packets sent by X */
-static seq_t c_xpr[CHANNEL_COUNT]; /* lowest packet sequence permitted to send to X */
-static seq_t c_yps[CHANNEL_COUNT]; /* sequence number of packets sent by Y  */
-static seq_t c_ypr[CHANNEL_COUNT]; /* lowest packet sequence permitted to send to Y */
-packet_t c_pkt[CHANNEL_COUNT];
-seq_t c_window[CHANNEL_COUNT];
-tput_t c_tput[CHANNEL_COUNT]; /* bits/sec permitted on this channel */
-static double c_ctime[CHANNEL_COUNT]; /* time this channel was activated */
-static double c_mtime[CHANNEL_COUNT]; /* timestamp of last messate dispatched */
+static chan_idx_t _count = 0;
+static lcn_t _lcn = LCN_MIN;
+lcn_t c_lcn[CHAN_COUNT];
+zframe_t *c_xzaddr[CHAN_COUNT]; /* ZMQ address of caller X */
+zframe_t *c_yzaddr[CHAN_COUNT]; /* ZMQ address of callee Y */
+chan_idx_t c_yidx[CHAN_COUNT]; /* index array that sorts ykey array */
+char *c_xname[CHAN_COUNT];
+char *c_yname[CHAN_COUNT];
+state_t c_state[CHAN_COUNT];
+static seq_t c_xps[CHAN_COUNT]; /* sequence number of packets sent by X */
+static seq_t c_xpr[CHAN_COUNT]; /* lowest packet sequence permitted to send to X */
+static seq_t c_yps[CHAN_COUNT]; /* sequence number of packets sent by Y  */
+static seq_t c_ypr[CHAN_COUNT]; /* lowest packet sequence permitted to send to Y */
+packet_t c_pkt[CHAN_COUNT];
+seq_t c_window[CHAN_COUNT];
+tput_t c_tput[CHAN_COUNT]; /* bits/sec permitted on this channel */
+static double c_ctime[CHAN_COUNT]; /* time this channel was activated */
+static double c_mtime[CHAN_COUNT]; /* timestamp of last messate dispatched */
 
 #define C_ADDR(idx,y) ((y)?c_yzaddr[(idx)]:c_xzaddr[(idx)])
 #define C_PR(idx,y)   ((y)?c_ypr[(idx)]:c_xpr[(idx)])
@@ -114,7 +114,7 @@ bool_t channel_available()
 
     TRACE("In %s()", __FUNCTION__);
 
-    if (_count < CHANNEL_COUNT)
+    if (_count < CHAN_COUNT)
         ret = TRUE;
     else
         ret = FALSE;
@@ -123,19 +123,19 @@ bool_t channel_available()
     return ret;
 }
 
-ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
-                   packet_t pkt, seq_t window, tput_t tput)
+lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
+                  packet_t pkt, seq_t window, tput_t tput)
 {
-    index_ukey_t iu;
+    chan_idx_lcn_t iu;
 
     TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d)",
           __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput);
 
-    assert(_count < CHANNEL_COUNT);
+    assert(_count < CHAN_COUNT);
     assert(xzaddr);
     assert(yzaddr);
 
-    iu = ukey_next(c_lcn, _count, _lcn);
+    iu = lcn_next(c_lcn, _count, _lcn);
     assert (_count == 0 || c_lcn[iu.index] != _lcn);
 
     if (iu.index < _count) {
@@ -172,6 +172,8 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
     _count ++;
     _lcn = iu.key;
 
+    NOTE("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
+        window, tput_bps(tput));
     TRACE("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
           __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput, iu.key);
 
@@ -185,7 +187,7 @@ ukey_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const 
     }                                                                   \
     while(0)
 
-static void remove_channel_by_idx(size_t idx)
+static void remove_channel_by_chan_idx(chan_idx_t idx)
 {
     if (idx < _count) {
         REMOVE(c_xzaddr, idx, _count);
@@ -203,7 +205,7 @@ static void remove_channel_by_idx(size_t idx)
     _count --;
 }
 
-static void reset_flow_by_idx(unsigned int idx)
+static void reset_flow_by_chan_idx(chan_idx_t idx)
 {
     c_xps[idx] = 0;
     c_xpr[idx] = 0;
@@ -214,7 +216,7 @@ static void reset_flow_by_idx(unsigned int idx)
 
 // This punishment action is a result of a message received a worker
 // that is incorrect for the current state.
-static void do_reset(int I, bool_t me)
+static void do_reset(chan_idx_t I, bool_t me)
 {
     int state = c_state[I];
 
@@ -225,7 +227,7 @@ static void do_reset(int I, bool_t me)
 
 // This punishement action is a result of a message received from a
 // worker that is incorrect for the current state.
-static void do_clear(int I, bool_t me)
+static void do_clear(chan_idx_t I, bool_t me)
 {
     int state = c_state[I];
 
@@ -234,12 +236,12 @@ static void do_clear(int I, bool_t me)
 
     // Unlike CLEARs requested by workers, a broker-initiated CLEAR
     // closes the channel immediately.
-    remove_channel_by_idx(I);
+    remove_channel_by_chan_idx(I);
 }
 
 // Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
 // close the channel immediately, and disconnect caller
-static void do_i_disconnect(int I, bool_t me)
+static void do_i_disconnect(chan_idx_t I, bool_t me)
 {
     wkey_t key;
     int ret;
@@ -247,11 +249,11 @@ static void do_i_disconnect(int I, bool_t me)
     if (ret == -1)
         DIAGNOSTIC(C_ADDR(I, me), c_zmq_sendmsg_err, errno2diag());
     key = msg_addr2key(C_ADDR(I,me));
-    remove_channel_by_idx(I);
+    remove_channel_by_chan_idx(I);
     remove_worker_by_key(key);
 }
 
-static void do_y_call_accepted(joza_msg_t *M, int I)
+static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
 {
     char     *xname      = joza_msg_calling_address(M);
     char     *yname      = joza_msg_called_address(M);
@@ -331,7 +333,7 @@ static void do_y_call_accepted(joza_msg_t *M, int I)
 //
 // To resolve this, broker informs Y of the call collision.  Y is
 // supposed to then send a CALL_ACCEPTED.
-static void do_y_call_collision(int I)
+static void do_y_call_collision(chan_idx_t I)
 {
     int me = 1;
     DIAGNOSTIC(C_ADDR(I, me), c_call_collision, d_call_collision);
@@ -339,7 +341,7 @@ static void do_y_call_collision(int I)
 }
 
 // Caller is closing down gracefully
-static void do_i_clear_request(joza_msg_t *M, int I, bool_t me)
+static void do_i_clear_request(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     // The caller's clear request shall only use the diagnostic D_WORKER_REQUESTED.
     if (joza_msg_cause(M) != c_worker_originated)
@@ -353,15 +355,15 @@ static void do_i_clear_request(joza_msg_t *M, int I, bool_t me)
 }
 
 // Caller is responding to a peer's request to close the channel
-static void do_i_clear_confirmation(int I, bool_t me)
+static void do_i_clear_confirmation(chan_idx_t I, bool_t me)
 {
     joza_msg_send_addr_clear_confirmation (g_poll_sock, C_ADDR(I, !me));
     c_state[I] = state_ready;
-    reset_flow_by_idx(I);
-    remove_channel_by_idx(I);
+    reset_flow_by_chan_idx(I);
+    remove_channel_by_chan_idx(I);
 }
 
-static void do_i_data(joza_msg_t *M, int I, bool_t me)
+static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     seq_t pr = joza_msg_pr(M);
     seq_t ps = joza_msg_ps(M);
@@ -403,7 +405,7 @@ static void do_i_data(joza_msg_t *M, int I, bool_t me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow.
-static void do_i_rr(joza_msg_t *M, int I, bool_t me)
+static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     seq_t pr = joza_msg_pr(M);
 
@@ -420,7 +422,7 @@ static void do_i_rr(joza_msg_t *M, int I, bool_t me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow, and that it should stop sending data as soon as possible.
-static void do_i_rnr(joza_msg_t *M, int I, bool_t me)
+static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     seq_t pr = joza_msg_pr(M);
 
@@ -438,7 +440,7 @@ static void do_i_rnr(joza_msg_t *M, int I, bool_t me)
 
 
 // Caller is requesting that callee reset flow control
-static void do_i_reset(joza_msg_t *M, int I, bool_t me)
+static void do_i_reset(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     if (joza_msg_cause(M) != c_worker_originated)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_cause);
@@ -450,26 +452,26 @@ static void do_i_reset(joza_msg_t *M, int I, bool_t me)
 }
 
 // Caller has confirmed callee's request for a reset.
-static void do_i_reset_confirmation(int I, bool_t me)
+static void do_i_reset_confirmation(chan_idx_t I, bool_t me)
 {
     // The worker's reset request shall only use the diagnostic D_WORKER_REQUESTED.
     joza_msg_send_addr_reset_confirmation (g_poll_sock, C_ADDR(I, !me));
-    reset_flow_by_idx(I);
+    reset_flow_by_chan_idx(I);
     c_state[I] = state_data_transfer;
 }
 
 /* Handle message send a worker on this connected channel */
-void channel_dispatch_by_lcn(joza_msg_t *M, ukey_t LCN, bool_t is_y)
+void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y)
 {
     const char *cmdname = NULL, *xname = NULL, *yname = NULL;
-    size_t I;
+    chan_idx_t I;
     state_t state_orig;
     action_t a;
 
     TRACE("In %s(%p,%d,%d)", __FUNCTION__, M, LCN, is_y);
 
     cmdname = joza_msg_const_command(M);
-    I = ukey_find(c_lcn, _count, LCN);
+    I = lcn_find(c_lcn, _count, LCN);
     assert (c_lcn[I] == LCN);
 
     c_mtime[I] = now();

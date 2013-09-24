@@ -28,37 +28,15 @@
 // - the list is strictly monotonically increasing
 
 #include <stdint.h>
-
-#ifndef UKEY_WIDTH
-# define UKEY_WIDTH 2
-#endif
-
-#if UKEY_WIDTH == 1
-typedef uint8_t ukey_t;
-#define UKEY_MIN UINT8_C(0)
-#define UKEY_MAX UINT8_C(SCHAR_MAX)
-#define UKEY_C(x) UINT8_C(x)
-#elif UKEY_WIDTH == 2
-typedef uint16_t ukey_t;
-#define UKEY_MIN UINT16_C(0)
-#define UKEY_MAX UINT16_C(INT16_MAX)
-#define UKEY_C(x) UINT16_C(x)
-#elif UKEY_WIDTH == 4
-typedef uint32_t ukey_t;
-#define UKEY_MIN UINT32_C(0)
-#define UKEY_MAX UINT32_C(INT32_MAX)
-#define UKEY_C(x) UINT32_C(x)
-#else
-# error "Bad UKEY_WIDTH"
-#endif
+#include "mylimits.h"
 
 typedef struct {
-    uint32_t index;
-    ukey_t key;
-} index_ukey_t;
+    chan_idx_t index;
+    lcn_t key;
+} chan_idx_lcn_t;
 
-uint32_t ukey_find(ukey_t arr[], uint32_t n, ukey_t key);
-index_ukey_t ukey_next(ukey_t arr[], uint32_t n, ukey_t key);
+lcn_t lcn_find(lcn_t arr[], chan_idx_t n, lcn_t key);
+chan_idx_lcn_t lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key);
 
-void indexx(ukey_t arr[], uint32_t n, ukey_t indx[]);
+void indexx(lcn_t arr[], uint32_t n, lcn_t indx[]);
 #endif

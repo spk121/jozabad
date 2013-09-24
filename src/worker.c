@@ -48,14 +48,14 @@
   These arrays form a key table whose data is keyed either by
   a string key of the ZMQ address or by name.
 
-  zkey uint32_t   [primary key]    a key created from the ZMQ Router identity
+  wkey  wkey_t   [primary key]    a key created from the ZMQ Router identity
   name  char[17]   [secondary key]  a string name for the connection
   zaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity
   iodir iodir_t                     whether this worker makes or receives calls
   lcn   lcn_t                       Logical Channel Number
   role  role_t                      X (caller), Y (callee), or READY
-  ctime uint64_t                    time this worker was created
-  mtime uint64_t                    time of last message dispatched by this worker
+  ctime double                    time this worker was created
+  mtime double                    time of last message dispatched by this worker
 
   nidx  size_t     [secondary key]  an array that keeps the sort indices
   for the secondary key
@@ -502,7 +502,7 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
         //tput   = tput_throttle(tput, opt_tput);
 
         // Finally, create the raw channel
-        ukey_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname, pkt, window, tput);
+        lcn_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname, pkt, window, tput);
         w_lcn[I] = lcn;
         w_lcn[bi_y.index] = lcn;
         w_role[I] = X_CALLER;
@@ -520,7 +520,7 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
 static void do_disconnect(joza_msg_t *M)
 {
     const zframe_t *addr = joza_msg_const_address(M);
-    uint32_t key = msg_addr2key(addr);
+    wkey_t key = msg_addr2key(addr);
     joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
     remove_worker (key);
 }
