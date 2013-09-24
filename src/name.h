@@ -1,7 +1,8 @@
 #ifndef JOZA_NAME_H
 #define JOZA_NAME_H
 
-/*
+#if 0
+
 #ifndef WIN32
 # include <stdbool.h>
 #else
@@ -17,7 +18,8 @@ typedef union {
     uint64_t u64[2];
 } name_t;
 
-/* Returns TRUE if the worker name N is valid. */
+// Returns TRUE if the worker name N is valid.
 //bool val_name(name_t N);
 
+#endif
 #endif
