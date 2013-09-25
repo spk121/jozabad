@@ -107,17 +107,15 @@ chan_idx_lcn_t lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key)
 
 loop:
     index = lcn_find(arr, n, key);
-    if (index > CHAN_IDX_C(0)) {
-        // If this ID is a duplicate, keyfind() will have suggested
-        // that it be inserted to the right of an entry with the same
-        // ID.  So we check the entry to the left to see if this ID is
-        // a duplicate, and then increment it if necessary.
-        if (arr[index - CHAN_IDX_C(1)] == key) {
-            assert (!did_loop);
-            key = _keynext(arr, n, key, index - CHAN_IDX_C(1));
-            did_loop = TRUE;
-            goto loop;
-        }
+    // If this ID is a duplicate, lcn_find() will have suggested
+    // that it be inserted at the location of an entry with the same
+    // ID.  So we check the entry to the left to see if this ID is
+    // a duplicate, and then increment it if necessary.
+    if (arr[index] == key) {
+        assert (!did_loop);
+        key = _keynext(arr, n, key, index);
+        did_loop = TRUE;
+        goto loop;
     }
     ret.index = index;
     ret.key = key;
