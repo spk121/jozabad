@@ -1,6 +1,8 @@
 # temp files
 *~
 tmp*
+*.orig
+*.log
 
 # Object files
 *.gch
@@ -21,3 +23,5 @@ tmp*
 *.exe
 *.out
 *.app
+tests/*test
+build/jozabad
