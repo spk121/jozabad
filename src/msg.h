@@ -44,6 +44,8 @@ void diagnostic(const zframe_t *A, cause_t C, diag_t D);
 #define DIAGNOSTIC(A,C,D) \
     diagnostic(A,C,D)
 
+#define DISCONNECT_INDICATION(A) \
+    joza_msg_send_addr_connect_indication(g_poll_sock, (A))
 #define CONNECT_INDICATION(A) \
     joza_msg_send_addr_connect_indication(g_poll_sock, (A))
 #define CALL_REQUEST call_request

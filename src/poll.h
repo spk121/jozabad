@@ -28,5 +28,7 @@
 extern void *g_poll_sock;
 void poll_init(bool_t verbose, const char *endpoint);
 void poll_start (void);
+void poll_destroy(void);
+
 #endif
 

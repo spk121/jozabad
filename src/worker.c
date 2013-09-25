@@ -57,7 +57,7 @@
   ctime double                    time this worker was created
   mtime double                    time of last message dispatched by this worker
 
-  nidx  size_t     [secondary key]  an array that keeps the sort indices
+  nidx  worker_idx_t     [secondary key]  an array that keeps the sort indices
   for the secondary key
 */
 
@@ -132,7 +132,7 @@ static worker_idx_t find_idx_from_key(wkey_t arr[], worker_idx_t n, wkey_t X)
 // they point would be in lexicographic order.
 static void sort3 (char *arr[], worker_idx_t indx[], worker_idx_t a, worker_idx_t b, worker_idx_t c)
 {
-    size_t tmp;
+    worker_idx_t tmp;
 #define SWAP(a,b) tmp=(a);(a)=(b);(b)=tmp;
 
     if (strcmp(arr[indx[a]], arr[indx[c]]) > 0) {
@@ -151,9 +151,9 @@ static void sort3 (char *arr[], worker_idx_t indx[], worker_idx_t a, worker_idx_
 // sort the values ARR.  Only modify the entries between [left,right).
 static void iisort(char *arr[], worker_idx_t indx[], worker_idx_t left, worker_idx_t right)
 {
-    size_t i, j;
+    worker_idx_t i, j;
     char *val;
-    size_t index;
+    worker_idx_t index;
 
     for (j = left + 1; j < right; j ++) {
         index = indx[j];
@@ -394,6 +394,7 @@ void remove_worker(wkey_t key)
     i = find_idx_from_key(w_wkey, _count, key);
     if (w_wkey[i] != key)
         return;
+    zframe_destroy(&w_zaddr[i]);
     if (i != WORKER_IDX_MAX && i < _count - 1) {
         REMOVE(w_wkey, i, _count);
         REMOVE(w_zaddr, i, _count);
@@ -406,8 +407,6 @@ void remove_worker(wkey_t key)
     }
     _count --;
 }
-
-#undef REMOVE
 
 bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
 {
@@ -502,7 +501,7 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
         //tput   = tput_throttle(tput, opt_tput);
 
         // Finally, create the raw channel
-        lcn_t lcn = channel_add(addr, xname, w_zaddr[bi_y.index], yname, pkt, window, tput);
+        lcn_t lcn = channel_add(w_zaddr[I], w_pname[I], w_zaddr[bi_y.index], w_pname[bi_y.index], pkt, window, tput);
         w_lcn[I] = lcn;
         w_lcn[bi_y.index] = lcn;
         w_role[I] = X_CALLER;
@@ -512,7 +511,7 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
 
         // Send the call request to the peer
         CALL_REQUEST(w_zaddr[bi_y.index],
-                     addr, xname, yname, pkt, window, tput, zframe_dup(joza_msg_data(M)));
+                     addr, xname, yname, pkt, window, tput, joza_msg_data(M));
     }
 }
 
@@ -523,4 +522,19 @@ static void do_disconnect(joza_msg_t *M)
     wkey_t key = msg_addr2key(addr);
     joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
     remove_worker (key);
+}
+
+void worker_remove_all()
+{
+    for (int i = _count - 1; i >= 0; i --) {
+        zframe_destroy(&w_zaddr[i]);
+        REMOVE(w_wkey, i, _count);
+        REMOVE(w_zaddr, i, _count);
+        REMOVE(w_name, i, _count);
+        REMOVE(w_iodir, i, _count);
+        REMOVE(w_lcn, i, _count);
+        REMOVE(w_role, i, _count);
+        REMOVE(w_ctime, i, _count);
+        REMOVE(w_mtime, i, _count);
+    }
 }

@@ -44,11 +44,11 @@ wkey_t msg_addr2key (const zframe_t *z)
 void diagnostic(const zframe_t *A, cause_t C, diag_t D)
 {
     wkey_t key;
-    bool_index_t bi; 
+    bool_index_t bi;
 
     key = msg_addr2key(A);
     bi = worker_get_idx_by_key(key);
-    INFO("sending DIAGNOSTIC to %s, %s", w_name[bi.index], cause_name(C));
+    INFO("sending DIAGNOSTIC to %s, %s, %s", w_name[bi.index], cause_name(C), diag_name(D));
     joza_msg_send_addr_diagnostic(g_poll_sock, A, C, D);
 }
 

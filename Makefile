@@ -94,5 +94,5 @@ headercheck: $(GCH)
 .PHONY: check-syntax
 
 check-syntax:
-	$(CC) -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
+	$(CC) -std=c11 -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
 

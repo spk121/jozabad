@@ -51,5 +51,6 @@ void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y);
 bool_t channel_available(void);
 lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                   packet_t pkt, seq_t window, tput_t tput);
+void channel_disconnect_all(void);
 
 #endif

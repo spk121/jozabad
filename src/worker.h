@@ -50,4 +50,5 @@ bool_index_t worker_get_idx_by_key(uint32_t key);
 bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I);
 void remove_worker_by_key(wkey_t key);
 void remove_worker(wkey_t key);
+void worker_remove_all(void);
 #endif

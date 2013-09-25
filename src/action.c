@@ -44,6 +44,7 @@ const char action_names[a_last + 1][ACTION_NAME_MAX_LEN + 1] = {
     "Y_DISCONNECT",
     "Y_CALL_REQUEST",
     "Y_CALL_ACCEPTED",
+    "Y_CALL_COLLISION",
     "Y_CLEAR_REQUEST",
     "Y_CLEAR_CONFIRMATION",
     "Y_DATA",

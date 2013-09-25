@@ -78,6 +78,10 @@ typedef enum {
     c_local_procedure_error,
     c_remote_procedure_error,
 
+    // As a response when
+    // - the broker is
+    c_broker_shutdown,
+
     // When the broker shuts down a worker for sending data too quickly
     c_quota_exceeded,
 

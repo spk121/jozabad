@@ -115,11 +115,11 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
     TRACE("In %s(%p,%p,%p)", __FUNCTION__, loop, item, arg);
 
     if (item->revents & ZMQ_POLLIN) {
-        NOTE("Socket has POLLIN");
         msg = joza_msg_recv(g_poll_sock);
         if (msg != NULL) {
             // Process the valid message
             ret = s_process_(msg);
+            joza_msg_destroy(&msg);
         }
     }
 
@@ -192,5 +192,12 @@ void poll_start(void)
 
     NOTE("starting main loop");
     zloop_start(loop);
+}
+
+void poll_destroy(void)
+{
+    zloop_destroy(&loop);
+    zsocket_destroy(ctx, g_poll_sock);
+    zctx_destroy(&ctx);
 }
 

@@ -106,9 +106,15 @@ int main (int argc, char *argv[])
     char *s = (char *)calloc(len, sizeof(char));
     snprintf(s, len, "%s%d", PROTOCOL, main_port);
 
-    poll_init(TRUE, s);
+    if (g_log_level >= 3)
+        poll_init(TRUE, s);
+    else
+        poll_init(FALSE, s);
     poll_start();
-    // finalize_poll();
+
+    channel_disconnect_all();
+    worker_remove_all();
+    poll_destroy();
 
     free(s);
     return 0;

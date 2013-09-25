@@ -123,6 +123,8 @@ bool_t channel_available()
     return ret;
 }
 
+// Make sure that, for xname and yname, you pass a pointer into worker's w_pname store,
+// since we're not duplicating the strings here.
 lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                   packet_t pkt, seq_t window, tput_t tput)
 {
@@ -153,10 +155,10 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
         PUSH(c_tput, iu.index, _count);
     }
     c_lcn[iu.index] = iu.key;
-    c_xzaddr[iu.index] = xzaddr;
-    c_yzaddr[iu.index] = yzaddr;
-    c_xname[iu.index] = cstrdup(xname);
-    c_yname[iu.index] = cstrdup(yname);
+    c_xzaddr[iu.index] = zframe_dup(xzaddr);
+    c_yzaddr[iu.index] = zframe_dup(yzaddr);
+    c_xname[iu.index] = xname;
+    c_yname[iu.index] = yname;
     c_state[iu.index] = state_ready;
     c_xps[iu.index] = SEQ_MIN;
     c_xps[iu.index] = SEQ_MIN;
@@ -173,7 +175,7 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
     _lcn = iu.key;
 
     NOTE("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
-        window, tput_bps(tput));
+         window, tput_bps(tput));
     TRACE("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
           __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput, iu.key);
 
@@ -190,7 +192,9 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
 static void remove_channel_by_chan_idx(chan_idx_t idx)
 {
     if (idx < _count) {
+        zframe_destroy(&c_xzaddr[idx]);
         REMOVE(c_xzaddr, idx, _count);
+        zframe_destroy(&c_yzaddr[idx]);
         REMOVE(c_yzaddr, idx, _count);
         REMOVE(c_xname, idx, _count);
         REMOVE(c_yname, idx, _count);
@@ -218,7 +222,7 @@ static void reset_flow_by_chan_idx(chan_idx_t idx)
 // that is incorrect for the current state.
 static void do_reset(chan_idx_t I, bool_t me)
 {
-    int state = c_state[I];
+    state_t state = c_state[I];
 
     RESET_REQUEST(C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
     RESET_REQUEST(C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
@@ -229,7 +233,7 @@ static void do_reset(chan_idx_t I, bool_t me)
 // worker that is incorrect for the current state.
 static void do_clear(chan_idx_t I, bool_t me)
 {
-    int state = c_state[I];
+    state_t state = c_state[I];
 
     CLEAR_REQUEST(C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
     CLEAR_REQUEST(C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
@@ -321,8 +325,8 @@ static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
 
         c_state[I] = state_data_transfer;
 
-        joza_msg_send_addr_call_accepted (g_poll_sock, C_ADDR(I, !me), xname, yname, pkt, window, tput,
-                                          zframe_dup(joza_msg_data(M)));
+        joza_msg_send_addr_call_accepted (g_poll_sock, C_ADDR(I, !me), xname, yname,
+                                          pkt, window, tput, joza_msg_data(M));
     }
 }
 
@@ -367,13 +371,12 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     seq_t pr = joza_msg_pr(M);
     seq_t ps = joza_msg_ps(M);
-    uint8_t  *data       = zframe_data(joza_msg_data(M));
     size_t   data_len    = zframe_size(joza_msg_data(M));
 
     // First, check if the message is valid
-    if (ps >= SEQ_MAX)
+    if (ps > SEQ_MAX)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_ps_too_large);
-    else if (pr >= SEQ_MAX)
+    else if (pr > SEQ_MAX)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (data_len == 0)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_data_too_short);
@@ -385,7 +388,7 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
     // When caller sends a message, its packet number should match my
     // expected packet number for this caller, and should be in the
     // window of packet numbers that callee has said it will accept.
-    if (ps != C_PS(I, me))
+    else if (ps != C_PS(I, me))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_out_of_order);
     else if (!seq_in_range(ps, C_PR(I, !me), (C_PR(I, !me) + c_window[I]) % SEQ_MAX))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_not_in_window);
@@ -396,8 +399,8 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
     else {
-        joza_msg_send_addr_data (g_poll_sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, zframe_new(data, data_len));
-        SET_C_PS(I, me, (C_PS(I, me) + 1) % SEQ_MAX);
+        joza_msg_send_addr_data (g_poll_sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, joza_msg_data(M));
+        SET_C_PS(I, me, (C_PS(I, me) + 1) % (SEQ_MAX + 1));
         SET_C_PR(I, me, pr);
     }
 }
@@ -409,7 +412,7 @@ static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool_t me)
 {
     seq_t pr = joza_msg_pr(M);
 
-    if (pr >= SEQ_MAX)
+    if (pr > SEQ_MAX)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
@@ -428,7 +431,7 @@ static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool_t me)
 
     // First, check if the message is valid
 
-    if (pr >= SEQ_MAX)
+    if (pr > SEQ_MAX)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
@@ -573,4 +576,18 @@ void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y)
         INFO("%s/%s after %s state is now %s", xname, yname, action_name(a), state_name(c_state[I]));
 
     TRACE("%s(%p,%d,%d) returns void", __FUNCTION__, M, LCN, is_y);
+}
+
+// Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
+// close the channel immediately, and disconnect caller
+void channel_disconnect_all()
+{
+    wkey_t key;
+    int ret;
+    for (int I = _count - 1; I >= 0; I --) {
+        CLEAR_REQUEST(C_ADDR(I, 1), c_broker_shutdown, d_unspecified);
+        CLEAR_REQUEST(C_ADDR(I, 0), c_broker_shutdown, d_unspecified);
+        remove_channel_by_chan_idx(I);
+    }
+    _count = 0;
 }

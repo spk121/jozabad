@@ -37,6 +37,7 @@ static const char cause_names[c_last + 1][30] = {
     "C_NETWORK_CONGESTION",
     "C_LOCAL_PROCEDURE_ERROR",
     "C_REMOTE_PROCEDURE_ERROR",
+    "C_BROKER_SHUTDOWN",
     "C_QUOTA_EXCEEDED"
 };
 
