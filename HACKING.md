@@ -99,3 +99,11 @@ Probably should just have a fixed-length UTF-8 string that passes rules like SAS
 GNU libidn could be used for that.
 
 There's also GNU SASL if I want simple authentication / OpenID.
+
+## ELF ##
+
+`objdump -h -s <file>` lets me check the contents of .rodata to make sure my constant data is going in the right place
+
+`strip -s <file>` strips all symbol and relocation info
+
+`strip -R .comment <file>` removes the compiler version from the elf
