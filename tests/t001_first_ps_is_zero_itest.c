@@ -9,7 +9,7 @@
 #include "call_setup.h"
 
 int main(int argc, char** argv) {
-    int verbose = 1;
+    int verbose = getenv("JOZA_VERBOSE_TEST");
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
     char *calling_address2 = "EVE";
@@ -25,13 +25,9 @@ int main(int argc, char** argv) {
     char *data = "DATA";
 
     initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
-
     initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, dir);
-
     call_setup (verbose, sock1, sock2, calling_address1, calling_address2, packet, window, thru);
 
-    // The first data message sent should have a PS of Zero.  If it
-    // doesn't it should receive an error.
     if (verbose)
         printf("peer X: sending data to broker with bad initial PS = 2\n");
     ret = joza_msg_send_data(sock1, 0, 0, 2, zframe_new(data, 4));
@@ -54,8 +50,9 @@ int main(int argc, char** argv) {
     else if(joza_msg_cause(response) != c_local_procedure_error
             || joza_msg_diagnostic(response) != d_ps_out_of_order) {
         if (verbose)
-            printf("peer X: did not received correct diagnostic (%d/%d)", joza_msg_cause(response),
-                   joza_msg_diagnostic(response));
+            printf("peer X: did not received correct diagnostic (%s/%s)\n",
+                   cause_name(joza_msg_cause(response)),
+                   diag_name(joza_msg_diagnostic(response)));
         exit(1);
     }
 
@@ -81,8 +78,9 @@ int main(int argc, char** argv) {
     else if(joza_msg_cause(response) != c_local_procedure_error
             || joza_msg_diagnostic(response) != d_ps_out_of_order) {
         if (verbose)
-            printf("peer Y: did not received correct diagnostic (%d/%d)", joza_msg_cause(response),
-                   joza_msg_diagnostic(response));
+            printf("peer Y: did not received correct diagnostic (%d/%d)\n",
+                   cause_name(joza_msg_cause(response)),
+                   diag_name(joza_msg_diagnostic(response)));
         exit(1);
     }
 
