@@ -57,8 +57,8 @@ All the documentation is missing. ;-)
 *** DONE should error if ps is repeated
 *** DONE should error if ps decreased
 *** DONE should error is ps is greater than 32767
-*** TODO should not error when ps wraps from 32767 to 0
-*** TODO should error is ps is not in window
+*** DONE should not error when ps wraps from 32767 to 0
+*** DONE should error is ps is not in window
 
 ** Missing tests for Invalid pr
 *** TODO should error if pr is more than last ps + 1
