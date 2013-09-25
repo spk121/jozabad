@@ -54,9 +54,9 @@ All the documentation is missing. ;-)
 ** Tests for Invalid ps
 *** DONE should error if first message sent has non-zero ps
 *** DONE should error if ps increases by more than 1
-*** TODO should error if ps is repeated
-*** TODO should error if ps decreased
-*** TODO should error is ps is greater than 32767
+*** DONE should error if ps is repeated
+*** DONE should error if ps decreased
+*** DONE should error is ps is greater than 32767
 *** TODO should not error when ps wraps from 32767 to 0
 *** TODO should error is ps is not in window
 
