@@ -8,7 +8,8 @@
 #include "initialize.h"
 #include "call_setup.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int verbose = 1;
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
                 printf("%s: received data\n", i ? calling_address1 : calling_address2);
             }
         }
-        
+
         if (verbose)
             printf("%s: sending data with bad decreasing PS = 0\n", prefix);
         ret = joza_msg_send_data(sock, 0, 0, 0, zframe_new(data, 4));
@@ -94,16 +95,14 @@ int main(int argc, char** argv) {
                 joza_msg_dump(response);
             }
             exit (1);
-        }   
-        else if(joza_msg_cause(response) != c_local_procedure_error) {
+        } else if(joza_msg_cause(response) != c_local_procedure_error) {
             if (verbose)
                 printf("%s: did not received correct cause (%d/%d)\n",
                        prefix,
                        joza_msg_cause(response),
                        joza_msg_diagnostic(response));
             exit(1);
-        }
-        else if (joza_msg_diagnostic(response) != d_ps_out_of_order) {
+        } else if (joza_msg_diagnostic(response) != d_ps_out_of_order) {
             if (verbose)
                 printf("%s: did not received correct diagnostic (%d/%d)\n",
                        prefix,
@@ -112,7 +111,7 @@ int main(int argc, char** argv) {
             exit(1);
         }
     }
-    
+
 
     if (verbose)
         printf("SUCCESS\n");

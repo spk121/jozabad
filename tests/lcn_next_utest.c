@@ -21,21 +21,17 @@ int check_func_lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key, chan_idx_lcn_t exp
     if (n == 0) {
         check(rc.index == expected.index && rc.key == expected.key,
               "Function %s returns {%d,%d} for data: [] %d %d", FUNC, rc.index, rc.key, n, key);
-    }
-    else if (n == 1) {
+    } else if (n == 1) {
         check(rc.index == expected.index && rc.key == expected.key,
               "Function %s returns {%d,%d} for data: [%d] %d %d", FUNC, rc.index, rc.key, arr[0], n, key);
-    }
-    else if (n == 2) {
+    } else if (n == 2) {
         check(rc.index == expected.index && rc.key == expected.key,
               "Function %s returns {%d,%d} for data: [%d,%d] %d %d", FUNC, rc.index, rc.key, arr[0], arr[1], n, key);
-    }
-    else if (n == 3) {
+    } else if (n == 3) {
         check(rc.index == expected.index && rc.key == expected.key,
               "Function %s returns {%d,%d} for data: [%d,%d,%d] %d %d", FUNC, rc.index, rc.key, arr[0], arr[1], arr[2], n, key);
 
-    }
-    else if (n >= 3) {
+    } else if (n >= 3) {
         check(rc.index == expected.index && rc.key == expected.key,
               "Function %s returns {%d,%d} for data: [%d,%d,%d,...] %d %d", FUNC, rc.index, rc.key, arr[0], arr[1], arr[2], n, key);
     }
@@ -102,7 +98,8 @@ char *test_dlclose()
     return NULL;
 }
 
-char *all_tests() {
+char *all_tests()
+{
     mu_suite_start();
 
     mu_run_test(test_dlopen);

@@ -9,7 +9,8 @@
 #include "initialize.h"
 #include "call_setup.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int verbose = getenv("JOZA_VERBOSE_TEST");
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
@@ -94,16 +95,14 @@ int main(int argc, char** argv) {
                 joza_msg_dump(response);
             }
             exit (1);
-        }   
-        else if(joza_msg_cause(response) != c_malformed_message) {
+        } else if(joza_msg_cause(response) != c_malformed_message) {
             if (verbose)
                 printf("%s: did not received correct cause (%d/%d)\n",
                        prefix,
                        joza_msg_cause(response),
                        joza_msg_diagnostic(response));
             exit(1);
-        }
-        else if (joza_msg_diagnostic(response) != d_ps_too_large) {
+        } else if (joza_msg_diagnostic(response) != d_ps_too_large) {
             if (verbose)
                 printf("%s: did not received correct diagnostic (%d/%d)\n",
                        prefix,
@@ -112,7 +111,7 @@ int main(int argc, char** argv) {
             exit(1);
         }
     }
-    
+
 
     if (verbose)
         printf("SUCCESS\n");

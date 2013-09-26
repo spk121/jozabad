@@ -9,7 +9,8 @@
 #include "initialize.h"
 #include "call_setup.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int verbose = getenv("JOZA_VERBOSE_TEST");
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
@@ -45,7 +46,7 @@ int main(int argc, char** argv) {
                     printf("%s: joza_msg_send_data (PS=%d) returned %d\n", prefix, j, ret);
                 exit(1);
             }
-            
+
             // Receive the X data message on Y
             response = joza_msg_recv(i ? sock1 : sock2);
             if (joza_msg_id(response) != JOZA_MSG_DATA) {
@@ -64,7 +65,7 @@ int main(int argc, char** argv) {
                 printf("%s: joza_msg_send_data (PS=3) returned %d\n", prefix, ret);
             exit(1);
         }
-        
+
         if (verbose)
             printf("%s: waiting for diagnostic\n", prefix);
         response = joza_msg_recv(sock);
@@ -74,16 +75,14 @@ int main(int argc, char** argv) {
                 joza_msg_dump(response);
             }
             exit (1);
-        }   
-        else if(joza_msg_cause(response) != c_local_procedure_error) {
+        } else if(joza_msg_cause(response) != c_local_procedure_error) {
             if (verbose)
                 printf("%s: did not received correct cause (%s/%s)\n",
                        prefix,
                        cause_name(joza_msg_cause(response)),
                        diag_name(joza_msg_diagnostic(response)));
             exit(1);
-        }
-        else if (joza_msg_diagnostic(response) != d_ps_not_in_window) {
+        } else if (joza_msg_diagnostic(response) != d_ps_not_in_window) {
             if (verbose)
                 printf("%s: did not received correct diagnostic (%s/%s)\n",
                        prefix,

@@ -3,9 +3,6 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include "lib.h"
-#ifndef JOZA_LIB_INCLUDE
-#error "JOZA_LIB_INCLUDE not defined"
-#endif
 
 
 typedef int (*lib_function)(const char *data);
@@ -22,17 +19,13 @@ int check_func_ifind(uint32_t arr[], size_t n, uint32_t X, size_t expected)
     size_t rc = func(arr, n, X);
     if (n == 0) {
         check(rc == expected, "Function %s return %d for data: [] %d %d", FUNC, rc, n, X);
-    }
-    else if (n == 1) {
+    } else if (n == 1) {
         check(rc == expected, "Function %s return %d for data: [%d] %d %d", FUNC, rc, arr[0], n, X);
-    }
-    else if (n == 0) {
+    } else if (n == 0) {
         check(rc == expected, "Function %s return %d for data: [%d,%d] %d %d", FUNC, rc, arr[0], arr[1], n, X);
-    }
-    else if (n == 3) {
+    } else if (n == 3) {
         check(rc == expected, "Function %s return %d for data: [%d,%d,%d] %d %d", FUNC, rc, arr[0], arr[1], arr[2], n, X);
-    }
-    else if (n >= 3) {
+    } else if (n >= 3) {
         check(rc == expected, "Function %s return %d for data: [%d,%d,%d,...] %d %d", FUNC, rc, arr[0], arr[1], arr[2], n, X);
     }
 
@@ -100,7 +93,8 @@ char *test_dlclose()
     return NULL;
 }
 
-char *all_tests() {
+char *all_tests()
+{
     mu_suite_start();
 
     mu_run_test(test_dlopen);

@@ -9,7 +9,8 @@
 #include "initialize.h"
 #include "call_setup.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int verbose = getenv("JOZA_VERBOSE_TEST");
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
@@ -94,7 +95,7 @@ int main(int argc, char** argv) {
             exit (1);
         }
     }
-    
+
 
     if (verbose)
         printf("SUCCESS\n");

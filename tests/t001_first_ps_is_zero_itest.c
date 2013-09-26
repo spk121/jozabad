@@ -8,7 +8,8 @@
 #include "initialize.h"
 #include "call_setup.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     int verbose = getenv("JOZA_VERBOSE_TEST");
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
@@ -46,9 +47,8 @@ int main(int argc, char** argv) {
             joza_msg_dump(response);
         }
         exit (1);
-    }   
-    else if(joza_msg_cause(response) != c_local_procedure_error
-            || joza_msg_diagnostic(response) != d_ps_out_of_order) {
+    } else if(joza_msg_cause(response) != c_local_procedure_error
+              || joza_msg_diagnostic(response) != d_ps_out_of_order) {
         if (verbose)
             printf("peer X: did not received correct diagnostic (%s/%s)\n",
                    cause_name(joza_msg_cause(response)),
@@ -74,9 +74,8 @@ int main(int argc, char** argv) {
             joza_msg_dump(response);
         }
         exit (1);
-    }   
-    else if(joza_msg_cause(response) != c_local_procedure_error
-            || joza_msg_diagnostic(response) != d_ps_out_of_order) {
+    } else if(joza_msg_cause(response) != c_local_procedure_error
+              || joza_msg_diagnostic(response) != d_ps_out_of_order) {
         if (verbose)
             printf("peer Y: did not received correct diagnostic (%d/%d)\n",
                    cause_name(joza_msg_cause(response)),
