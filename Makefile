@@ -84,7 +84,7 @@ check:
 
 # Enforce some style
 pretty:
-	astyle --style=stroustrup --lineend=linux --convert-tabs $(SOURCES) $(HEADERS)
+	astyle --style=stroustrup --lineend=linux --convert-tabs $(SOURCES) $(HEADERS) $(ITEST_SRC) $(UTEST_SRC)
 
 %.gch: %.h
 	$(CC) $(CFLAGS) -o $@ $<
