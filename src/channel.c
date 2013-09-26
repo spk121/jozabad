@@ -71,8 +71,8 @@ lcn_t c_lcn[CHAN_COUNT];
 zframe_t *c_xzaddr[CHAN_COUNT]; /* ZMQ address of caller X */
 zframe_t *c_yzaddr[CHAN_COUNT]; /* ZMQ address of callee Y */
 chan_idx_t c_yidx[CHAN_COUNT]; /* index array that sorts ykey array */
-char *c_xname[CHAN_COUNT];
-char *c_yname[CHAN_COUNT];
+const char *c_xname[CHAN_COUNT];
+const char *c_yname[CHAN_COUNT];
 state_t c_state[CHAN_COUNT];
 static seq_t c_xps[CHAN_COUNT]; /* sequence number of packets sent by X */
 static seq_t c_xpr[CHAN_COUNT]; /* lowest packet sequence permitted to send to X */
@@ -582,8 +582,6 @@ void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y)
 // close the channel immediately, and disconnect caller
 void channel_disconnect_all()
 {
-    wkey_t key;
-    int ret;
     for (int I = _count - 1; I >= 0; I --) {
         CLEAR_REQUEST(C_ADDR(I, 1), c_broker_shutdown, d_unspecified);
         CLEAR_REQUEST(C_ADDR(I, 0), c_broker_shutdown, d_unspecified);

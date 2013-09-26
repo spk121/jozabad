@@ -40,8 +40,8 @@ extern lcn_t c_lcn[CHAN_COUNT];
 extern zframe_t *c_xzaddr[CHAN_COUNT]; /* ZMQ address of caller X */
 extern zframe_t *c_yzaddr[CHAN_COUNT]; /* ZMQ address of callee Y */
 extern chan_idx_t c_yidx[CHAN_COUNT]; /* index array that sorts ykey array */
-extern char *c_xname[CHAN_COUNT];
-extern char *c_yname[CHAN_COUNT];
+extern const char *c_xname[CHAN_COUNT];
+extern const char *c_yname[CHAN_COUNT];
 extern packet_t c_pkt[CHAN_COUNT];
 extern tput_t c_tput[CHAN_COUNT]; /* bits/sec permitted on this channel */
 extern seq_t c_window[CHAN_COUNT];
