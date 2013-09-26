@@ -390,7 +390,7 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
     // window of packet numbers that callee has said it will accept.
     else if (ps != C_PS(I, me))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_out_of_order);
-    else if (!seq_in_range(ps, C_PR(I, !me), (C_PR(I, !me) + c_window[I]) % SEQ_MAX))
+    else if (!seq_in_range(ps, C_PR(I, !me), (C_PR(I, !me) + c_window[I] - 1) % SEQ_MAX))
         DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_not_in_window);
     // When X updates its own window of packets that it will accept,
     // its new lowest packet number that X will allow should be

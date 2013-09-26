@@ -46,6 +46,15 @@ bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi)
     return FALSE;
 }
 
+int window_rngchk(seq_t x)
+{
+    if (x < WINDOW_MIN)
+        return -1;
+    else if (x > WINDOW_MAX)
+        return 1;
+    return 0;
+}
+
 // Checks to see if, in the context of an CALL_REQUEST negotiation, it
 // is valid to set the throughput from CURRENT to REQUEST.  Returns
 // non-zero if true.

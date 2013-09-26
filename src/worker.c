@@ -445,7 +445,7 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
     tput_t   tput        = (tput_t) joza_msg_throughput(M);
     int      tput_rcheck = tput_rngchk(tput);
     seq_t    window      = joza_msg_window(M);
-    int      window_rcheck = seq_rngchk(window);
+    int      window_rcheck = window_rngchk(window);
     size_t   data_len    = zframe_size(joza_msg_data(M));
     bool_index_t bi_y    = worker_get_idx_by_name(yname);
 

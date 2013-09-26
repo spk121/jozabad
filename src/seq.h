@@ -36,5 +36,6 @@
 int seq_rngchk(seq_t x);
 bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi);
 int window_negotiate(seq_t request, seq_t current);
+int window_rngchk(seq_t x);
 
 #endif

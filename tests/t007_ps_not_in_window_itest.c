@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
         void *sock = i ? sock2 : sock1;
         void *other_sock = i ? sock1 : sock2;
 
-        for (int j = 0; j < 3; j ++) {
+        for (int j = 0; j < window; j ++) {
             // Send a X data message
             if (verbose)
                 printf("%s: sending data to broker with PS %d in window\n", prefix, j);
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
         }
 
         if (verbose)
-            printf("%s: sending data to broker with PS 3 *not* in window\n", prefix);
-        ret = joza_msg_send_data(sock, 0, 0, 3, zframe_new(data, 4));
+            printf("%s: sending data to broker with PS %d *not* in window\n", prefix, window);
+        ret = joza_msg_send_data(sock, 0, 0, window, zframe_new(data, 4));
         if (ret != 0) {
             if (verbose)
                 printf("%s: joza_msg_send_data (PS=3) returned %d\n", prefix, ret);
