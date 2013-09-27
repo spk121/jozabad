@@ -1,0 +1,462 @@
+\input texinfo @c -*- Mode: texinfo; Fill-column: 70; coding: utf-8 -*-
+@c %**start of header
+@setfilename jozabad.info
+@documentencoding UTF-8
+@include version.texi
+@settitle JOZABAD @value{VERSION}
+
+@syncodeindex fn cp
+@syncodeindex vr cp
+@syncodeindex ky cp
+@syncodeindex pg cp
+@syncodeindex tp cp
+
+@c %**end of header
+
+@copying
+This manual is for the Jozabad project, (version
+@value{VERSION}, @value{UPDATED}).  It provides a lightweight server
+for chat-like protocols, and a client library.
+
+Copyright @copyright{} 2013 Michael L. Gran @*
+
+@quotation
+
+LICENSE GOES HERE
+
+@end quotation
+@end copying
+
+@titlepage
+@title JOZABAD
+@subtitle For version @value{VERSION}, @value{UPDATED}
+@author Michael L. Gran
+
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@summarycontents
+
+@contents
+
+@ifnottex
+@node Top, The Switched Virtual Circuit Protocol, (dir), (dir)
+@top JOZABAD
+@insertcopying
+
+@menu
+* The Switched Virtual Circuit Protocol::
+* Worker to broker interface::
+* Worker to worker interface::
+* Index::
+
+@detailmenu
+ --- The Detailed Node Listing ---
+
+The Switched Virtual Circuit Protocol
+
+* Introduction::
+
+Worker to broker interface
+
+* The worker registry::
+* Basic packet structure::
+* Procedure for connection::
+* Error handling::
+* Directory requests::
+* Disconnection requests::
+
+Worker to worker interface
+
+* Call request packet::
+* Call accepted packet::
+* Call collision::
+* Clearing by a worker::
+* Clearing by the broker::
+* Clear collision::
+* Unsuccessful call::
+* Data::
+
+@end detailmenu
+@end menu
+
+@end ifnottex
+
+@node The Switched Virtual Circuit Protocol, Worker to broker interface, Top, Top
+@chapter The Switched Virtual Circuit Protocol
+
+@menu
+* Introduction::
+@end menu
+
+@node Introduction,  , The Switched Virtual Circuit Protocol, The Switched Virtual Circuit Protocol
+@section Introduction
+
+Jozabad is a project that consists of a custom hub-and-spoke
+communication protocol called the Switched Virtual Circuit protocol,
+or ``SVC'', along with a broker and a client library.  Workers connect
+to a broker and send messages to the broker. The broker joins pairs of
+workers together in channels and forwards messages between connected
+workers.  Jozabad is thus, basically, like a telephone exchange. It is
+inspired by the ITU's X.25 protocol, but, is simplified.
+
+The basic goals of the protocol are these:
+
+The broker ensures that
+@itemize
+@item
+messages are valid
+@item
+data rates are obeyed
+@end itemize
+
+A worker can
+@itemize
+@item
+connect / disconnect to the broker at will
+@item
+get a list of other workers from the broker
+@item
+request a channel with any other idle worker
+@end itemize
+
+The channel
+@itemize
+@item
+is exclusive -- a worker can have only one channel at a time
+@item
+is persistent -- it exists as long as the workers want
+@item
+is stateful
+@item
+is pseudonymous -- the workers only know one-anothers' pseudonym
+@end itemize
+
+The future goals of the protocol are these:
+@itemize
+@item
+The protocol will use future ZeroMQ security protocols to authenticate
+workers and encrypt traffic.
+@end itemize
+
+The name ``Jozabad'' refers to a talented archer that fought with the
+biblical King David. The image the archer is a metaphor for
+hub-to-node information transmission.
+
+Jozabad is the lowest level of a three layer application stack.
+@itemize
+@item
+@emph{Jozabad} handles low-level communication.
+@item
+@emph{Johanan} is a packet assembler and disassembler, automatically
+sending and receiving data from I/O buffers when required.
+@item
+@emph{Jahaziel} is an interpretation of the Videotex text protocol
+with in-band escapes for colors, graphics, and audio. It also has a
+sample rendering engine.
+@end itemize
+
+The Switched Virtual Channel Protocol had two roles: @emph{workers}
+and a @emph{broker}.
+
+@cindex worker
+
+The @emph{workers} are processes that need one-on-one communication
+channel with other workers.  They could be clients, servers, or a
+combination of the two.  The SVC doesn't specify.
+
+@cindex broker
+
+The @emph{broker} is a middle-man whose purpose is to protect the
+anonymity of its workers and to ensure that data rate limits are not
+exceeded.
+
+
+@node  Worker to broker interface, Worker to worker interface, The Switched Virtual Circuit Protocol, Top
+@chapter Worker to broker interface
+
+@cindex ZeroMQ
+
+ZeroMQ is used as the transport mechanism for this protocol.  Each
+worker has a single Dealer socket which connects to a broker's Router
+socket using a TCP transport.  The default port is 516, which the IANA
+has reserved for Videotex.
+
+Each packet transferred from worker to broker must be in a set of
+defined packet formats, described herein.
+
+This chapter describes the interactions that a worker may have with a
+broker.  For information on interactions that workers may have with
+one-another, see @ref{Worker to worker interface}.  Formats are described
+specifically in @ref{Packet formats}.
+
+Nominally, a worker will connect with the broker with @code{connect}
+request, wait for a @code{connect indication} response, request a list
+of other workers with a @code{directory request} message, receive that
+directory in a @code{directory} message, possibly communicate with
+another worker as described in @ref{Worker to worker interface}, and
+then disconnect with a @code{disconnect} message.
+
+For the actions taken by the broker on receipt of packets @xref{Broker
+actions}.
+
+@anchor{Packet formats}
+
+@menu
+* The worker registry::
+* Basic packet structure::
+* Procedure for connection::
+* Error handling::
+* Directory requests::
+* Disconnection requests::
+@end menu
+
+@node The worker registry, Basic packet structure, Worker to broker interface, Worker to broker interface
+@section The worker registry
+
+In this protocol, all communcation is between the worker and the
+broker.  Before the worker starts sending requests to the broker, it
+first must properly register itself with the broker.
+
+The broker keeps an internal list of all the workers with which it is
+currently interacting.  Packets received from workers that are not in
+the registry are ignored by the broker.
+
+@node Basic packet structure, Procedure for connection, The worker registry, Worker to broker interface
+@section Basic packet structure
+
+Every packet transferred across the worker / broker interface consists
+of a ZeroMQ message frame that has at least three octets.  There is a
+two octet signature and a single octet message identifier.  Other
+fields and data frames are appended as required (@pxref{Packet formats}).
+
+Packet types and their basic use are given in
+@ref{table:packettypes}.
+
+@float Table,table:packettypes
+@shortcaption{Packet types and their use}
+@caption{This is a list of packet types and their use in various
+services.  `W to B' indicates messages sent from workers to the
+broker. `B to W' is broker to worker. `W to W' is messages sent from workers
+to the broker to be forwarded on to another worker.}
+@multitable @columnfractions .4 .1 .1 .1
+@headitem Packet Type @tab W to B @tab B to W @tab W to W
+@item Connect request @tab X @tab @tab
+@item Connect indication @tab @tab X @tab
+@item Disconnect @tab X @tab @tab
+@item Disconnect indication @tab @tab X @tab
+@item Directory request @tab X @tab @tab
+@item Directory @tab @tab X @tab
+@item Data @tab @tab @tab X
+@item RR (Receive Ready) @tab @tab @tab X
+@item RNR (Receive Not Ready) @tab @tab @tab X
+@item Clear request @tab @tab X @tab X
+@item Clear confirmation @tab X @tab @tab X
+@item Reset request @tab @tab X @tab X
+@item Reset confirmation @tab X @tab @tab X
+@end multitable
+@end float
+
+@node Procedure for connection, Error handling, Basic packet structure, Worker to broker interface
+@section Procedure for connection
+
+The connection procedure is used to register a worker with the broker
+so that it will not ignore messages from that worker.
+
+A worker, after connecting its ZeroMQ dealer socket to a broker's
+router socket, requests a connection by sending a @code{connect}
+message.  In the message, the worker gives its desired
+pseudonym and its @emph{directionality} -- whether it intends to make
+calls, receive calls, or both.
+
+The broker will respond with either a @code{connect indication}
+message, if the connection request is accepted, or with a
+@code{diagnostic} message, if the connection request is rejected.
+
+The maximum time a worker should have to wait for a response from the
+broker should not exceed time-limit T20 (@pxref{Time limits}).
+
+@node Error handling, Directory requests, Procedure for connection, Worker to broker interface
+@section Error handling
+
+@ref{table:errorhandling} specifies the reaction of the broker when
+special error conditions are encountered. Every message that a worker
+sends may be rejected by the broker.  In that case, the broker will
+send a @code{diagnostic} message back to the worker.  The
+@code{diagnostic} message contains information about the reason for
+which a message was rejected.
+
+@node Directory requests, Disconnection requests, Error handling, Worker to broker interface
+@section Directory requests
+
+Once connected, a worker will probably wish to know what other workers
+are currently connected.  For this, it sends a @code{directory request}
+request to the broker.
+
+The broker will respond with a @code{directory} message which
+contains a list of all the currently connected workers.  
+
+The @code{directory} message can be quite large, so it may not be
+requested more frequently than time-limit T2 (@pxref{Time limits})
+under penalty of disconnection.
+
+The maximum time a worker should have to wait for a response from the
+broker should not exceed time-limit T21 (@pxref{Time limits}).
+
+@node Disconnection requests,  , Directory requests, Worker to broker interface
+@section Disconnection requests
+
+@subsection Disconnection requests from the worker
+Well behaved workers will send @code{disconnect} requests before they
+disconnect, so that they broker knows that it should remove them from
+the directory.
+
+The broker will respond with a @code{disconnect indication} message,
+but, the worker is under no obligation to wait for the message and may
+ignore it.
+
+@subsection Disconnection by the broker
+
+The broker may send a @code{disconnect indication} message to a worker
+at any time.  This may occur if the broker is shutting down, or if the
+broker is punishing the worker for using too much bandwidth or for
+being idle for too long.
+
+The worker need not respond.  Its responses would be ignored anyway.
+
+@node Worker to worker interface, Index, Worker to broker interface, Top
+@chapter Worker to worker interface
+
+Once a worker is connected to the broker, it may set up a two-way
+communication channel with another worker, aka a @emph{logical channel}.
+Nominally a worker will send a @code{call request} message to
+establish a logical channel, wait for a @code{call accepted} response,
+send and receive @code{data} messages, controlling flow using the
+@code{RR} (receive ready) messages, and then shut down the
+logical channel using a @code{clear request}.
+
+All message traffic passes through the broker, which is necessary to
+keep each worker as anonymous as possible.  The broker will validate
+worker-to-worker messages and then foward them along.
+
+When discussing the state, the two workers on a logical channel are
+labelled @emph{X} and @emph{Y}.  The worker @emph{X} is the worker
+that send the @code{call request}.  The worker @emph{Y} is the worker
+that accepts the @code{call request}.
+
+@ref{fig:statemachinex} shows the state diagram that defines the
+allowed actions for worker @emph{X} on a virtual call.  For worker
+@emph{Y}, the same state machine applies if you swap `send' and `receive'.
+
+@float Figure,fig:statemachinex
+@shortcaption{State machine of worker X}
+
+@caption{This is the state diagram that worker X is expected to
+follow.  The circles represent states and the lines show how sending
+or receiving messages will modify the state.  Messages sent to the
+broker in violation of the state machine will be rejected by the
+broker.}
+
+@image{state,5in}
+@end float
+
+For the actions taken by the broker on receipt of packets @xref{Broker
+actions}.
+
+@menu
+* Call request packet::
+* Call accepted packet::
+* Call collision::
+* Clearing by a worker::
+* Clearing by the broker::
+* Clear collision::
+* Unsuccessful call::
+* Data::
+@end menu
+
+@node Call request packet, Call accepted packet, Worker to worker interface, Worker to worker interface
+@section Call request packet
+The calling worker indicates a call request by transferring a
+@code{call request} packet to the broker.  The call request packet
+includes the called worker's pseudonym.
+
+In the @code{call request} the worker states its pseudonym, the
+pseudonym of the worker that it wishes to contact, the maximum packet
+size, the maximum data rate, and a flow control parameters.
+
+The broker will validate the @code{call request} packet and forward it
+along.  The broker might reduce the packet size or data rate
+parameters before forwarding it.
+
+After sending out a call request packet, the worker should consider
+itself to be in the @code{X Call Request} state.
+
+@node Call accepted packet, Call collision, Call request packet, Worker to worker interface
+@section Call accepted packet
+If the called worker approves of the connection request, the calling
+worker will either receive a @code{call accepted} packet.  This packet
+will repeat back the called and calling pseudonyms, max data rate, max
+packet size, and flow control parameters.  They may have been modified
+from the values that the calling worker sent out.
+
+After receiving a @code{call accepted} packet, the worker should
+consider itself to be in the @code{Data Transfer} state.
+
+@node Call collision, Clearing by a worker, Call accepted packet, Worker to worker interface
+@section Call collision
+Call collision occurs when two workers send one another @code{call
+request} packets simultaneously.  When a calling worker receives a
+@code{diagnostic} packet informing it of a call collision in lieu of
+receiving a @code{call accepted} packet, it will know that call
+collision has occurred.  It is now worker @emph{Y}, the callee, and
+not the worker @emph{X}, the caller.  When that occurrs, worker
+@emph{X} should continue to wait for a @code{call accepted} packet
+from worker @emph{Y}.
+
+@node Clearing by a worker, Clearing by the broker, Call collision, Worker to worker interface
+@section Clearing by a worker
+At any time, a worker may indicate that it is ``clearing'' the
+channel.  Clearing the channel is ending this worker-to-worker
+connection.  It will send a @code{clear request}.  The broker will
+foward this along to the other worker.
+
+The worker will eventually receive a response of @code{clear
+confirmation} from the broker.  After receiving @code{clear
+confirmation}, the logical channel is closed by the broker and will no
+longer forward packets between these two workers.
+
+@node Clearing by the broker, Clear collision, Clearing by a worker, Worker to worker interface
+@section Clearing by the broker
+If a channel is misbehaving, the broker itself may send a @code{clear
+request} to both workers on the channel.  
+
+@node Clear collision, Unsuccessful call, Clearing by the broker, Worker to worker interface
+@section Clear collision
+If both workers simultaneously send @code{clear request} messages,
+this is a @emph{clear collision}.  If a worker receives a @code{clear
+request} when it is expecting a @code{clear confirmation}, it should
+treat that request as a confirmation and then assume that the channel
+is closed.
+
+@node Unsuccessful call, Data, Clear collision, Worker to worker interface
+@section Unsuccessful call
+If the broker can't establish a logical channel between workers after
+receiving a @code{call request} from a worker, the will respond with a
+@code{clear request}, specifying the reason for the failure.
+
+@node Data,  , Unsuccessful call, Worker to worker interface
+@section Data, RR, and RNR packets
+Once a call has been established and has reached the @code{Data
+Transfer} state, the two workers are finally ready to send data back
+and forth.
+
+@anchor{Broker actions}
+@anchor{Time limits}
+@anchor{table:errorhandling}
+
+@node Index,  , Worker to worker interface, Top
+@unnumbered Index
+@printindex cp
+@bye

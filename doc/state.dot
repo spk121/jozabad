@@ -1,0 +1,64 @@
+digraph state {
+  node [nodesep=2.0, fontsize=11];
+  graph [overlap = false];
+/*  subgraph cluster_a {
+    style=invisible;
+    rank=1;
+    s1;
+  }  */
+splines=true;
+// sep="+25,25";
+overlap=scalexy;
+// nodesep=0.6;
+s1 [label="(BEGIN)"]
+s2 [label="X CALL\nREQUEST"]
+// s3 [label="RECV CALL\nREQUEST"]
+s4 [label="DATA\nTRANSFER"]
+s5 [label="CALL\nCOLLISION"]
+s6 [label="X CLEAR\nREQUEST"]
+s7 [label="Y CLEAR\nREQUEST"]
+s8 [label="X RESET\nREQUEST"]
+s9 [label="Y RESET\nREQUEST"]
+s10 [label="(END)"]
+
+s1 -> s2 [minlen=1 fontsize=7 label="SEND\nCALL\nREQ"]
+
+s2 -> s4 [fontsize=7 label="RECV\nCALL\nACCEPTED"]
+s2 -> s5 [fontsize=7 label="RECV\nCALL\nREQ"]
+s2 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+s2 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+
+// s3 -> s5 [fontsize=7 label="SEND\nCALL\nREQ"]
+// s3 -> s4 [fontsize=7 label="SEND\nCALL\nACCEPTED"]
+// s3 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+// s3 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+
+s4 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+s4 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+s4 -> s8 [fontsize=7 label="SEND\nRESET\nREQ"]
+s4 -> s9 [fontsize=7 label="RECV\nRESET\nREQ"]
+
+s4 -> s4 [fontsize=6 label="SEND\nDATA\nRR\nRNR"]
+s4 -> s4 [fontsize=6 label="RECV\nDATA\nRR\nRNR"]
+
+s5 -> s4 [fontsize=7 label="RECV\nCALL\nACCEPT"]
+s5 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+s5 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+
+s6 -> s10 [fontsize=7 label="RECV\nCLR\nREQ"]
+s6 -> s10 [fontsize=7 label="RECV\nCLR\nCONF"]
+
+s7 -> s10 [fontsize=7 label="SEND\nCLR\nREQ"]
+s7 -> s10 [fontsize=7 label="SEND\nCLR\nCONF"]
+
+s8 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+
+s8 -> s4 [fontsize=7 label="RECV\nRESET\nREQ"]
+s8 -> s4 [fontsize=7 label="RECV\nRESET\nCONF"]
+s8 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+
+s9 -> s4 [fontsize=7 label="SEND\nRESET\nREQ"]
+s9 -> s4 [fontsize=7 label="SEND\nRESET\nCONF"]
+s9 -> s6 [fontsize=7 label="SEND\nCLR\nREQ"]
+s9 -> s7 [fontsize=7 label="RECV\nCLR\nREQ"]
+}
