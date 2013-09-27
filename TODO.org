@@ -47,8 +47,7 @@ Have broker monitor memory size in real-time.
 
 ** TODO Add OpenID registration
 
-* Missing Documentation
-All the documentation is missing. ;-)
+* TODO Documentation
 
 * Missing Test Cases
 ** Tests for Invalid ps
@@ -58,11 +57,11 @@ All the documentation is missing. ;-)
 *** DONE should error if ps decreased
 *** DONE should error is ps is greater than 32767
 *** DONE should not error when ps wraps from 32767 to 0
-*** DONE should error is ps is not in window
+*** DONE should error if ps is not in window
 
 ** Missing tests for Invalid pr
-*** TODO should error if pr is more than last ps + 1
-*** TODO should error if pr is more than last pr + window + 1
+*** DONE should error if pr is more next expected ps
+*** TODO should error if pr is more than last pr + window
 *** TODO should not error when pr wraps from 32767 to 0
 
 ** Missing tests for invalid packet types for a given state
