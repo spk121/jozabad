@@ -30,10 +30,14 @@ The name "Jozabad" refers to a talented archer that fought with the biblical Kin
 
 *Jozabad* is the lowest level of a three layer application stack.
 * *Jozabad* handles low-level communication.
-* *Johanan* is a packet assembler and disassembler, automatically sending and receiving data from I/O buffers when required.
-* *Jahaziel* is a text protocol with in-band escapes for colors, graphics, and audio.  It also has a sample rendering engine.
+* *Johanan* is a packet assembler and disassembler, expressing a stream-like interface (fprintf, fgetc) for intra-worker communcation based on *Jozabad* messaging.
+* *Jahaziel* is a text protocol with in-band escapes for colors, graphics, and audio, and a rendering engine for that protocol.
 
+## Documentation
+
+The documentation, such as it is
+https://github.com/spk121/jozabad/blob/master/doc/jozabad.pdf?raw=true
 ## References
 
 * Jozabad is inspired by the ITU's X.25 protocol: specifically its message types and state machine.  It is not a true implementation of X.25 over TCP, which is known as XOT.
-* It uses ZeroMQ sockets to reduce book-keeping.
+* It uses ZeroMQ sockets to do all the heavy lifting.
