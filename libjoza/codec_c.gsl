@@ -6,13 +6,10 @@
 .resolve_includes ()
 .echo "Generating $(class.name).h..."
 .output "$(class.name).h"
-/*  =========================================================================
-    $(class.name) - $(class.title)
+/*
+    $(class.name).h - $(class.title)
 
-    Generated codec header for $(class.name)
-    -------------------------------------------------------------------------
     $(string.trim (class->license.):block                                   )
-    =========================================================================
 */
 
 #ifndef __$(CLASS.NAME)_H_INCLUDED__
@@ -20,12 +17,13 @@
 
 #ifdef	__cplusplus
 extern "C" {
+#else
+#include <stdbool.h>
 #endif
 
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <zmq.h>
 #include <czmq.h>
 
@@ -299,13 +297,10 @@ int
 #endif
 .echo "Generating $(class.name).c..."
 .output "$(class.name).c"
-/*  =========================================================================
+/*
     $(class.name) - $(class.title)
 
-    Generated codec implementation for $(class.name)
-    -------------------------------------------------------------------------
     $(string.trim (class->license.):block                                   )
-    =========================================================================
 */
 
 /*
@@ -318,7 +313,6 @@ int
 #define _GNU_SOURCE
 #include <string.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <zmq.h>
 #include <czmq.h>
 #include "$(class.name).h"

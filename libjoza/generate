@@ -1,2 +1,4 @@
 #!/bin/sh
+gsl -script:codec_c joza.xml
+
 

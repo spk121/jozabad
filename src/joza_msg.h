@@ -1,5 +1,5 @@
 /*
-    joza_msg.c - message formats
+    joza_msg.h - message formats
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
