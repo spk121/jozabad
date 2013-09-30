@@ -64,6 +64,7 @@ Have broker monitor memory size in real-time.
 *** TODO should error if pr is more than last pr + window
 *** TODO should not error when pr wraps from 32767 to 0
 
+** Missing tests for directory requests
 ** Missing tests for invalid packet types for a given state
 *** TODO state 1
 *** TODO state 2
@@ -73,117 +74,117 @@ Have broker monitor memory size in real-time.
 *** TODO should ignore packets with bad format from unknown connections
 *** TODO should error if packet has bad format from known connection
   
-**  Missing tests for calls on one-way logical channel
+** Missing tests for calls on one-way logical channel
 *** TODO should error when an output-barred worker tries to call
   
-**  Missing tests for invalid packet type on permanent virtual circuit
+** Missing tests for invalid packet type on permanent virtual circuit
 None
   
-**  Missing tests for packet on unassigned logical channel
+** Missing tests for packet on unassigned logical channel
 *** TODO should reject all packets except for CONNECT
   
-**  Missing tests for reject not subscribed to
+** Missing tests for reject not subscribed to
 
-**  Missing tests for packet too short
+** Missing tests for packet too short
 *** TODO should reject short data packets
   
-**  Missing tests for packet too long
+** Missing tests for packet too long
 *** TODO should reject all long data packets
 *** TODO should reject all long call requests
 *** TODO should reject all long call accepts
   
-**  Missing tests for invalid general format identifier
+** Missing tests for invalid general format identifier
 None.  Handled by Joza MSG
   
-**  Missing tests for restart packet with non-zero ...
+** Missing tests for restart packet with non-zero ...
 This is N/A.  
   
-**  Missing tests for packet-type not compatible with facility
+** Missing tests for packet-type not compatible with facility
 N/A until INTERRUPT or REJ packets are implemented  
   
-**  Missing tests for unauthorized interrupt confirmation
+** Missing tests for unauthorized interrupt confirmation
 N/A until INTERRUPT is implemented
   
-**  Missing tests for unauthorized interrupt
+** Missing tests for unauthorized interrupt
 N/A until INTERRUPT is implemented
   
-**  Missing tests for unauthorized reject
+** Missing tests for unauthorized reject
 N/A until REJ is implemented
 
-**  TOA/NPI address subscription facility not subscribed to
+** TOA/NPI address subscription facility not subscribed to
 N/A until multiple address types are implemented
 
-**  Missing tests for time expired for incoming call
+** Missing tests for time expired for incoming call
 *** TODO should take action if worker doesn't respond to a call request within threshold
   
-**  Missing tests for time expired for clear indication
+** Missing tests for time expired for clear indication
 *** TODO should take action if worker doesn't respond to clear request within threshold
   
-**  Missing tests for time expired for reset indication
+** Missing tests for time expired for reset indication
 *** TODO should error if worker doesn't respond to reset request within threshold
   
-**  time expired for restart indication
+** time expired for restart indication
   
-**  time expired for call deflection
+** time expired for call deflection
   
-**  facility code not allowed
+** facility code not allowed
 *** TODO (if facility codes were dictionaries) would error on bad facility code key
   
-**  facility parameter not allowed
+** facility parameter not allowed
 *** TODO should error if thoroughput, window, packet size, directionality 
     is out of range
 *** TODO should error if thoroughput, window, packet size, directionality 
     does bad negotiation
   
-**  invalid calling address
+** invalid calling address
 *** TODO should error if connect request has a bad address
 *** TODO should error if a connect request has a duplicate address
   
-**  invalid called address
+** invalid called address
 *** TODO should error if call request has a bad address
   
-**  invalid facility length
+** invalid facility length
 *** TODO (if facility codes were dictionaries) would error if the dictionary
     length were wrong
   
-**  incoming call barred
+** incoming call barred
 *** TODO should error when a worker tries to call an input-barred worker
   
-**  no logical channel available
+** no logical channel available
 *** TODO should error when there are more than XXX active channels
 *** TODO [call should hand up when it has been idle for too long]
   
-**  call collision
+** call collision
 *** TODO should send diagnostic when call collision occurs
   
-**  duplicate facility requested
+** duplicate facility requested
 *** TODO (if facility codes were dictionaries) should error if the same facility
   appeared twice
   
-**  non-zero address length
+** non-zero address length
 *** TODO error if the call accepted packet has an non-zero address length,
   and the called address hasn't been modified
   
-**  non-zero facility length
+** non-zero facility length
   
-**  facility not provided when expected
+** facility not provided when expected
   
-**  maximum number of call redirections...
+** maximum number of call redirections...
   
 ** improper cause code from worker
 *** TODO error if worker sends a clear request with cause code that is other than "worker generated" cause
   
-**  not aligned octet
+** not aligned octet
   
-**  inconsistent Q-bit setting
+** inconsistent Q-bit setting
   
-**  NUI problem
+** NUI problem
 *** TODO invalid network user identifier (part of billing)
   
-**  ICRD problem
+** ICRD problem
 *** TODO inter-network call redirection and deflection control
   
-**  remote network problem
+** remote network problem
   
 ** remote network problem
 
