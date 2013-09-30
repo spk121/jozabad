@@ -71,6 +71,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
         a_discard, // diagnostic
+        a_discard, // directory request
+        a_discard, // directory
     },
     // state_x_call_request
     {
@@ -88,6 +90,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_call_request
     {
@@ -105,6 +109,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_data_transfer
     {
@@ -122,6 +128,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_reset, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_call_collision
     {
@@ -139,6 +147,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_x_clear_request
     {
@@ -156,6 +166,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_clear, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_clear_request
     {
@@ -173,6 +185,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_discard, // disconnect indicatio
         a_discard, // diagnostic
+        a_discard, // directory request
+        a_discard, // directory
     },
     // state_x_reset_request
     {
@@ -190,6 +204,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_reset, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_reset_request
     {
@@ -207,6 +223,8 @@ const action_t x_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_x_disconnect, // disconnect
         a_discard, // disconnect indication
         a_discard, // diagnostic
+        a_clear, // directory request
+        a_clear, // directory
     }
 };
 
@@ -226,6 +244,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_clear, // connect indication
         a_y_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_x_call_request
     {
@@ -242,6 +262,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_clear, // connect indication
         a_y_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_call_request
     {
@@ -258,6 +280,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_clear, // connect indication
         a_y_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_data_transfer
     {
@@ -274,6 +298,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_reset, // connect indication
         a_y_disconnect, // disconnect
         a_reset, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_call_collision
     {
@@ -290,6 +316,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_clear, // connect indication
         a_y_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_x_clear_request
     {
@@ -306,6 +334,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_clear, // connect indication
         a_y_disconnect, // disconnect
         a_clear, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_clear_request
     {
@@ -321,7 +351,9 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_discard, // connect
         a_discard, // connect indication
         a_y_disconnect, // disconnect
-        a_discard, // disconnect indicatio
+        a_discard, // disconnect indication
+        a_discard, // directory request
+        a_discard, // directory
     },
     // state_x_reset_request
     {
@@ -338,6 +370,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_reset, // connect indication
         a_y_disconnect, // disconnect
         a_reset, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     },
     // state_y_reset_request
     {
@@ -354,6 +388,8 @@ const action_t y_action_table[ACTION_STATE_COUNT][ACTION_MESSAGE_COUNT] = {
         a_reset, // connect indication,
         a_y_disconnect, // disconnect
         a_reset, // disconnect indication
+        a_clear, // directory request
+        a_clear, // directory
     }
 };
 

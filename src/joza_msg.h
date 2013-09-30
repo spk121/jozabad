@@ -1,5 +1,5 @@
 /*
-    joza_msg.h - message formats
+    joza_msg.h - transport for switched virtual call messages
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
@@ -17,7 +17,6 @@
 
     You should have received a copy of the GNU General Public License
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 #ifndef __JOZA_MSG_H_INCLUDED__
@@ -25,11 +24,13 @@
 
 #ifdef  __cplusplus
 extern "C" {
+#else
+#include <stdbool.h>
 #endif
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdint.h>
-//#include <stdbool.h>
 #include <zmq.h>
 #include <czmq.h>
 
@@ -76,10 +77,13 @@ extern "C" {
     DIAGNOSTIC - This is the Switched Virtual Call protocol version 1
         cause         number 1
         diagnostic    number 1
-    COUNT - This is the Switched Virtual Call protocol version 1
+    DIRECTORY_REQUEST - This is the Switched Virtual Call protocol version 1
+    DIRECTORY - This is the Switched Virtual Call protocol version 1
+        workers       dictionary
 */
 
 #define JOZA_MSG_VERSION                    1
+#define JOZA_MSG_COUNT                      16
 
 #define JOZA_MSG_DATA                       0
 #define JOZA_MSG_RR                         1
@@ -95,7 +99,8 @@ extern "C" {
 #define JOZA_MSG_DISCONNECT                 11
 #define JOZA_MSG_DISCONNECT_INDICATION      12
 #define JOZA_MSG_DIAGNOSTIC                 13
-#define JOZA_MSG_COUNT                      14
+#define JOZA_MSG_DIRECTORY_REQUEST          14
+#define JOZA_MSG_DIRECTORY                  15
 
 //  Structure of our class
 
@@ -118,6 +123,8 @@ struct _joza_msg_t {
     char *protocol;
     byte version;
     byte directionality;
+    zhash_t *workers;
+    size_t workers_bytes;       //  Size of dictionary content
 };
 
 //  Opaque class structure
@@ -290,12 +297,21 @@ joza_msg_send_addr_diagnostic (void *output, const zframe_t *addr,
                                byte cause,
                                byte diagnostic);
 
-//  Send the COUNT to the output in one step
+//  Send the DIRECTORY_REQUEST to the output in one step
 int
-joza_msg_send_count (void *output);
+joza_msg_send_directory_request (void *output);
 
 int
-joza_msg_send_addr_count (void *output, const zframe_t *addr);
+joza_msg_send_addr_directory_request (void *output, const zframe_t *addr);
+
+//  Send the DIRECTORY to the output in one step
+int
+joza_msg_send_directory (void *output,
+                         zhash_t *workers);
+
+int
+joza_msg_send_addr_directory (void *output, const zframe_t *addr,
+                              zhash_t *workers);
 
 //  Duplicate the joza_msg message
 joza_msg_t *
@@ -418,6 +434,22 @@ byte
 joza_msg_const_directionality (const joza_msg_t *self);
 void
 joza_msg_set_directionality (joza_msg_t *self, byte directionality);
+
+//  Get/set the workers field
+zhash_t *
+joza_msg_workers (joza_msg_t *self);
+void
+joza_msg_set_workers (joza_msg_t *self, zhash_t *workers);
+
+//  Get/set a value in the workers dictionary
+char *
+joza_msg_workers_string (joza_msg_t *self, char *key, char *default_value);
+uint64_t
+joza_msg_workers_number (joza_msg_t *self, char *key, uint64_t default_value);
+void
+joza_msg_workers_insert (joza_msg_t *self, char *key, char *format, ...);
+size_t
+joza_msg_workers_size (joza_msg_t *self);
 
 //  Self test of this class
 int

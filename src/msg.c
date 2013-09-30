@@ -60,3 +60,9 @@ void call_request(zframe_t *call_addr, zframe_t *return_addr, char *xname, char 
     if (ret == -1)
         DIAGNOSTIC(return_addr, c_zmq_sendmsg_err, errno2diag());
 }
+
+void directory_request(const zframe_t *A, const zhash_t *D)
+{
+    joza_msg_send_addr_directory (g_poll_sock, A, D);
+}
+

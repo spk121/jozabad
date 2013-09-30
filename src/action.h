@@ -25,7 +25,7 @@
 
 #define ACTION_NAME_MAX_LEN (21)
 #define ACTION_STATE_COUNT (9)
-#define ACTION_MESSAGE_COUNT (14)
+#define ACTION_MESSAGE_COUNT (16)
 
 typedef enum {
     // These are actions takes by the broker itself.

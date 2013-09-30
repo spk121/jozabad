@@ -29,6 +29,8 @@
 #include "pgetopt.h"
 #include "poll.h"
 #include "tput.h"
+#include "channel.h"
+#include "worker.h"
 // #include "lib.h"
 //#include "../libjoza/joza_lib.h"
 

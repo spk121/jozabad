@@ -1,5 +1,5 @@
 /*
-    joza_msg.c - message formats
+    joza_msg - transport for switched virtual call messages
 
     Copyright 2013 Michael L. Gran <spk121@yahoo.com>
 
@@ -17,7 +17,6 @@
 
     You should have received a copy of the GNU General Public License
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 /*
@@ -208,6 +207,7 @@ joza_msg_destroy (joza_msg_t **self_p)
         free (self->calling_address);
         free (self->called_address);
         free (self->protocol);
+        zhash_destroy (&self->workers);
 
         //  Free object itself
         free (self);
@@ -355,7 +355,22 @@ joza_msg_recv (void *input)
         GET_NUMBER1 (self->diagnostic);
         break;
 
-    case JOZA_MSG_COUNT:
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        GET_NUMBER1 (hash_size);
+        self->workers = zhash_new ();
+        zhash_autofree (self->workers);
+        while (hash_size--) {
+            char *string;
+            GET_STRING (string);
+            char *value = strchr (string, '=');
+            if (value)
+                *value++ = 0;
+            zhash_insert (self->workers, string, value);
+            free (string);
+        }
         break;
 
     default:
@@ -372,6 +387,27 @@ empty:
     zframe_destroy (&frame);
     joza_msg_destroy (&self);
     return (NULL);
+}
+
+//  Count size of key=value pair
+static int
+s_workers_count (const char *key, void *item, void *argument)
+{
+    joza_msg_t *self = (joza_msg_t *) argument;
+    self->workers_bytes += strlen (key) + 1 + strlen ((char *) item) + 1;
+    return 0;
+}
+
+//  Serialize workers key=value pair
+static int
+s_workers_write (const char *key, void *item, void *argument)
+{
+    joza_msg_t *self = (joza_msg_t *) argument;
+    char string [STRING_MAX + 1];
+    snprintf (string, STRING_MAX, "%s=%s", key, (char *) item);
+    size_t string_size;
+    PUT_STRING (string);
+    return 0;
 }
 
 
@@ -492,7 +528,18 @@ joza_msg_send (joza_msg_t **self_p, void *output)
         frame_size += 1;
         break;
 
-    case JOZA_MSG_COUNT:
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        //  workers is an array of key=value strings
+        frame_size++;       //  Size is one octet
+        if (self->workers) {
+            self->workers_bytes = 0;
+            //  Add up size of dictionary contents
+            zhash_foreach (self->workers, s_workers_count, self);
+        }
+        frame_size += self->workers_bytes;
         break;
 
     default:
@@ -594,7 +641,15 @@ joza_msg_send (joza_msg_t **self_p, void *output)
         PUT_NUMBER1 (self->diagnostic);
         break;
 
-    case JOZA_MSG_COUNT:
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        if (self->workers != NULL) {
+            PUT_NUMBER1 (zhash_size (self->workers));
+            zhash_foreach (self->workers, s_workers_write, self);
+        } else
+            PUT_NUMBER1 (0);    //  Empty dictionary
         break;
 
     }
@@ -682,7 +737,7 @@ joza_msg_send_addr_data (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DATA);
-    self->address = zframe_dup((zframe_t *) addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_q (self, q);
     joza_msg_set_pr (self, pr);
     joza_msg_set_ps (self, ps);
@@ -711,7 +766,7 @@ joza_msg_send_addr_rr (
     uint16_t pr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RR);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_pr (self, pr);
     return joza_msg_send (&self, output);
 }
@@ -737,7 +792,7 @@ joza_msg_send_addr_rnr (
     uint16_t pr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RNR);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_pr (self, pr);
     return joza_msg_send (&self, output);
 }
@@ -778,7 +833,7 @@ joza_msg_send_addr_call_request (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CALL_REQUEST);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_called_address (self, called_address);
     joza_msg_set_packet (self, packet);
@@ -824,7 +879,7 @@ joza_msg_send_addr_call_accepted (
     zframe_t *data)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CALL_ACCEPTED);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_called_address (self, called_address);
     joza_msg_set_packet (self, packet);
@@ -858,7 +913,7 @@ joza_msg_send_addr_clear_request (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CLEAR_REQUEST);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -882,7 +937,7 @@ joza_msg_send_addr_clear_confirmation (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CLEAR_CONFIRMATION);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -910,7 +965,7 @@ joza_msg_send_addr_reset_request (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RESET_REQUEST);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -934,7 +989,7 @@ joza_msg_send_addr_reset_confirmation (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_RESET_CONFIRMATION);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -962,7 +1017,7 @@ joza_msg_send_addr_connect (
     byte directionality)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
     joza_msg_set_directionality (self, directionality);
     return joza_msg_send (&self, output);
@@ -986,7 +1041,7 @@ joza_msg_send_addr_connect_indication (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT_INDICATION);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1008,7 +1063,7 @@ joza_msg_send_addr_disconnect (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DISCONNECT);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1030,7 +1085,7 @@ joza_msg_send_addr_disconnect_indication (
     void *output, const zframe_t *addr)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DISCONNECT_INDICATION);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     return joza_msg_send (&self, output);
 }
 
@@ -1058,7 +1113,7 @@ joza_msg_send_addr_diagnostic (
     byte diagnostic)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_DIAGNOSTIC);
-    self->address = zframe_dup((zframe_t *)addr);
+    self->address = zframe_dup(addr);
     joza_msg_set_cause (self, cause);
     joza_msg_set_diagnostic (self, diagnostic);
     return joza_msg_send (&self, output);
@@ -1066,23 +1121,49 @@ joza_msg_send_addr_diagnostic (
 
 
 //  --------------------------------------------------------------------------
-//  Send the COUNT to the socket in one step
+//  Send the DIRECTORY_REQUEST to the socket in one step
 
 int
-joza_msg_send_count (
+joza_msg_send_directory_request (
     void *output)
 {
-    joza_msg_t *self = joza_msg_new (JOZA_MSG_COUNT);
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_DIRECTORY_REQUEST);
     return joza_msg_send (&self, output);
 }
 
 
 int
-joza_msg_send_addr_count (
+joza_msg_send_addr_directory_request (
     void *output, const zframe_t *addr)
 {
-    joza_msg_t *self = joza_msg_new (JOZA_MSG_COUNT);
-    self->address = zframe_dup((zframe_t *)addr);
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_DIRECTORY_REQUEST);
+    self->address = zframe_dup(addr);
+    return joza_msg_send (&self, output);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Send the DIRECTORY to the socket in one step
+
+int
+joza_msg_send_directory (
+    void *output,
+    zhash_t *workers)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_DIRECTORY);
+    joza_msg_set_workers (self, zhash_dup (workers));
+    return joza_msg_send (&self, output);
+}
+
+
+int
+joza_msg_send_addr_directory (
+    void *output, const zframe_t *addr,
+    zhash_t *workers)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_DIRECTORY);
+    self->address = zframe_dup(addr);
+    joza_msg_set_workers (self, zhash_dup (workers));
     return joza_msg_send (&self, output);
 }
 
@@ -1170,13 +1251,26 @@ joza_msg_dup (joza_msg_t *self)
         copy->diagnostic = self->diagnostic;
         break;
 
-    case JOZA_MSG_COUNT:
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        copy->workers = zhash_dup (self->workers);
         break;
 
     }
     return copy;
 }
 
+
+//  Dump workers key=value pair to stdout
+static int
+s_workers_dump (const char *key, void *item, void *argument)
+{
+    joza_msg_t *self = (joza_msg_t *) argument;
+    printf ("        %s=%s\n", key, (char *) item);
+    return 0;
+}
 
 
 //  --------------------------------------------------------------------------
@@ -1328,8 +1422,16 @@ joza_msg_dump (joza_msg_t *self)
         printf ("    diagnostic=%ld\n", (long) self->diagnostic);
         break;
 
-    case JOZA_MSG_COUNT:
-        puts ("COUNT:");
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        puts ("DIRECTORY_REQUEST:");
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        puts ("DIRECTORY:");
+        printf ("    workers={\n");
+        if (self->workers)
+            zhash_foreach (self->workers, s_workers_dump, self);
+        printf ("    }\n");
         break;
 
     }
@@ -1435,8 +1537,11 @@ joza_msg_const_command (const joza_msg_t *self)
     case JOZA_MSG_DIAGNOSTIC:
         return ("DIAGNOSTIC");
         break;
-    case JOZA_MSG_COUNT:
-        return ("COUNT");
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        return ("DIRECTORY_REQUEST");
+        break;
+    case JOZA_MSG_DIRECTORY:
+        return ("DIRECTORY");
         break;
     }
     return "?";
@@ -1758,6 +1863,85 @@ joza_msg_set_directionality (joza_msg_t *self, byte directionality)
 }
 
 
+//  --------------------------------------------------------------------------
+//  Get/set the workers field
+
+zhash_t *
+joza_msg_workers (joza_msg_t *self)
+{
+    assert (self);
+    return self->workers;
+}
+
+//  Greedy function, takes ownership of workers; if you don't want that
+//  then use zhash_dup() to pass a copy of workers
+
+void
+joza_msg_set_workers (joza_msg_t *self, zhash_t *workers)
+{
+    assert (self);
+    zhash_destroy (&self->workers);
+    self->workers = workers;
+}
+
+//  --------------------------------------------------------------------------
+//  Get/set a value in the workers dictionary
+
+char *
+joza_msg_workers_string (joza_msg_t *self, char *key, char *default_value)
+{
+    assert (self);
+    char *value = NULL;
+    if (self->workers)
+        value = (char *) (zhash_lookup (self->workers, key));
+    if (!value)
+        value = default_value;
+
+    return value;
+}
+
+uint64_t
+joza_msg_workers_number (joza_msg_t *self, char *key, uint64_t default_value)
+{
+    assert (self);
+    uint64_t value = default_value;
+    char *string = NULL;
+    if (self->workers)
+        string = (char *) (zhash_lookup (self->workers, key));
+    if (string)
+        value = atol (string);
+
+    return value;
+}
+
+void
+joza_msg_workers_insert (joza_msg_t *self, char *key, char *format, ...)
+{
+    //  Format string into buffer
+    assert (self);
+    va_list argptr;
+    va_start (argptr, format);
+    char *string = (char *) malloc (STRING_MAX + 1);
+    assert (string);
+    vsnprintf (string, STRING_MAX, format, argptr);
+    va_end (argptr);
+
+    //  Store string in hash table
+    if (!self->workers) {
+        self->workers = zhash_new ();
+        zhash_autofree (self->workers);
+    }
+    zhash_update (self->workers, key, string);
+    free (string);
+}
+
+size_t
+joza_msg_workers_size (joza_msg_t *self)
+{
+    return zhash_size (self->workers);
+}
+
+
 
 //  --------------------------------------------------------------------------
 //  Selftest
@@ -1936,11 +2120,23 @@ joza_msg_test (bool verbose)
     assert (joza_msg_diagnostic (self) == 123);
     joza_msg_destroy (&self);
 
-    self = joza_msg_new (JOZA_MSG_COUNT);
+    self = joza_msg_new (JOZA_MSG_DIRECTORY_REQUEST);
     joza_msg_send (&self, output);
 
     self = joza_msg_recv (input);
     assert (self);
+    joza_msg_destroy (&self);
+
+    self = joza_msg_new (JOZA_MSG_DIRECTORY);
+    joza_msg_workers_insert (self, "Name", "Brutus");
+    joza_msg_workers_insert (self, "Age", "%d", 43);
+    joza_msg_send (&self, output);
+
+    self = joza_msg_recv (input);
+    assert (self);
+    assert (joza_msg_workers_size (self) == 2);
+    assert (streq (joza_msg_workers_string (self, "Name", "?"), "Brutus"));
+    assert (joza_msg_workers_number (self, "Age", 0) == 43);
     joza_msg_destroy (&self);
 
     zctx_destroy (&ctx);

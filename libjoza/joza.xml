@@ -21,6 +21,7 @@ along with Jozabad.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
 
 <!-- Protocol version -->
 <define name = "VERSION" value = "1" />
+<define name = "COUNT" value = "16" />
 
 <!-- Response codes -->
 <declare>
@@ -111,7 +112,11 @@ Node tells broker that it is disconnecting.
   <field name = "diagnostic" type = "number" size = "1" />
 </message>
 
-<message name = "COUNT" id = "14" />
+<message name = "DIRECTORY_REQUEST" id = "14" />
+
+<message name = "DIRECTORY" id = "15">
+    <field name = "workers" type = "dictionary" />
+</message>
 
 <!-- message name = "REJ" id = "3" -->
 

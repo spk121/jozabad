@@ -26,9 +26,11 @@
 
 int seq_rngchk(seq_t x)
 {
+#if SEQ_MIN > 0
     if (x < SEQ_MIN)
         return -1;
-    else if (x > SEQ_MAX)
+#endif
+    if (x > SEQ_MAX)
         return 1;
     return 0;
 }

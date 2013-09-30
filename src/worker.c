@@ -84,6 +84,7 @@ static char     *w_pname[WORKER_COUNT];
 
 
 static void do_call_request(joza_msg_t *M, worker_idx_t I);
+static void do_directory_request(joza_msg_t *M);
 static void do_disconnect(joza_msg_t *M);
 static worker_idx_t find_idx_from_key(wkey_t arr[], worker_idx_t n, wkey_t X);
 static void init_pname(void);
@@ -425,6 +426,9 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
         // Worker has requested a channel to another worker
         do_call_request(M, I);
         break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        // Worker has request a list of the currently connected workers
+        do_directory_request(M);
     case JOZA_MSG_DISCONNECT:
         // Worker has requested to be disconnected
         do_disconnect(M);
@@ -514,6 +518,22 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
                      addr, xname, yname, pkt, window, tput, joza_msg_data(M));
     }
 }
+
+static void do_directory_request(joza_msg_t *M)
+{
+    zframe_t *addr       = joza_msg_address(M);
+    zhash_t  *dir       = zhash_new();
+
+    // Fill a hash table with the current directory information
+    // FIXME: probably could put something useful in the "value" part of the
+    // hash table.
+    for (worker_idx_t i = 0; i < _count; i ++) {
+        zhash_insert(dir, w_pname[i], NULL);
+    }
+    directory_request(addr, dir);
+    zhash_destroy(&dir);
+}
+
 
 // Disconnect this channel, which is not currently on a call.
 static void do_disconnect(joza_msg_t *M)
