@@ -178,7 +178,7 @@ static const int M = 7;
 
 // Using a Quicksort, fill an index array INDX whose indices would
 // sort the values ARR.  This is adapted from Numerical Recipes in C.
-void name_index_sort(char *arr[], worker_idx_t n, worker_idx_t indx[])
+static void name_index_sort(char *arr[], worker_idx_t n, worker_idx_t indx[])
 {
     worker_idx_t left = 0;
     worker_idx_t center;
@@ -345,8 +345,16 @@ bool_index_t worker_get_idx_by_key(wkey_t key)
 // return value of N indicates after the end of the matrix.
 static worker_idx_t find_name(const char *str)
 {
+    worker_idx_t i = 0;
+    while (i < _count) {
+        if (strcmp(str, w_name[i]) == 0)
+            return i;
+        i++;
+    }
+    return _count;
+#if 0
     worker_idx_t lo, hi, mid;
-
+    // FIXME: this bisect search should be made to work
     lo = 0;
     hi = _count;
     while (hi - lo > 1) {
@@ -357,9 +365,10 @@ static worker_idx_t find_name(const char *str)
             hi = mid;
     }
     return lo;
+#endif
 }
 
-bool_index_t worker_get_idx_by_name(const char *name)
+static bool_index_t worker_get_idx_by_name(const char *name)
 {
     bool_index_t bi;
     bi.flag = FALSE;
@@ -429,6 +438,7 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
     case JOZA_MSG_DIRECTORY_REQUEST:
         // Worker has request a list of the currently connected workers
         do_directory_request(M);
+        break;
     case JOZA_MSG_DISCONNECT:
         // Worker has requested to be disconnected
         do_disconnect(M);
@@ -528,7 +538,7 @@ static void do_directory_request(joza_msg_t *M)
     // FIXME: probably could put something useful in the "value" part of the
     // hash table.
     for (worker_idx_t i = 0; i < _count; i ++) {
-        zhash_insert(dir, w_pname[i], NULL);
+        zhash_insert(dir, w_pname[i], "");
     }
     directory_request(addr, dir);
     zhash_destroy(&dir);
@@ -557,4 +567,13 @@ void worker_remove_all()
         REMOVE(w_ctime, i, _count);
         REMOVE(w_mtime, i, _count);
     }
+}
+
+zhash_t *worker_directory()
+{
+    zhash_t *dir = zhash_new();
+    for (worker_idx_t i = 0; i < _count; i ++) {
+        zhash_insert(dir, w_pname[i], "");
+    }
+    return dir;
 }

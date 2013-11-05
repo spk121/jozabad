@@ -175,7 +175,17 @@ do_more:
             worker_add(joza_msg_const_address(msg),
                        joza_msg_const_calling_address(msg),
                        (iodir_t) joza_msg_const_directionality(msg));
-        } else {
+        } 
+        else if (joza_msg_id(msg) == JOZA_MSG_DIRECTORY_REQUEST) {
+            INFO("sending directory");
+
+            zhash_t *dir = worker_directory();
+            joza_msg_send_addr_directory (g_poll_sock,
+                                          joza_msg_const_address(msg),
+                                          dir);
+            zhash_destroy(&dir);
+        }
+        else {
             INFO("ignoring %s from unconnected worker", cmdname);
         }
     }
