@@ -20,11 +20,11 @@
 
 */
 
+#include <glib.h>
 #include <czmq.h>
 
 #include "poll.h"
 
-#include "bool.h"
 #include "log.h"
 #include "worker.h"
 #include "channel.h"
@@ -86,7 +86,7 @@ static zloop_t *zloop_new_or_die(void)
 }
 
 
-void poll_init(bool_t verbose, const char *endpoint)
+void poll_init(gboolean verbose, const char *endpoint)
 {
     TRACE("In %s(verbose = %d, endpoint = %s)", __FUNCTION__, verbose, endpoint);
 
@@ -133,7 +133,7 @@ static int s_process_(joza_msg_t *msg)
 {
     wkey_t key;
     bool_index_t bi_worker;
-    bool_t more = FALSE;
+    gboolean more = FALSE;
     role_t role = READY;
     int ret = 0;
 

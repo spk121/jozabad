@@ -23,10 +23,10 @@
 #ifndef JOZA_POLL_H
 #define JOZA_POLL_H
 
-#include "bool.h"
+#include <glib.h>
 
 extern void *g_poll_sock;
-void poll_init(bool_t verbose, const char *endpoint);
+void poll_init(gboolean verbose, const char *endpoint);
 void poll_start (void);
 void poll_destroy(void);
 

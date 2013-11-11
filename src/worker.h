@@ -29,10 +29,9 @@
 #include "lcn.h"
 #include "joza_msg.h"
 #include "mylimits.h"
-#include "bool.h"
 
 typedef struct {
-    bool_t flag;
+    bool flag;
     worker_idx_t index;
 } bool_index_t;
 
@@ -48,7 +47,7 @@ extern role_t   w_role[WORKER_COUNT];
 wkey_t worker_add(const zframe_t *A, const char *N, iodir_t I);
 zhash_t *worker_directory(void);
 bool_index_t worker_get_idx_by_key(uint32_t key);
-bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I);
+gboolean worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I);
 void remove_worker_by_key(wkey_t key);
 void remove_worker(wkey_t key);
 void worker_remove_all(void);

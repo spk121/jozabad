@@ -20,6 +20,7 @@
 
 */
 
+#include <glib.h>
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
@@ -39,7 +40,6 @@
 #include "log.h"
 #include "msg.h"
 #include "joza_msg.h"
-#include "bool.h"
 #include "lib.h"
 
 #define CALL_REQUEST_DATA_LEN (16)
@@ -418,9 +418,9 @@ void remove_worker(wkey_t key)
     _count --;
 }
 
-bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
+gboolean worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
 {
-    bool_t more = FALSE;        /* When TRUE, message needs dowmstream processing.  */
+    gboolean more = FALSE;        /* When TRUE, message needs dowmstream processing.  */
     const char *cmdname, *name;
     int id;
 

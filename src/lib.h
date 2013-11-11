@@ -22,10 +22,10 @@
 #ifndef JOZA_LIB_H
 #define JOZA_LIB_H
 
+#include <glib.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "bool.h"
 
 //----------------------------------------------------------------------------
 // BASICS
@@ -42,12 +42,12 @@ size_t strnlen_s (const char *s, size_t maxsize);
 //----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
-bool_t safeascii(const char *mem, size_t n);
+gboolean safeascii(const char *mem, size_t n);
 
 //----------------------------------------------------------------------------
 // PHONE-STYLE NAMES
 //----------------------------------------------------------------------------
-bool_t safe121 (const char *str, size_t n);
+gboolean safe121 (const char *str, size_t n);
 uint32_t pack121(const char *str, size_t n);
 const char *unpack121(uint32_t x);
 

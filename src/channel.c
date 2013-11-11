@@ -20,6 +20,7 @@
 
 */
 
+#include <glib.h>
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
@@ -108,9 +109,9 @@ static double c_mtime[CHAN_COUNT]; /* timestamp of last messate dispatched */
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 #define STATE2DIAG(s) ((diag_t)((s) - state_ready + d_invalid_message_for_state_ready))
 
-bool_t channel_available()
+bool channel_available()
 {
-    bool_t ret;
+    bool ret;
 
     TRACE("In %s()", __FUNCTION__);
 
@@ -220,7 +221,7 @@ static void reset_flow_by_chan_idx(chan_idx_t idx)
 
 // This punishment action is a result of a message received a worker
 // that is incorrect for the current state.
-static void do_reset(chan_idx_t I, bool_t me)
+static void do_reset(chan_idx_t I, bool me)
 {
     state_t state = c_state[I];
 
@@ -231,7 +232,7 @@ static void do_reset(chan_idx_t I, bool_t me)
 
 // This punishement action is a result of a message received from a
 // worker that is incorrect for the current state.
-static void do_clear(chan_idx_t I, bool_t me)
+static void do_clear(chan_idx_t I, bool me)
 {
     state_t state = c_state[I];
 
@@ -245,7 +246,7 @@ static void do_clear(chan_idx_t I, bool_t me)
 
 // Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
 // close the channel immediately, and disconnect caller
-static void do_i_disconnect(chan_idx_t I, bool_t me)
+static void do_i_disconnect(chan_idx_t I, bool me)
 {
     wkey_t key;
     int ret;
@@ -345,7 +346,7 @@ static void do_y_call_collision(chan_idx_t I)
 }
 
 // Caller is closing down gracefully
-static void do_i_clear_request(joza_msg_t *M, chan_idx_t I, bool_t me)
+static void do_i_clear_request(joza_msg_t *M, chan_idx_t I, bool me)
 {
     // The caller's clear request shall only use the diagnostic D_WORKER_REQUESTED.
     if (joza_msg_cause(M) != c_worker_originated)
@@ -359,7 +360,7 @@ static void do_i_clear_request(joza_msg_t *M, chan_idx_t I, bool_t me)
 }
 
 // Caller is responding to a peer's request to close the channel
-static void do_i_clear_confirmation(chan_idx_t I, bool_t me)
+static void do_i_clear_confirmation(chan_idx_t I, bool me)
 {
     joza_msg_send_addr_clear_confirmation (g_poll_sock, C_ADDR(I, !me));
     c_state[I] = state_ready;
@@ -367,7 +368,7 @@ static void do_i_clear_confirmation(chan_idx_t I, bool_t me)
     remove_channel_by_chan_idx(I);
 }
 
-static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
+static void do_i_data(joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
     seq_t ps = joza_msg_ps(M);
@@ -408,7 +409,7 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool_t me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow.
-static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool_t me)
+static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
 
@@ -425,7 +426,7 @@ static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool_t me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow, and that it should stop sending data as soon as possible.
-static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool_t me)
+static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
 
@@ -443,7 +444,7 @@ static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool_t me)
 
 
 // Caller is requesting that callee reset flow control
-static void do_i_reset(joza_msg_t *M, chan_idx_t I, bool_t me)
+static void do_i_reset(joza_msg_t *M, chan_idx_t I, bool me)
 {
     if (joza_msg_cause(M) != c_worker_originated)
         DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_cause);
@@ -455,7 +456,7 @@ static void do_i_reset(joza_msg_t *M, chan_idx_t I, bool_t me)
 }
 
 // Caller has confirmed callee's request for a reset.
-static void do_i_reset_confirmation(chan_idx_t I, bool_t me)
+static void do_i_reset_confirmation(chan_idx_t I, bool me)
 {
     // The worker's reset request shall only use the diagnostic D_WORKER_REQUESTED.
     joza_msg_send_addr_reset_confirmation (g_poll_sock, C_ADDR(I, !me));
@@ -464,7 +465,7 @@ static void do_i_reset_confirmation(chan_idx_t I, bool_t me)
 }
 
 /* Handle message send a worker on this connected channel */
-void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y)
+void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool is_y)
 {
     const char *cmdname = NULL, *xname = NULL, *yname = NULL;
     chan_idx_t I;

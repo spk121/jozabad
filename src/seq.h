@@ -24,7 +24,7 @@
 #define JOZA_SEQ_H
 
 #include <stdint.h>
-#include "bool.h"
+#include <stdbool.h>
 #include "mylimits.h"
 
 
@@ -34,7 +34,7 @@
 // be more than SEQ_MAX packets "on the wire" between the client and server.
 
 int seq_rngchk(seq_t x);
-bool_t seq_in_range(seq_t x, seq_t lo, seq_t hi);
+gboolean seq_in_range(seq_t x, seq_t lo, seq_t hi);
 int window_negotiate(seq_t request, seq_t current);
 int window_rngchk(seq_t x);
 

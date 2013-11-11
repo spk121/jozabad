@@ -47,8 +47,8 @@ extern tput_t c_tput[CHAN_COUNT]; /* bits/sec permitted on this channel */
 extern seq_t c_window[CHAN_COUNT];
 extern state_t c_state[CHAN_COUNT];
 
-void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool_t is_y);
-bool_t channel_available(void);
+void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool is_y);
+bool channel_available(void);
 lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                   packet_t pkt, seq_t window, tput_t tput);
 void channel_disconnect_all(void);

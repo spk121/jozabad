@@ -40,7 +40,8 @@ CPPFLAGS = \
     -Wall \
     -Wunused-macros \
     -Wendif-labels \
-    -pedantic
+    -pedantic \
+    `pkg-config glib-2.0 --cflags-only-I`
 
 CWARN = \
     -Wall \
@@ -63,7 +64,8 @@ CFLAGS = $(CPPFLAGS)\
     -ggdb \
     -march=native \
     -O0 \
-    -std=c11 \
+    -std=gnu11 \
+    `pkg-config glib-2.0 --cflogs-only-other` \
     $(CWARN)
 
 CC = gcc
@@ -102,7 +104,7 @@ all: broker
 
 
 broker: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lczmq -lzmq -lm
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lczmq -lzmq -lm `pkg-config glib-2.0 --libs`
 
 clean:
 	-rm $(OBJ)
