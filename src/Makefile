@@ -5,7 +5,6 @@ INCLUDES = \
     flow.h \
     lib.h \
     log.h \
-    pgetopt.h \
     poll.h \
     state.h \
     msg.h
@@ -15,18 +14,18 @@ VPATH = ../libjoza
 CSRC = action.c \
 	channel.c \
 	diag.c \
+	lcn.c \
 	lib.c \
         log.c \
 	main.c \
 	packet.c \
-	pgetopt.c \
 	poll.c \
+	raii.c \
 	state.c \
 	tput.c \
 	worker.c \
 	joza_lib.c \
 	joza_msg.c \
-	ukey.c \
 	msg.c \
 	seq.c \
 	iodir.c
