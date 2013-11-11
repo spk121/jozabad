@@ -23,8 +23,8 @@
 #ifndef JOZA_SEQ_H
 #define JOZA_SEQ_H
 
+#include <glib.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include "mylimits.h"
 
 

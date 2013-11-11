@@ -4,7 +4,6 @@ INCLUDES = \
     dname.h \
     flow.h \
     lib.h \
-    log.h \
     poll.h \
     state.h \
     msg.h

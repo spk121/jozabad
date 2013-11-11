@@ -24,11 +24,17 @@
 #define JOZA_POLL_H
 
 #include <glib.h>
+#include <czmq.h>
 
-extern void *g_poll_sock;
-void poll_init(gboolean verbose, const char *endpoint);
-void poll_start (void);
-void poll_destroy(void);
+typedef struct {
+    zctx_t *ctx;
+    void *sock;
+    zloop_t *loop;
+} joza_poll_t;
+
+joza_poll_t *poll_create(gboolean verbose, const char *endpoint);
+void poll_start(zloop_t *loop);
+void poll_destroy(joza_poll_t *poll);
 
 #endif
 

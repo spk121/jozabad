@@ -20,10 +20,10 @@
 
 */
 
+#include <glib.h>
 #include <assert.h>
 #include <stdint.h>
 #include "lcn.h"
-#include "bool.h"
 
 chan_idx_t lcn_find(lcn_t arr[], chan_idx_t n, lcn_t key);
 chan_idx_lcn_t lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key);
@@ -100,7 +100,7 @@ chan_idx_lcn_t lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key)
 {
     chan_idx_lcn_t ret;
     chan_idx_t index;
-    bool_t did_loop = FALSE;
+    gboolean did_loop = FALSE;
 
     assert(n < LCN_MAX);
     assert(key < LCN_MAX);

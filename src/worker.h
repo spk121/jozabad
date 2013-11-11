@@ -44,10 +44,10 @@ extern iodir_t  w_iodir[WORKER_COUNT];
 extern lcn_t    w_lcn[WORKER_COUNT];
 extern role_t   w_role[WORKER_COUNT];
 
-wkey_t worker_add(const zframe_t *A, const char *N, iodir_t I);
+wkey_t worker_add(void *sock, const zframe_t *A, const char *N, iodir_t I);
 zhash_t *worker_directory(void);
 bool_index_t worker_get_idx_by_key(uint32_t key);
-gboolean worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I);
+gboolean worker_dispatch_by_idx (void *sock, joza_msg_t *M, worker_idx_t I);
 void remove_worker_by_key(wkey_t key);
 void remove_worker(wkey_t key);
 void worker_remove_all(void);

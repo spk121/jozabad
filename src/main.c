@@ -26,7 +26,6 @@
 #include <string.h>
 #include <czmq.h>
 #include "lib.h"
-#include "log.h"
 #include "poll.h"
 #include "raii.h"
 #include "tput.h"
@@ -54,6 +53,7 @@ int main (int argc, char *argv[])
 {
     RAII_VARIABLE(GOptionContext *, context, NULL, raii_option_context_free);
     RAII_VARIABLE(gchar *, s, NULL, raii_gcharp_free);
+    RAII_VARIABLE(joza_poll_t *, poll, NULL, raii_pollp_destroy);
     GError *error = NULL;
 
     context = g_option_context_new("- server options");
@@ -78,11 +78,11 @@ int main (int argc, char *argv[])
     }
 
     s = g_strdup_printf("%s%d", PROTOCOL, main_port);
-    poll_init(verbose, s);
-    poll_start();
 
-    channel_disconnect_all();
+    poll = poll_create(verbose, s);
+    poll_start(poll->loop);
+
+    channel_disconnect_all(poll->sock);
     worker_remove_all();
-    poll_destroy();
     return 0;
  }

@@ -38,7 +38,6 @@
 #include "tput.h"
 #include "worker.h"
 #include "packet.h"
-#include "log.h"
 #include "msg.h"
 #include "packet.h"
 #include "lcn.h"
@@ -113,14 +112,14 @@ bool channel_available()
 {
     bool ret;
 
-    TRACE("In %s()", __FUNCTION__);
+    g_message("In %s()", __FUNCTION__);
 
     if (_count < CHAN_COUNT)
         ret = TRUE;
     else
         ret = FALSE;
 
-    TRACE("%s() returns %d", __FUNCTION__, ret);
+    g_message("%s() returns %d", __FUNCTION__, ret);
     return ret;
 }
 
@@ -131,7 +130,7 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
 {
     chan_idx_lcn_t iu;
 
-    TRACE("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d)",
+    g_message("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d)",
           __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput);
 
     assert(_count < CHAN_COUNT);
@@ -175,9 +174,9 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
     _count ++;
     _lcn = iu.key;
 
-    NOTE("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
+    g_message("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
          window, tput_bps(tput));
-    TRACE("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
+    g_message("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
           __FUNCTION__, xzaddr, xname, yzaddr, yname, pkt, window, tput, iu.key);
 
     return iu.key;
@@ -221,23 +220,24 @@ static void reset_flow_by_chan_idx(chan_idx_t idx)
 
 // This punishment action is a result of a message received a worker
 // that is incorrect for the current state.
-static void do_reset(chan_idx_t I, bool me)
+static void do_reset(void *sock, chan_idx_t I, bool me)
 {
     state_t state = c_state[I];
 
-    RESET_REQUEST(C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
-    RESET_REQUEST(C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
+    joza_msg_send_addr_reset_request(sock, C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
+    joza_msg_send_addr_reset_request(sock, C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
+
     c_state[I] = state_y_reset_request;
 }
 
 // This punishement action is a result of a message received from a
 // worker that is incorrect for the current state.
-static void do_clear(chan_idx_t I, bool me)
+static void do_clear(void *sock, chan_idx_t I, bool me)
 {
     state_t state = c_state[I];
 
-    CLEAR_REQUEST(C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
-    CLEAR_REQUEST(C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
+    joza_msg_send_addr_clear_request(sock, C_ADDR(I, me), c_local_procedure_error, STATE2DIAG(state));
+    joza_msg_send_addr_clear_request(sock, C_ADDR(I, !me), c_remote_procedure_error, STATE2DIAG(state));
 
     // Unlike CLEARs requested by workers, a broker-initiated CLEAR
     // closes the channel immediately.
@@ -246,19 +246,19 @@ static void do_clear(chan_idx_t I, bool me)
 
 // Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
 // close the channel immediately, and disconnect caller
-static void do_i_disconnect(chan_idx_t I, bool me)
+static void do_i_disconnect(void *sock, chan_idx_t I, bool me)
 {
     wkey_t key;
     int ret;
-    ret = CLEAR_REQUEST(C_ADDR(I, !me), c_worker_originated, d_worker_originated);
+    ret = joza_msg_send_addr_clear_request(sock, C_ADDR(I, !me), c_worker_originated, d_worker_originated);
     if (ret == -1)
-        DIAGNOSTIC(C_ADDR(I, me), c_zmq_sendmsg_err, errno2diag());
+        diagnostic(sock, C_ADDR(I, me), c_zmq_sendmsg_err, errno2diag());
     key = msg_addr2key(C_ADDR(I,me));
     remove_channel_by_chan_idx(I);
     remove_worker_by_key(key);
 }
 
-static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
+static void do_y_call_accepted(void *sock, joza_msg_t *M, chan_idx_t I)
 {
     char     *xname      = joza_msg_calling_address(M);
     char     *yname      = joza_msg_called_address(M);
@@ -273,49 +273,49 @@ static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
 
     // Validate the message
     if (strnlen_s(xname, NAME_LEN + 1) == 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_too_short);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_too_short);
     else if (strnlen_s(xname, NAME_LEN + 1) > NAME_LEN)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_too_long);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_too_long);
     else if (!safeascii(xname, NAME_LEN))
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_format_invalid);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_format_invalid);
     else if (strnlen_s(yname, NAME_LEN + 1) == 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_too_short);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_too_short);
     else if (strnlen_s(yname, NAME_LEN + 1) > NAME_LEN)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_too_long);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_too_long);
     else if (!safeascii(yname, NAME_LEN))
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_calling_address_format_invalid);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_calling_address_format_invalid);
     else if (pkt_rcheck < 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_packet_facility_too_small);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_packet_facility_too_small);
     else if (pkt_rcheck > 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_packet_facility_too_large);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_packet_facility_too_large);
     else if (tput_rcheck < 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_throughput_facility_too_small);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_throughput_facility_too_small);
     else if (tput_rcheck > 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_throughput_facility_too_large);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_throughput_facility_too_large);
     else if (window_rcheck < 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_window_facility_too_small);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_window_facility_too_small);
     else if (window_rcheck > 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_window_facility_too_large);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_window_facility_too_large);
     else if (data_len > CALL_REQUEST_DATA_LEN)
-        DIAGNOSTIC(C_ADDR(I, !me), c_malformed_message, d_data_too_long);
+        diagnostic(sock,C_ADDR(I, !me), c_malformed_message, d_data_too_long);
 
     // If the caller has modified this channel's facilities,
     // ensure that the caller has obey the negotiation rules
     else if (!packet_negotiate(pkt, c_pkt[I]))
-        DIAGNOSTIC(C_ADDR(I, !me), c_invalid_facility_request, d_invalid_packet_facility_negotiation);
+        diagnostic(sock,C_ADDR(I, !me), c_invalid_facility_request, d_invalid_packet_facility_negotiation);
     else if (!window_negotiate(window, c_window[I]))
-        DIAGNOSTIC(C_ADDR(I, !me), c_invalid_facility_request, d_invalid_window_facility_negotiation);
+        diagnostic(sock,C_ADDR(I, !me), c_invalid_facility_request, d_invalid_window_facility_negotiation);
     else if (!tput_negotiate(tput, c_tput[I]))
-        DIAGNOSTIC(C_ADDR(I, !me), c_invalid_facility_request, d_invalid_throughput_facility_negotiation);
+        diagnostic(sock,C_ADDR(I, !me), c_invalid_facility_request, d_invalid_throughput_facility_negotiation);
 
     // TODO: Validate that the addresses still match.
     // If the callee's address has changed, this worker is requesting that the broker forward
     // this message to another worker for processing.  If the caller's address has changed, well,
     // I don't know what that means, yet.
     else if(strcmp(xname, c_xname[I]) != 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_invalid_forwarding_request, d_caller_forwarding_not_allowed);
+        diagnostic(sock,C_ADDR(I, !me), c_invalid_forwarding_request, d_caller_forwarding_not_allowed);
     else if(strcmp(yname, c_yname[I]) != 0)
-        DIAGNOSTIC(C_ADDR(I, !me), c_invalid_forwarding_request, d_callee_forwarding_not_allowed);
+        diagnostic(sock,C_ADDR(I, !me), c_invalid_forwarding_request, d_callee_forwarding_not_allowed);
 
     else {
 
@@ -326,7 +326,7 @@ static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
 
         c_state[I] = state_data_transfer;
 
-        joza_msg_send_addr_call_accepted (g_poll_sock, C_ADDR(I, !me), xname, yname,
+        joza_msg_send_addr_call_accepted (sock, C_ADDR(I, !me), xname, yname,
                                           pkt, window, tput, joza_msg_data(M));
     }
 }
@@ -338,37 +338,37 @@ static void do_y_call_accepted(joza_msg_t *M, chan_idx_t I)
 //
 // To resolve this, broker informs Y of the call collision.  Y is
 // supposed to then send a CALL_ACCEPTED.
-static void do_y_call_collision(chan_idx_t I)
+static void do_y_call_collision(void *sock, chan_idx_t I)
 {
     int me = 1;
-    DIAGNOSTIC(C_ADDR(I, me), c_call_collision, d_call_collision);
+    diagnostic(sock, C_ADDR(I, me), c_call_collision, d_call_collision);
     c_state[I] = state_call_collision;
 }
 
 // Caller is closing down gracefully
-static void do_i_clear_request(joza_msg_t *M, chan_idx_t I, bool me)
+static void do_i_clear_request(void *sock, joza_msg_t *M, chan_idx_t I, bool me)
 {
     // The caller's clear request shall only use the diagnostic D_WORKER_REQUESTED.
     if (joza_msg_cause(M) != c_worker_originated)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_cause);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_invalid_cause);
     else if (joza_msg_diagnostic(M) != d_worker_originated)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_diagnostic);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_invalid_diagnostic);
     else {
-        CLEAR_REQUEST(C_ADDR(I, !me), c_worker_originated, d_worker_originated);
+        joza_msg_send_addr_clear_request(sock, C_ADDR(I, !me), c_worker_originated, d_worker_originated);
         c_state[I] = STATE_CLEAR_REQUEST(me);
     }
 }
 
 // Caller is responding to a peer's request to close the channel
-static void do_i_clear_confirmation(chan_idx_t I, bool me)
+static void do_i_clear_confirmation(void *sock, chan_idx_t I, bool me)
 {
-    joza_msg_send_addr_clear_confirmation (g_poll_sock, C_ADDR(I, !me));
+    joza_msg_send_addr_clear_confirmation (sock, C_ADDR(I, !me));
     c_state[I] = state_ready;
     reset_flow_by_chan_idx(I);
     remove_channel_by_chan_idx(I);
 }
 
-static void do_i_data(joza_msg_t *M, chan_idx_t I, bool me)
+static void do_i_data(void *sock, joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
     seq_t ps = joza_msg_ps(M);
@@ -376,31 +376,31 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool me)
 
     // First, check if the message is valid
     if (ps > SEQ_MAX)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_ps_too_large);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_ps_too_large);
     else if (pr > SEQ_MAX)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (data_len == 0)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_data_too_short);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_data_too_short);
     else if (data_len > packet_bytes(p_last))
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_data_too_long);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_data_too_long);
     else if (data_len > packet_bytes(c_pkt[I]))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_data_too_long_for_packet_facility);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_data_too_long_for_packet_facility);
 
     // When caller sends a message, its packet number should match my
     // expected packet number for this caller, and should be in the
     // window of packet numbers that callee has said it will accept.
     else if (ps != C_PS(I, me))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_out_of_order);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_ps_out_of_order);
     else if (!seq_in_range(ps, C_PR(I, !me), (C_PR(I, !me) + c_window[I] - 1) % SEQ_MAX))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_ps_not_in_window);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_ps_not_in_window);
     // When X updates its own window of packets that it will accept,
     // its new lowest packet number that X will allow should be
     // between the previous lowest packet number that X would allow
     // and the next packet number that will be sent by Y.
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
     else {
-        joza_msg_send_addr_data (g_poll_sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, joza_msg_data(M));
+        joza_msg_send_addr_data (sock, C_ADDR(I, !me), joza_msg_q(M), pr, ps, joza_msg_data(M));
         SET_C_PS(I, me, (C_PS(I, me) + 1) % (SEQ_MAX + 1));
         SET_C_PR(I, me, pr);
     }
@@ -409,16 +409,16 @@ static void do_i_data(joza_msg_t *M, chan_idx_t I, bool me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow.
-static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool me)
+static void do_i_rr(void *sock, joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
 
     if (pr > SEQ_MAX)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
     else {
-        joza_msg_send_addr_rr (g_poll_sock, C_ADDR(I, !me), pr);
+        joza_msg_send_addr_rr (sock, C_ADDR(I, !me), pr);
         SET_C_PR(I, me, pr);
     }
 }
@@ -426,53 +426,53 @@ static void do_i_rr(joza_msg_t *M, chan_idx_t I, bool me)
 
 // Caller tells callee that it is updating the range of packet numbers
 // it will allow, and that it should stop sending data as soon as possible.
-static void do_i_rnr(joza_msg_t *M, chan_idx_t I, bool me)
+static void do_i_rnr(void *sock, joza_msg_t *M, chan_idx_t I, bool me)
 {
     seq_t pr = joza_msg_pr(M);
 
     // First, check if the message is valid
 
     if (pr > SEQ_MAX)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_pr_too_large);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, C_PR(I, me), C_PS(I, !me)))
-        DIAGNOSTIC(C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock,C_ADDR(I, me), c_local_procedure_error, d_pr_invalid_window_update);
     else {
-        joza_msg_send_addr_rnr (g_poll_sock, C_ADDR(I, !me), pr);
+        joza_msg_send_addr_rnr (sock, C_ADDR(I, !me), pr);
         SET_C_PR(I, me, pr);
     }
 }
 
 
 // Caller is requesting that callee reset flow control
-static void do_i_reset(joza_msg_t *M, chan_idx_t I, bool me)
+static void do_i_reset(void *sock, joza_msg_t *M, chan_idx_t I, bool me)
 {
     if (joza_msg_cause(M) != c_worker_originated)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_cause);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_invalid_cause);
     else if (joza_msg_diagnostic(M) != d_worker_originated)
-        DIAGNOSTIC(C_ADDR(I, me), c_malformed_message, d_invalid_diagnostic);
+        diagnostic(sock,C_ADDR(I, me), c_malformed_message, d_invalid_diagnostic);
     else {
-        RESET_REQUEST (C_ADDR(I, !me), c_worker_originated, d_worker_originated);
+        joza_msg_send_addr_reset_request (sock, C_ADDR(I, !me), c_worker_originated, d_worker_originated);
     }
 }
 
 // Caller has confirmed callee's request for a reset.
-static void do_i_reset_confirmation(chan_idx_t I, bool me)
+static void do_i_reset_confirmation(void *sock, chan_idx_t I, bool me)
 {
     // The worker's reset request shall only use the diagnostic D_WORKER_REQUESTED.
-    joza_msg_send_addr_reset_confirmation (g_poll_sock, C_ADDR(I, !me));
+    joza_msg_send_addr_reset_confirmation (sock, C_ADDR(I, !me));
     reset_flow_by_chan_idx(I);
     c_state[I] = state_data_transfer;
 }
 
 /* Handle message send a worker on this connected channel */
-void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool is_y)
+void channel_dispatch_by_lcn(void *sock, joza_msg_t *M, lcn_t LCN, bool is_y)
 {
     const char *cmdname = NULL, *xname = NULL, *yname = NULL;
     chan_idx_t I;
     state_t state_orig;
     action_t a;
 
-    TRACE("In %s(%p,%d,%d)", __FUNCTION__, M, LCN, is_y);
+    g_message("In %s(%p,%d,%d)", __FUNCTION__, M, LCN, is_y);
 
     cmdname = joza_msg_const_command(M);
     I = lcn_find(c_lcn, _count, LCN);
@@ -485,13 +485,13 @@ void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool is_y)
     state_orig = c_state[I];
 
     if (!is_y)
-        INFO("%s/%s handling %s from %s", xname, yname, cmdname, xname);
+        g_message("%s/%s handling %s from %s", xname, yname, cmdname, xname);
     else
-        INFO("%s/%s handling %s from %s", xname, yname, cmdname, yname);
+        g_message("%s/%s handling %s from %s", xname, yname, cmdname, yname);
 
     /* Big fat dispatch table */
     a = action_get(c_state[I], joza_msg_const_id(M), is_y);
-    INFO("%s/%s dispatching %s in %s", xname, yname, action_name(a), state_name(state_orig));
+    g_message("%s/%s dispatching %s in %s", xname, yname, action_name(a), state_name(state_orig));
 
     switch (a) {
     case a_unspecified:
@@ -510,82 +510,82 @@ void channel_dispatch_by_lcn(joza_msg_t *M, lcn_t LCN, bool is_y)
         break;
 
     case a_reset:
-        do_reset(I, is_y);
+        do_reset(sock, I, is_y);
         break;
     case a_clear:
-        do_clear(I, is_y);
+        do_clear(sock, I, is_y);
         break;
 
     case a_x_disconnect:
-        do_i_disconnect(I, 0);
+        do_i_disconnect(sock, I, 0);
         break;
     case a_x_clear_request:
-        do_i_clear_request(M, I, 0);
+        do_i_clear_request(sock, M, I, 0);
         break;
     case a_x_clear_confirmation:
-        do_i_clear_confirmation(I, 0);
+        do_i_clear_confirmation(sock, I, 0);
         break;
     case a_x_data:
-        do_i_data(M, I, 0);
+        do_i_data(sock, M, I, 0);
         break;
     case a_x_rr:
-        do_i_rr(M, I, 0);
+        do_i_rr(sock, M, I, 0);
         break;
     case a_x_rnr:
-        do_i_rnr(M, I, 0);
+        do_i_rnr(sock, M, I, 0);
         break;
     case a_x_reset:
-        do_i_reset(M, I, 0);
+        do_i_reset(sock, M, I, 0);
         break;
     case a_x_reset_confirmation:
-        do_i_reset_confirmation(I, 0);
+        do_i_reset_confirmation(sock, I, 0);
         break;
 
     case a_y_disconnect:
-        do_i_disconnect(I, 1);
+        do_i_disconnect(sock, I, 1);
         break;
     case a_y_call_accepted:
-        do_y_call_accepted(M, I);
+        do_y_call_accepted(sock, M, I);
         break;
     case a_y_call_collision:
-        do_y_call_collision(I);
+        do_y_call_collision(sock, I);
         break;
     case a_y_clear_request:
-        do_i_clear_request(M, I, 1);
+        do_i_clear_request(sock, M, I, 1);
         break;
     case a_y_clear_confirmation:
-        do_i_clear_confirmation(I, 1);
+        do_i_clear_confirmation(sock, I, 1);
         break;
     case a_y_data:
-        do_i_data(M, I, 1);
+        do_i_data(sock, M, I, 1);
         break;
     case a_y_rr:
-        do_i_rr(M, I, 1);
+        do_i_rr(sock, M, I, 1);
         break;
     case a_y_rnr:
-        do_i_rnr(M, I, 1);
+        do_i_rnr(sock, M, I, 1);
         break;
     case a_y_reset:
-        do_i_reset(M, I, 1);
+        do_i_reset(sock, M, I, 1);
         break;
     case a_y_reset_confirmation:
-        do_i_reset_confirmation(I, 1);
+        do_i_reset_confirmation(sock, I, 1);
         break;
     }
 
     if (state_orig != c_state[I])
-        INFO("%s/%s after %s state is now %s", xname, yname, action_name(a), state_name(c_state[I]));
+        g_message("%s/%s after %s state is now %s", xname, yname, action_name(a), state_name(c_state[I]));
 
-    TRACE("%s(%p,%d,%d) returns void", __FUNCTION__, M, LCN, is_y);
+    g_message("%s(%p,%d,%d) returns void", __FUNCTION__, M, LCN, is_y);
 }
 
 // Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
 // close the channel immediately, and disconnect caller
-void channel_disconnect_all()
+void channel_disconnect_all(void *sock)
 {
     for (int I = _count - 1; I >= 0; I --) {
-        CLEAR_REQUEST(C_ADDR(I, 1), c_broker_shutdown, d_unspecified);
-        CLEAR_REQUEST(C_ADDR(I, 0), c_broker_shutdown, d_unspecified);
+        joza_msg_send_addr_clear_request(sock, C_ADDR(I, 1), c_broker_shutdown, d_unspecified);
+        joza_msg_send_addr_clear_request(sock, C_ADDR(I, 0), c_broker_shutdown, d_unspecified);
         remove_channel_by_chan_idx(I);
     }
     _count = 0;

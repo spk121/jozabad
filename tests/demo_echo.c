@@ -52,7 +52,15 @@ int main(int argc, char** argv)
             continue;
         joza_msg_dump(msg);
         window = joza_msg_window(msg);
-        joza_msg_send(&msg, sock);
+        // joza_msg_send_call_accepted(&msg, sock);
+        joza_msg_send_call_accepted (sock,
+                                     joza_msg_calling_address(msg),
+                                     joza_msg_called_address(msg),
+                                     joza_msg_packet(msg),
+                                     joza_msg_window(msg),
+                                     joza_msg_throughput(msg),
+                                     zframe_new(0,0));
+
         connected = 1;
         xpr = 0;
         xps = 0;
