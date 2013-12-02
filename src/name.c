@@ -1,23 +1,23 @@
-/* Guidance
-   - GCC - C11 only
-   - MSC09-C. Character encoding: Use subset of ASCII for safety
-*/
-
-#include <assert.h>
-#include <ctype.h>
-#ifndef WIN32
-# include <stdbool.h>
-#endif
-#include <stdlib.h>
-#include <string.h>
-
+#include <glib.h>
+#include "diag.h"
 #include "name.h"
 
 /* Returns TRUE if the worker name N is valid. */
-#if 0
-bool val_name(name_t N)
+diag_t val_name(gchar *N)
 {
-    return safeascii(N.str, NAME_LEN);
+    if (strnlen_s(N, NAME_LEN + 1) == 0)
+    {
+        return d_calling_address_too_short;
+    }
+    else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN)
+    {
+        return d_calling_address_too_long;
+    }
+    else if (!safeascii(N, NAME_LEN))
+    {
+        return d_calling_address_format_invalid;
+    }
+    return d_unspecified;
 }
 #endif
 

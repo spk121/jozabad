@@ -30,9 +30,11 @@
 #include "mylimits.h"
 #include "cause.h"
 #include "diag.h"
+#include "joza_msg.h"
 
 wkey_t msg_addr2key (const zframe_t *z);
 
+diag_t prevalidate_message (const joza_msg_t *msg);
 void call_request(void *sock, zframe_t *call_addr, zframe_t *return_addr, char *xname, char *yname,
                   packet_t pkt, seq_t window, tput_t tput, zframe_t *data);
 void diagnostic(void *sock, const zframe_t *A, cause_t C, diag_t D);

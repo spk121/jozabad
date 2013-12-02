@@ -82,7 +82,7 @@ int main (int argc, char *argv[])
     poll = poll_create(verbose, s);
     poll_start(poll->loop);
 
-    channel_disconnect_all(poll->sock);
-    worker_remove_all();
+    //channel_disconnect_all(poll->sock);
+    //worker_remove_all();
     return 0;
  }

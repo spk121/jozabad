@@ -116,8 +116,9 @@ typedef enum {
 
     // for quota_exceeded
     d_data_rate_exceeded = 63,
-    d_message_rate_exceeded = 64
+    d_message_rate_exceeded = 64,
 
+    d_last = d_message_rate_exceeded
 } diag_t;
 
 diag_t errno2diag();

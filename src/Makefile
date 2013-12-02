@@ -22,7 +22,6 @@ CSRC = action.c \
 	raii.c \
 	state.c \
 	tput.c \
-	worker.c \
 	joza_lib.c \
 	joza_msg.c \
 	msg.c \

@@ -18,12 +18,16 @@ UTESTS=$(patsubst %.c,%,$(UTEST_SRC))
 ITEST_SRC=$(wildcard tests/*_itest.c)
 ITESTS=$(patsubst %.c,%,$(ITEST_SRC))
 
+# Demo workers
+DEMO_SRC=$(wildcard tests/demo*.c)
+DEMOS=$(patsubst %.c,%,$(DEMO_SRC))
+
 EXE_TARGET=build/jozabad
 LIB_TARGET=build/libjoza.a
 SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 
 # The Target Build
-all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests
+all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests demos
 
 release: CFLAGS=-std=c11 -O2 -DNDEBUG $(OPTFLAGS)
 release: all
@@ -51,6 +55,12 @@ $(ITESTS): %: %.c
 	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
 tests: $(UTESTS) $(ITESTS)
 	sh ./tests/runtests.sh
+
+# Demos
+.phony: demos
+$(DEMOS): %: %.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
+demos: $(DEMOS)
 
 valgrind:
 	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE)

@@ -65,3 +65,103 @@ void directory_request(void *sock, const zframe_t *A, const zhash_t *D)
     joza_msg_send_addr_directory (sock, A, D);
 }
 
+diag_t prevalidate_message (const joza_msg_t *msg)
+{
+    diag_t ret = d_unspecified;
+
+    int id = joza_msg_const_id (msg);
+    if (id == JOZA_MSG_DATA) 
+    {
+        byte q = joza_msg_const_q(msg);
+    }
+    if (id == JOZA_MSG_DATA || id == JOZA_MSG_RR || id == JOZA_MSG_RNR)
+    {
+        uint16_t pr = joza_msg_const_pr(msg);
+        if (pr > SEQ_MAX)
+            ret = d_pr_too_large;
+    }
+    if (id == JOZA_MSG_DATA)
+    {
+        uint16_t ps = joza_msg_const_ps(msg);
+        if (ps > SEQ_MAX)
+            ret = d_ps_too_large;
+    }
+    if (id == JOZA_MSG_DATA)
+    {
+        zframe_t *data = joza_msg_const_data(msg);
+        size_t data_len = zframe_size(data);
+        if (data_len == 0)
+            ret = d_data_too_short;
+        if (data_len > packet_bytes(p_last))
+            ret = d_data_too_long;
+    }
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED)
+    {
+        zframe_t *data = joza_msg_const_data(msg);
+        size_t data_len = zframe_size(data);
+        if (data_len > packet_bytes(p_default))
+            ret = d_data_too_long;
+    }
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED || id == JOZA_MSG_CONNECT)
+    {
+        char *calling_address = joza_msg_const_calling_address(msg);
+
+        if (strnlen_s(calling_address, NAME_LEN + 1) == 0)
+            ret = d_calling_address_too_short;
+        else if (strnlen_s(calling_address, NAME_LEN + 1) > NAME_LEN)
+            ret = d_calling_address_too_long;
+        else if (!safeascii(calling_address, NAME_LEN))
+            ret = d_calling_address_format_invalid;
+    }
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED)
+    {
+        char *called_address = joza_msg_const_called_address(msg);
+        byte packet = joza_msg_const_packet(msg);
+        uint16_t window = joza_msg_const_window(msg);
+        byte throughput = joza_msg_const_throughput(msg);
+
+        if (strnlen_s(called_address, NAME_LEN + 1) == 0)
+            ret = d_called_address_too_short;
+        else if (strnlen_s(called_address, NAME_LEN + 1) > NAME_LEN)
+            ret = d_called_address_too_long;
+        else if (!safeascii(called_address, NAME_LEN))
+            ret = d_called_address_format_invalid;
+
+        else if (packet_rngchk(packet) < 0)
+            ret = d_packet_facility_too_small;
+        else if (packet_rngchk(packet) > 0)
+            ret = d_packet_facility_too_large;
+
+        else if (seq_rngchk(window) < 0)
+            ret = d_window_facility_too_small;
+        else if (seq_rngchk(window) > 0)
+            ret = d_window_facility_too_large;
+
+        else if (tput_rngchk(throughput) < 0)
+            ret = d_throughput_facility_too_small;
+        else if (tput_rngchk(throughput) > 0)
+            ret = d_throughput_facility_too_large;
+
+    }
+    if (id == JOZA_MSG_CLEAR_REQUEST || id == JOZA_MSG_RESET_REQUEST || id == JOZA_MSG_DIAGNOSTIC)
+    {
+        byte cause = joza_msg_const_cause(msg);
+        byte diagnostic = joza_msg_const_diagnostic(msg);
+
+        if (cause > c_last)
+            ret = d_invalid_cause;
+        else if (diagnostic > d_last)
+            ret = d_invalid_diagnostic;
+    }
+    if (id == JOZA_MSG_CONNECT)
+    {
+        byte directionality = joza_msg_const_directionality(msg);
+        if (iodir_validate(directionality) == 0)
+            ret = d_invalid_directionality_facility;
+    }
+    if (id == JOZA_MSG_DIRECTORY)
+    {
+        zhash_t *workers = joza_msg_workers(msg);
+    }
+    return ret;
+}

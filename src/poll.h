@@ -30,6 +30,8 @@ typedef struct {
     zctx_t *ctx;
     void *sock;
     zloop_t *loop;
+    GHashTable *workers_table;
+    GHashTable *channels_table;
 } joza_poll_t;
 
 joza_poll_t *poll_create(gboolean verbose, const char *endpoint);

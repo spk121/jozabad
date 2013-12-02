@@ -36,21 +36,26 @@
 # define CALL_REQUEST_DATA_LEN (16)
 #endif
 
-extern lcn_t c_lcn[CHAN_COUNT];
-extern zframe_t *c_xzaddr[CHAN_COUNT]; /* ZMQ address of caller X */
-extern zframe_t *c_yzaddr[CHAN_COUNT]; /* ZMQ address of callee Y */
-extern chan_idx_t c_yidx[CHAN_COUNT]; /* index array that sorts ykey array */
-extern const char *c_xname[CHAN_COUNT];
-extern const char *c_yname[CHAN_COUNT];
-extern packet_t c_pkt[CHAN_COUNT];
-extern tput_t c_tput[CHAN_COUNT]; /* bits/sec permitted on this channel */
-extern seq_t c_window[CHAN_COUNT];
-extern state_t c_state[CHAN_COUNT];
+typedef struct {
+    lcn_t lcn;
+    zframe_t *xzaddr, *yzaddr;
+    gchar *xname, *yname;
+    state_t state;
+    seq_t xps, xpr, yps, ypr, window;
+    packet_t pkt;
+    tput_t tput;
+    guint64 ctime, mtime;
+} channel_t;
 
-void channel_dispatch_by_lcn(void *sock, joza_msg_t *M, lcn_t LCN, bool is_y);
+
+channel_t *
+channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
+               packet_t pkt, seq_t window, tput_t tput);
 bool channel_available(void);
 lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                   packet_t pkt, seq_t window, tput_t tput);
-void channel_disconnect_all(void *sock);
+void channel_disconnect_all(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr);
+state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_y);
+
 
 #endif
