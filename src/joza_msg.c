@@ -1,22 +1,22 @@
 /*
     joza_msg - transport for switched virtual call messages
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>                   
-                                                                        
-    This file is part of Jozabad.                                       
-                                                                        
-    Jozabad is free software: you can redistribute it and/or modify     
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or   
-    (at your option) any later version.                                 
-                                                                        
-    Jozabad is distributed in the hope that it will be useful,          
-    but WITHOUT ANY WARRANTY; without even the implied warranty of      
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the       
-    GNU General Public License for more details.                        
-                                                                        
-    You should have received a copy of the GNU General Public License   
-    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.    
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -266,133 +266,133 @@ joza_msg_recv (void *input)
     GET_NUMBER1 (self->id);
 
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            GET_NUMBER1 (self->q);
-            GET_NUMBER2 (self->pr);
-            GET_NUMBER2 (self->ps);
-            //  Get next frame, leave current untouched
-            if (!zsocket_rcvmore (input))
-                goto malformed;
-            self->data = zframe_recv (input);
-            break;
-
-        case JOZA_MSG_RR:
-            GET_NUMBER2 (self->pr);
-            break;
-
-        case JOZA_MSG_RNR:
-            GET_NUMBER2 (self->pr);
-            break;
-
-        case JOZA_MSG_CALL_REQUEST:
-            free (self->calling_address);
-            GET_STRING (self->calling_address);
-            free (self->called_address);
-            GET_STRING (self->called_address);
-            GET_NUMBER1 (self->packet);
-            GET_NUMBER2 (self->window);
-            GET_NUMBER1 (self->throughput);
-            //  Get next frame, leave current untouched
-            if (!zsocket_rcvmore (input))
-                goto malformed;
-            self->data = zframe_recv (input);
-            break;
-
-        case JOZA_MSG_CALL_ACCEPTED:
-            free (self->calling_address);
-            GET_STRING (self->calling_address);
-            free (self->called_address);
-            GET_STRING (self->called_address);
-            GET_NUMBER1 (self->packet);
-            GET_NUMBER2 (self->window);
-            GET_NUMBER1 (self->throughput);
-            //  Get next frame, leave current untouched
-            if (!zsocket_rcvmore (input))
-                goto malformed;
-            self->data = zframe_recv (input);
-            break;
-
-        case JOZA_MSG_CLEAR_REQUEST:
-            GET_NUMBER1 (self->cause);
-            GET_NUMBER1 (self->diagnostic);
-            break;
-
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            break;
-
-        case JOZA_MSG_RESET_REQUEST:
-            GET_NUMBER1 (self->cause);
-            GET_NUMBER1 (self->diagnostic);
-            break;
-
-        case JOZA_MSG_RESET_CONFIRMATION:
-            break;
-
-        case JOZA_MSG_CONNECT:
-            free (self->protocol);
-            GET_STRING (self->protocol);
-            if (strneq (self->protocol, "~SVC"))
-                goto malformed;
-            GET_NUMBER1 (self->version);
-            if (self->version != JOZA_MSG_VERSION)
-                goto malformed;
-            free (self->calling_address);
-            GET_STRING (self->calling_address);
-            GET_NUMBER1 (self->directionality);
-            break;
-
-        case JOZA_MSG_CONNECT_INDICATION:
-            break;
-
-        case JOZA_MSG_DISCONNECT:
-            break;
-
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            break;
-
-        case JOZA_MSG_DIAGNOSTIC:
-            GET_NUMBER1 (self->cause);
-            GET_NUMBER1 (self->diagnostic);
-            break;
-
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            break;
-
-        case JOZA_MSG_DIRECTORY:
-            GET_NUMBER1 (hash_size);
-            self->workers = zhash_new ();
-            zhash_autofree (self->workers);
-            while (hash_size--) {
-                char *string;
-                GET_STRING (string);
-                char *value = strchr (string, '=');
-                if (value)
-                    *value++ = 0;
-                zhash_insert (self->workers, string, value);
-                free (string);
-            }
-            break;
-
-        case JOZA_MSG_ENQ:
-            break;
-
-        case JOZA_MSG_ACK:
-            break;
-
-        default:
+    case JOZA_MSG_DATA:
+        GET_NUMBER1 (self->q);
+        GET_NUMBER2 (self->pr);
+        GET_NUMBER2 (self->ps);
+        //  Get next frame, leave current untouched
+        if (!zsocket_rcvmore (input))
             goto malformed;
+        self->data = zframe_recv (input);
+        break;
+
+    case JOZA_MSG_RR:
+        GET_NUMBER2 (self->pr);
+        break;
+
+    case JOZA_MSG_RNR:
+        GET_NUMBER2 (self->pr);
+        break;
+
+    case JOZA_MSG_CALL_REQUEST:
+        free (self->calling_address);
+        GET_STRING (self->calling_address);
+        free (self->called_address);
+        GET_STRING (self->called_address);
+        GET_NUMBER1 (self->packet);
+        GET_NUMBER2 (self->window);
+        GET_NUMBER1 (self->throughput);
+        //  Get next frame, leave current untouched
+        if (!zsocket_rcvmore (input))
+            goto malformed;
+        self->data = zframe_recv (input);
+        break;
+
+    case JOZA_MSG_CALL_ACCEPTED:
+        free (self->calling_address);
+        GET_STRING (self->calling_address);
+        free (self->called_address);
+        GET_STRING (self->called_address);
+        GET_NUMBER1 (self->packet);
+        GET_NUMBER2 (self->window);
+        GET_NUMBER1 (self->throughput);
+        //  Get next frame, leave current untouched
+        if (!zsocket_rcvmore (input))
+            goto malformed;
+        self->data = zframe_recv (input);
+        break;
+
+    case JOZA_MSG_CLEAR_REQUEST:
+        GET_NUMBER1 (self->cause);
+        GET_NUMBER1 (self->diagnostic);
+        break;
+
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        break;
+
+    case JOZA_MSG_RESET_REQUEST:
+        GET_NUMBER1 (self->cause);
+        GET_NUMBER1 (self->diagnostic);
+        break;
+
+    case JOZA_MSG_RESET_CONFIRMATION:
+        break;
+
+    case JOZA_MSG_CONNECT:
+        free (self->protocol);
+        GET_STRING (self->protocol);
+        if (strneq (self->protocol, "~SVC"))
+            goto malformed;
+        GET_NUMBER1 (self->version);
+        if (self->version != JOZA_MSG_VERSION)
+            goto malformed;
+        free (self->calling_address);
+        GET_STRING (self->calling_address);
+        GET_NUMBER1 (self->directionality);
+        break;
+
+    case JOZA_MSG_CONNECT_INDICATION:
+        break;
+
+    case JOZA_MSG_DISCONNECT:
+        break;
+
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        break;
+
+    case JOZA_MSG_DIAGNOSTIC:
+        GET_NUMBER1 (self->cause);
+        GET_NUMBER1 (self->diagnostic);
+        break;
+
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
+
+    case JOZA_MSG_DIRECTORY:
+        GET_NUMBER1 (hash_size);
+        self->workers = zhash_new ();
+        zhash_autofree (self->workers);
+        while (hash_size--) {
+            char *string;
+            GET_STRING (string);
+            char *value = strchr (string, '=');
+            if (value)
+                *value++ = 0;
+            zhash_insert (self->workers, string, value);
+            free (string);
+        }
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
+        break;
+
+    default:
+        goto malformed;
     }
     //  Successful return
     zframe_destroy (&frame);
     return self;
 
     //  Error returns
-    malformed:
-        printf ("E: malformed message '%d'\n", self->id);
-    empty:
-        zframe_destroy (&frame);
-        joza_msg_destroy (&self);
-        return (NULL);
+malformed:
+    printf ("E: malformed message '%d'\n", self->id);
+empty:
+    zframe_destroy (&frame);
+    joza_msg_destroy (&self);
+    return (NULL);
 }
 
 //  Count size of key=value pair
@@ -432,132 +432,132 @@ joza_msg_send (joza_msg_t **self_p, void *output)
     joza_msg_t *self = *self_p;
     size_t frame_size = 2 + 1;          //  Signature and message ID
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            //  q is a 1-byte integer
-            frame_size += 1;
-            //  pr is a 2-byte integer
-            frame_size += 2;
-            //  ps is a 2-byte integer
-            frame_size += 2;
-            break;
+    case JOZA_MSG_DATA:
+        //  q is a 1-byte integer
+        frame_size += 1;
+        //  pr is a 2-byte integer
+        frame_size += 2;
+        //  ps is a 2-byte integer
+        frame_size += 2;
+        break;
 
-        case JOZA_MSG_RR:
-            //  pr is a 2-byte integer
-            frame_size += 2;
-            break;
+    case JOZA_MSG_RR:
+        //  pr is a 2-byte integer
+        frame_size += 2;
+        break;
 
-        case JOZA_MSG_RNR:
-            //  pr is a 2-byte integer
-            frame_size += 2;
-            break;
+    case JOZA_MSG_RNR:
+        //  pr is a 2-byte integer
+        frame_size += 2;
+        break;
 
-        case JOZA_MSG_CALL_REQUEST:
-            //  calling_address is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->calling_address)
-                frame_size += strlen (self->calling_address);
-            //  called_address is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->called_address)
-                frame_size += strlen (self->called_address);
-            //  packet is a 1-byte integer
-            frame_size += 1;
-            //  window is a 2-byte integer
-            frame_size += 2;
-            //  throughput is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_CALL_REQUEST:
+        //  calling_address is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->calling_address)
+            frame_size += strlen (self->calling_address);
+        //  called_address is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->called_address)
+            frame_size += strlen (self->called_address);
+        //  packet is a 1-byte integer
+        frame_size += 1;
+        //  window is a 2-byte integer
+        frame_size += 2;
+        //  throughput is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_CALL_ACCEPTED:
-            //  calling_address is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->calling_address)
-                frame_size += strlen (self->calling_address);
-            //  called_address is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->called_address)
-                frame_size += strlen (self->called_address);
-            //  packet is a 1-byte integer
-            frame_size += 1;
-            //  window is a 2-byte integer
-            frame_size += 2;
-            //  throughput is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_CALL_ACCEPTED:
+        //  calling_address is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->calling_address)
+            frame_size += strlen (self->calling_address);
+        //  called_address is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->called_address)
+            frame_size += strlen (self->called_address);
+        //  packet is a 1-byte integer
+        frame_size += 1;
+        //  window is a 2-byte integer
+        frame_size += 2;
+        //  throughput is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_CLEAR_REQUEST:
-            //  cause is a 1-byte integer
-            frame_size += 1;
-            //  diagnostic is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_CLEAR_REQUEST:
+        //  cause is a 1-byte integer
+        frame_size += 1;
+        //  diagnostic is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            break;
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_RESET_REQUEST:
-            //  cause is a 1-byte integer
-            frame_size += 1;
-            //  diagnostic is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_RESET_REQUEST:
+        //  cause is a 1-byte integer
+        frame_size += 1;
+        //  diagnostic is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_RESET_CONFIRMATION:
-            break;
+    case JOZA_MSG_RESET_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_CONNECT:
-            //  protocol is a string with 1-byte length
-            frame_size += 1 + strlen ("~SVC");
-            //  version is a 1-byte integer
-            frame_size += 1;
-            //  calling_address is a string with 1-byte length
-            frame_size++;       //  Size is one octet
-            if (self->calling_address)
-                frame_size += strlen (self->calling_address);
-            //  directionality is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_CONNECT:
+        //  protocol is a string with 1-byte length
+        frame_size += 1 + strlen ("~SVC");
+        //  version is a 1-byte integer
+        frame_size += 1;
+        //  calling_address is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->calling_address)
+            frame_size += strlen (self->calling_address);
+        //  directionality is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_CONNECT_INDICATION:
-            break;
+    case JOZA_MSG_CONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DISCONNECT:
-            break;
+    case JOZA_MSG_DISCONNECT:
+        break;
 
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            break;
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DIAGNOSTIC:
-            //  cause is a 1-byte integer
-            frame_size += 1;
-            //  diagnostic is a 1-byte integer
-            frame_size += 1;
-            break;
+    case JOZA_MSG_DIAGNOSTIC:
+        //  cause is a 1-byte integer
+        frame_size += 1;
+        //  diagnostic is a 1-byte integer
+        frame_size += 1;
+        break;
 
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
 
-        case JOZA_MSG_DIRECTORY:
-            //  workers is an array of key=value strings
-            frame_size++;       //  Size is one octet
-            if (self->workers) {
-                self->workers_bytes = 0;
-                //  Add up size of dictionary contents
-                zhash_foreach (self->workers, s_workers_count, self);
-            }
-            frame_size += self->workers_bytes;
-            break;
+    case JOZA_MSG_DIRECTORY:
+        //  workers is an array of key=value strings
+        frame_size++;       //  Size is one octet
+        if (self->workers) {
+            self->workers_bytes = 0;
+            //  Add up size of dictionary contents
+            zhash_foreach (self->workers, s_workers_count, self);
+        }
+        frame_size += self->workers_bytes;
+        break;
 
-        case JOZA_MSG_ENQ:
-            break;
+    case JOZA_MSG_ENQ:
+        break;
 
-        case JOZA_MSG_ACK:
-            break;
+    case JOZA_MSG_ACK:
+        break;
 
-        default:
-            printf ("E: bad message type '%d', not sent\n", self->id);
-            //  No recovery, this is a fatal application error
-            assert (false);
+    default:
+        printf ("E: bad message type '%d', not sent\n", self->id);
+        //  No recovery, this is a fatal application error
+        assert (false);
     }
     //  Now serialize message into the frame
     zframe_t *frame = zframe_new (NULL, frame_size);
@@ -568,113 +568,107 @@ joza_msg_send (joza_msg_t **self_p, void *output)
     PUT_NUMBER1 (self->id);
 
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            PUT_NUMBER1 (self->q);
-            PUT_NUMBER2 (self->pr);
-            PUT_NUMBER2 (self->ps);
-            frame_flags = ZFRAME_MORE;
-            break;
+    case JOZA_MSG_DATA:
+        PUT_NUMBER1 (self->q);
+        PUT_NUMBER2 (self->pr);
+        PUT_NUMBER2 (self->ps);
+        frame_flags = ZFRAME_MORE;
+        break;
 
-        case JOZA_MSG_RR:
-            PUT_NUMBER2 (self->pr);
-            break;
+    case JOZA_MSG_RR:
+        PUT_NUMBER2 (self->pr);
+        break;
 
-        case JOZA_MSG_RNR:
-            PUT_NUMBER2 (self->pr);
-            break;
+    case JOZA_MSG_RNR:
+        PUT_NUMBER2 (self->pr);
+        break;
 
-        case JOZA_MSG_CALL_REQUEST:
-            if (self->calling_address) {
-                PUT_STRING (self->calling_address);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->called_address) {
-                PUT_STRING (self->called_address);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            PUT_NUMBER1 (self->packet);
-            PUT_NUMBER2 (self->window);
-            PUT_NUMBER1 (self->throughput);
-            frame_flags = ZFRAME_MORE;
-            break;
+    case JOZA_MSG_CALL_REQUEST:
+        if (self->calling_address) {
+            PUT_STRING (self->calling_address);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
+        if (self->called_address) {
+            PUT_STRING (self->called_address);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
+        PUT_NUMBER1 (self->packet);
+        PUT_NUMBER2 (self->window);
+        PUT_NUMBER1 (self->throughput);
+        frame_flags = ZFRAME_MORE;
+        break;
 
-        case JOZA_MSG_CALL_ACCEPTED:
-            if (self->calling_address) {
-                PUT_STRING (self->calling_address);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            if (self->called_address) {
-                PUT_STRING (self->called_address);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            PUT_NUMBER1 (self->packet);
-            PUT_NUMBER2 (self->window);
-            PUT_NUMBER1 (self->throughput);
-            frame_flags = ZFRAME_MORE;
-            break;
+    case JOZA_MSG_CALL_ACCEPTED:
+        if (self->calling_address) {
+            PUT_STRING (self->calling_address);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
+        if (self->called_address) {
+            PUT_STRING (self->called_address);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
+        PUT_NUMBER1 (self->packet);
+        PUT_NUMBER2 (self->window);
+        PUT_NUMBER1 (self->throughput);
+        frame_flags = ZFRAME_MORE;
+        break;
 
-        case JOZA_MSG_CLEAR_REQUEST:
-            PUT_NUMBER1 (self->cause);
-            PUT_NUMBER1 (self->diagnostic);
-            break;
+    case JOZA_MSG_CLEAR_REQUEST:
+        PUT_NUMBER1 (self->cause);
+        PUT_NUMBER1 (self->diagnostic);
+        break;
 
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            break;
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_RESET_REQUEST:
-            PUT_NUMBER1 (self->cause);
-            PUT_NUMBER1 (self->diagnostic);
-            break;
+    case JOZA_MSG_RESET_REQUEST:
+        PUT_NUMBER1 (self->cause);
+        PUT_NUMBER1 (self->diagnostic);
+        break;
 
-        case JOZA_MSG_RESET_CONFIRMATION:
-            break;
+    case JOZA_MSG_RESET_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_CONNECT:
-            PUT_STRING ("~SVC");
-            PUT_NUMBER1 (JOZA_MSG_VERSION);
-            if (self->calling_address) {
-                PUT_STRING (self->calling_address);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty string
-            PUT_NUMBER1 (self->directionality);
-            break;
+    case JOZA_MSG_CONNECT:
+        PUT_STRING ("~SVC");
+        PUT_NUMBER1 (JOZA_MSG_VERSION);
+        if (self->calling_address) {
+            PUT_STRING (self->calling_address);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
+        PUT_NUMBER1 (self->directionality);
+        break;
 
-        case JOZA_MSG_CONNECT_INDICATION:
-            break;
+    case JOZA_MSG_CONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DISCONNECT:
-            break;
+    case JOZA_MSG_DISCONNECT:
+        break;
 
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            break;
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DIAGNOSTIC:
-            PUT_NUMBER1 (self->cause);
-            PUT_NUMBER1 (self->diagnostic);
-            break;
+    case JOZA_MSG_DIAGNOSTIC:
+        PUT_NUMBER1 (self->cause);
+        PUT_NUMBER1 (self->diagnostic);
+        break;
 
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
 
-        case JOZA_MSG_DIRECTORY:
-            if (self->workers != NULL) {
-                PUT_NUMBER1 (zhash_size (self->workers));
-                zhash_foreach (self->workers, s_workers_write, self);
-            }
-            else
-                PUT_NUMBER1 (0);    //  Empty dictionary
-            break;
+    case JOZA_MSG_DIRECTORY:
+        if (self->workers != NULL) {
+            PUT_NUMBER1 (zhash_size (self->workers));
+            zhash_foreach (self->workers, s_workers_write, self);
+        } else
+            PUT_NUMBER1 (0);    //  Empty dictionary
+        break;
 
-        case JOZA_MSG_ENQ:
-            break;
+    case JOZA_MSG_ENQ:
+        break;
 
-        case JOZA_MSG_ACK:
-            break;
+    case JOZA_MSG_ACK:
+        break;
 
     }
     //  If we're sending to a ROUTER, we send the address first
@@ -695,36 +689,36 @@ joza_msg_send (joza_msg_t **self_p, void *output)
 
     //  Now send any frame fields, in order
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            //  If data isn't set, send an empty frame
-            if (!self->data)
-                self->data = zframe_new (NULL, 0);
-            if (zframe_send (&self->data, output, 0)) {
-                zframe_destroy (&frame);
-                joza_msg_destroy (self_p);
-                return -1;
-            }
-            break;
-        case JOZA_MSG_CALL_REQUEST:
-            //  If data isn't set, send an empty frame
-            if (!self->data)
-                self->data = zframe_new (NULL, 0);
-            if (zframe_send (&self->data, output, 0)) {
-                zframe_destroy (&frame);
-                joza_msg_destroy (self_p);
-                return -1;
-            }
-            break;
-        case JOZA_MSG_CALL_ACCEPTED:
-            //  If data isn't set, send an empty frame
-            if (!self->data)
-                self->data = zframe_new (NULL, 0);
-            if (zframe_send (&self->data, output, 0)) {
-                zframe_destroy (&frame);
-                joza_msg_destroy (self_p);
-                return -1;
-            }
-            break;
+    case JOZA_MSG_DATA:
+        //  If data isn't set, send an empty frame
+        if (!self->data)
+            self->data = zframe_new (NULL, 0);
+        if (zframe_send (&self->data, output, 0)) {
+            zframe_destroy (&frame);
+            joza_msg_destroy (self_p);
+            return -1;
+        }
+        break;
+    case JOZA_MSG_CALL_REQUEST:
+        //  If data isn't set, send an empty frame
+        if (!self->data)
+            self->data = zframe_new (NULL, 0);
+        if (zframe_send (&self->data, output, 0)) {
+            zframe_destroy (&frame);
+            joza_msg_destroy (self_p);
+            return -1;
+        }
+        break;
+    case JOZA_MSG_CALL_ACCEPTED:
+        //  If data isn't set, send an empty frame
+        if (!self->data)
+            self->data = zframe_new (NULL, 0);
+        if (zframe_send (&self->data, output, 0)) {
+            zframe_destroy (&frame);
+            joza_msg_destroy (self_p);
+            return -1;
+        }
+        break;
     }
     //  Destroy joza_msg object
     joza_msg_destroy (self_p);
@@ -1249,88 +1243,88 @@ joza_msg_dup (joza_msg_t *self)
     if (self->address)
         copy->address = zframe_dup (self->address);
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            copy->q = self->q;
-            copy->pr = self->pr;
-            copy->ps = self->ps;
-            copy->data = zframe_dup (self->data);
-            break;
+    case JOZA_MSG_DATA:
+        copy->q = self->q;
+        copy->pr = self->pr;
+        copy->ps = self->ps;
+        copy->data = zframe_dup (self->data);
+        break;
 
-        case JOZA_MSG_RR:
-            copy->pr = self->pr;
-            break;
+    case JOZA_MSG_RR:
+        copy->pr = self->pr;
+        break;
 
-        case JOZA_MSG_RNR:
-            copy->pr = self->pr;
-            break;
+    case JOZA_MSG_RNR:
+        copy->pr = self->pr;
+        break;
 
-        case JOZA_MSG_CALL_REQUEST:
-            copy->calling_address = strdup (self->calling_address);
-            copy->called_address = strdup (self->called_address);
-            copy->packet = self->packet;
-            copy->window = self->window;
-            copy->throughput = self->throughput;
-            copy->data = zframe_dup (self->data);
-            break;
+    case JOZA_MSG_CALL_REQUEST:
+        copy->calling_address = strdup (self->calling_address);
+        copy->called_address = strdup (self->called_address);
+        copy->packet = self->packet;
+        copy->window = self->window;
+        copy->throughput = self->throughput;
+        copy->data = zframe_dup (self->data);
+        break;
 
-        case JOZA_MSG_CALL_ACCEPTED:
-            copy->calling_address = strdup (self->calling_address);
-            copy->called_address = strdup (self->called_address);
-            copy->packet = self->packet;
-            copy->window = self->window;
-            copy->throughput = self->throughput;
-            copy->data = zframe_dup (self->data);
-            break;
+    case JOZA_MSG_CALL_ACCEPTED:
+        copy->calling_address = strdup (self->calling_address);
+        copy->called_address = strdup (self->called_address);
+        copy->packet = self->packet;
+        copy->window = self->window;
+        copy->throughput = self->throughput;
+        copy->data = zframe_dup (self->data);
+        break;
 
-        case JOZA_MSG_CLEAR_REQUEST:
-            copy->cause = self->cause;
-            copy->diagnostic = self->diagnostic;
-            break;
+    case JOZA_MSG_CLEAR_REQUEST:
+        copy->cause = self->cause;
+        copy->diagnostic = self->diagnostic;
+        break;
 
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            break;
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_RESET_REQUEST:
-            copy->cause = self->cause;
-            copy->diagnostic = self->diagnostic;
-            break;
+    case JOZA_MSG_RESET_REQUEST:
+        copy->cause = self->cause;
+        copy->diagnostic = self->diagnostic;
+        break;
 
-        case JOZA_MSG_RESET_CONFIRMATION:
-            break;
+    case JOZA_MSG_RESET_CONFIRMATION:
+        break;
 
-        case JOZA_MSG_CONNECT:
-            copy->protocol = strdup (self->protocol);
-            copy->version = self->version;
-            copy->calling_address = strdup (self->calling_address);
-            copy->directionality = self->directionality;
-            break;
+    case JOZA_MSG_CONNECT:
+        copy->protocol = strdup (self->protocol);
+        copy->version = self->version;
+        copy->calling_address = strdup (self->calling_address);
+        copy->directionality = self->directionality;
+        break;
 
-        case JOZA_MSG_CONNECT_INDICATION:
-            break;
+    case JOZA_MSG_CONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DISCONNECT:
-            break;
+    case JOZA_MSG_DISCONNECT:
+        break;
 
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            break;
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        break;
 
-        case JOZA_MSG_DIAGNOSTIC:
-            copy->cause = self->cause;
-            copy->diagnostic = self->diagnostic;
-            break;
+    case JOZA_MSG_DIAGNOSTIC:
+        copy->cause = self->cause;
+        copy->diagnostic = self->diagnostic;
+        break;
 
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        break;
 
-        case JOZA_MSG_DIRECTORY:
-            copy->workers = zhash_dup (self->workers);
-            break;
+    case JOZA_MSG_DIRECTORY:
+        copy->workers = zhash_dup (self->workers);
+        break;
 
-        case JOZA_MSG_ENQ:
-            break;
+    case JOZA_MSG_ENQ:
+        break;
 
-        case JOZA_MSG_ACK:
-            break;
+    case JOZA_MSG_ACK:
+        break;
 
     }
     return copy;
@@ -1355,166 +1349,166 @@ joza_msg_dump (joza_msg_t *self)
 {
     assert (self);
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            puts ("DATA:");
-            printf ("    q=%ld\n", (long) self->q);
-            printf ("    pr=%ld\n", (long) self->pr);
-            printf ("    ps=%ld\n", (long) self->ps);
-            printf ("    data={\n");
-            if (self->data) {
-                size_t size = zframe_size (self->data);
-                byte *data = zframe_data (self->data);
-                printf ("        size=%td\n", zframe_size (self->data));
-                if (size > 32)
-                    size = 32;
-                int data_index;
-                for (data_index = 0; data_index < size; data_index++) {
-                    if (data_index && (data_index % 4 == 0))
-                        printf ("-");
-                    printf ("%02X", data [data_index]);
-                }
+    case JOZA_MSG_DATA:
+        puts ("DATA:");
+        printf ("    q=%ld\n", (long) self->q);
+        printf ("    pr=%ld\n", (long) self->pr);
+        printf ("    ps=%ld\n", (long) self->ps);
+        printf ("    data={\n");
+        if (self->data) {
+            size_t size = zframe_size (self->data);
+            byte *data = zframe_data (self->data);
+            printf ("        size=%td\n", zframe_size (self->data));
+            if (size > 32)
+                size = 32;
+            int data_index;
+            for (data_index = 0; data_index < size; data_index++) {
+                if (data_index && (data_index % 4 == 0))
+                    printf ("-");
+                printf ("%02X", data [data_index]);
             }
-            printf ("    }\n");
-            break;
+        }
+        printf ("    }\n");
+        break;
 
-        case JOZA_MSG_RR:
-            puts ("RR:");
-            printf ("    pr=%ld\n", (long) self->pr);
-            break;
+    case JOZA_MSG_RR:
+        puts ("RR:");
+        printf ("    pr=%ld\n", (long) self->pr);
+        break;
 
-        case JOZA_MSG_RNR:
-            puts ("RNR:");
-            printf ("    pr=%ld\n", (long) self->pr);
-            break;
+    case JOZA_MSG_RNR:
+        puts ("RNR:");
+        printf ("    pr=%ld\n", (long) self->pr);
+        break;
 
-        case JOZA_MSG_CALL_REQUEST:
-            puts ("CALL_REQUEST:");
-            if (self->calling_address)
-                printf ("    calling_address='%s'\n", self->calling_address);
-            else
-                printf ("    calling_address=\n");
-            if (self->called_address)
-                printf ("    called_address='%s'\n", self->called_address);
-            else
-                printf ("    called_address=\n");
-            printf ("    packet=%ld\n", (long) self->packet);
-            printf ("    window=%ld\n", (long) self->window);
-            printf ("    throughput=%ld\n", (long) self->throughput);
-            printf ("    data={\n");
-            if (self->data) {
-                size_t size = zframe_size (self->data);
-                byte *data = zframe_data (self->data);
-                printf ("        size=%td\n", zframe_size (self->data));
-                if (size > 32)
-                    size = 32;
-                int data_index;
-                for (data_index = 0; data_index < size; data_index++) {
-                    if (data_index && (data_index % 4 == 0))
-                        printf ("-");
-                    printf ("%02X", data [data_index]);
-                }
+    case JOZA_MSG_CALL_REQUEST:
+        puts ("CALL_REQUEST:");
+        if (self->calling_address)
+            printf ("    calling_address='%s'\n", self->calling_address);
+        else
+            printf ("    calling_address=\n");
+        if (self->called_address)
+            printf ("    called_address='%s'\n", self->called_address);
+        else
+            printf ("    called_address=\n");
+        printf ("    packet=%ld\n", (long) self->packet);
+        printf ("    window=%ld\n", (long) self->window);
+        printf ("    throughput=%ld\n", (long) self->throughput);
+        printf ("    data={\n");
+        if (self->data) {
+            size_t size = zframe_size (self->data);
+            byte *data = zframe_data (self->data);
+            printf ("        size=%td\n", zframe_size (self->data));
+            if (size > 32)
+                size = 32;
+            int data_index;
+            for (data_index = 0; data_index < size; data_index++) {
+                if (data_index && (data_index % 4 == 0))
+                    printf ("-");
+                printf ("%02X", data [data_index]);
             }
-            printf ("    }\n");
-            break;
+        }
+        printf ("    }\n");
+        break;
 
-        case JOZA_MSG_CALL_ACCEPTED:
-            puts ("CALL_ACCEPTED:");
-            if (self->calling_address)
-                printf ("    calling_address='%s'\n", self->calling_address);
-            else
-                printf ("    calling_address=\n");
-            if (self->called_address)
-                printf ("    called_address='%s'\n", self->called_address);
-            else
-                printf ("    called_address=\n");
-            printf ("    packet=%ld\n", (long) self->packet);
-            printf ("    window=%ld\n", (long) self->window);
-            printf ("    throughput=%ld\n", (long) self->throughput);
-            printf ("    data={\n");
-            if (self->data) {
-                size_t size = zframe_size (self->data);
-                byte *data = zframe_data (self->data);
-                printf ("        size=%td\n", zframe_size (self->data));
-                if (size > 32)
-                    size = 32;
-                int data_index;
-                for (data_index = 0; data_index < size; data_index++) {
-                    if (data_index && (data_index % 4 == 0))
-                        printf ("-");
-                    printf ("%02X", data [data_index]);
-                }
+    case JOZA_MSG_CALL_ACCEPTED:
+        puts ("CALL_ACCEPTED:");
+        if (self->calling_address)
+            printf ("    calling_address='%s'\n", self->calling_address);
+        else
+            printf ("    calling_address=\n");
+        if (self->called_address)
+            printf ("    called_address='%s'\n", self->called_address);
+        else
+            printf ("    called_address=\n");
+        printf ("    packet=%ld\n", (long) self->packet);
+        printf ("    window=%ld\n", (long) self->window);
+        printf ("    throughput=%ld\n", (long) self->throughput);
+        printf ("    data={\n");
+        if (self->data) {
+            size_t size = zframe_size (self->data);
+            byte *data = zframe_data (self->data);
+            printf ("        size=%td\n", zframe_size (self->data));
+            if (size > 32)
+                size = 32;
+            int data_index;
+            for (data_index = 0; data_index < size; data_index++) {
+                if (data_index && (data_index % 4 == 0))
+                    printf ("-");
+                printf ("%02X", data [data_index]);
             }
-            printf ("    }\n");
-            break;
+        }
+        printf ("    }\n");
+        break;
 
-        case JOZA_MSG_CLEAR_REQUEST:
-            puts ("CLEAR_REQUEST:");
-            printf ("    cause=%ld\n", (long) self->cause);
-            printf ("    diagnostic=%ld\n", (long) self->diagnostic);
-            break;
+    case JOZA_MSG_CLEAR_REQUEST:
+        puts ("CLEAR_REQUEST:");
+        printf ("    cause=%ld\n", (long) self->cause);
+        printf ("    diagnostic=%ld\n", (long) self->diagnostic);
+        break;
 
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            puts ("CLEAR_CONFIRMATION:");
-            break;
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        puts ("CLEAR_CONFIRMATION:");
+        break;
 
-        case JOZA_MSG_RESET_REQUEST:
-            puts ("RESET_REQUEST:");
-            printf ("    cause=%ld\n", (long) self->cause);
-            printf ("    diagnostic=%ld\n", (long) self->diagnostic);
-            break;
+    case JOZA_MSG_RESET_REQUEST:
+        puts ("RESET_REQUEST:");
+        printf ("    cause=%ld\n", (long) self->cause);
+        printf ("    diagnostic=%ld\n", (long) self->diagnostic);
+        break;
 
-        case JOZA_MSG_RESET_CONFIRMATION:
-            puts ("RESET_CONFIRMATION:");
-            break;
+    case JOZA_MSG_RESET_CONFIRMATION:
+        puts ("RESET_CONFIRMATION:");
+        break;
 
-        case JOZA_MSG_CONNECT:
-            puts ("CONNECT:");
-            printf ("    protocol=~svc\n");
-            printf ("    version=joza_msg_version\n");
-            if (self->calling_address)
-                printf ("    calling_address='%s'\n", self->calling_address);
-            else
-                printf ("    calling_address=\n");
-            printf ("    directionality=%ld\n", (long) self->directionality);
-            break;
+    case JOZA_MSG_CONNECT:
+        puts ("CONNECT:");
+        printf ("    protocol=~svc\n");
+        printf ("    version=joza_msg_version\n");
+        if (self->calling_address)
+            printf ("    calling_address='%s'\n", self->calling_address);
+        else
+            printf ("    calling_address=\n");
+        printf ("    directionality=%ld\n", (long) self->directionality);
+        break;
 
-        case JOZA_MSG_CONNECT_INDICATION:
-            puts ("CONNECT_INDICATION:");
-            break;
+    case JOZA_MSG_CONNECT_INDICATION:
+        puts ("CONNECT_INDICATION:");
+        break;
 
-        case JOZA_MSG_DISCONNECT:
-            puts ("DISCONNECT:");
-            break;
+    case JOZA_MSG_DISCONNECT:
+        puts ("DISCONNECT:");
+        break;
 
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            puts ("DISCONNECT_INDICATION:");
-            break;
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        puts ("DISCONNECT_INDICATION:");
+        break;
 
-        case JOZA_MSG_DIAGNOSTIC:
-            puts ("DIAGNOSTIC:");
-            printf ("    cause=%ld\n", (long) self->cause);
-            printf ("    diagnostic=%ld\n", (long) self->diagnostic);
-            break;
+    case JOZA_MSG_DIAGNOSTIC:
+        puts ("DIAGNOSTIC:");
+        printf ("    cause=%ld\n", (long) self->cause);
+        printf ("    diagnostic=%ld\n", (long) self->diagnostic);
+        break;
 
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            puts ("DIRECTORY_REQUEST:");
-            break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        puts ("DIRECTORY_REQUEST:");
+        break;
 
-        case JOZA_MSG_DIRECTORY:
-            puts ("DIRECTORY:");
-            printf ("    workers={\n");
-            if (self->workers)
-                zhash_foreach (self->workers, s_workers_dump, self);
-            printf ("    }\n");
-            break;
+    case JOZA_MSG_DIRECTORY:
+        puts ("DIRECTORY:");
+        printf ("    workers={\n");
+        if (self->workers)
+            zhash_foreach (self->workers, s_workers_dump, self);
+        printf ("    }\n");
+        break;
 
-        case JOZA_MSG_ENQ:
-            puts ("ENQ:");
-            break;
+    case JOZA_MSG_ENQ:
+        puts ("ENQ:");
+        break;
 
-        case JOZA_MSG_ACK:
-            puts ("ACK:");
-            break;
+    case JOZA_MSG_ACK:
+        puts ("ACK:");
+        break;
 
     }
 }
@@ -1577,60 +1571,60 @@ joza_msg_const_command (const joza_msg_t *self)
 {
     assert (self);
     switch (self->id) {
-        case JOZA_MSG_DATA:
-            return ("DATA");
-            break;
-        case JOZA_MSG_RR:
-            return ("RR");
-            break;
-        case JOZA_MSG_RNR:
-            return ("RNR");
-            break;
-        case JOZA_MSG_CALL_REQUEST:
-            return ("CALL_REQUEST");
-            break;
-        case JOZA_MSG_CALL_ACCEPTED:
-            return ("CALL_ACCEPTED");
-            break;
-        case JOZA_MSG_CLEAR_REQUEST:
-            return ("CLEAR_REQUEST");
-            break;
-        case JOZA_MSG_CLEAR_CONFIRMATION:
-            return ("CLEAR_CONFIRMATION");
-            break;
-        case JOZA_MSG_RESET_REQUEST:
-            return ("RESET_REQUEST");
-            break;
-        case JOZA_MSG_RESET_CONFIRMATION:
-            return ("RESET_CONFIRMATION");
-            break;
-        case JOZA_MSG_CONNECT:
-            return ("CONNECT");
-            break;
-        case JOZA_MSG_CONNECT_INDICATION:
-            return ("CONNECT_INDICATION");
-            break;
-        case JOZA_MSG_DISCONNECT:
-            return ("DISCONNECT");
-            break;
-        case JOZA_MSG_DISCONNECT_INDICATION:
-            return ("DISCONNECT_INDICATION");
-            break;
-        case JOZA_MSG_DIAGNOSTIC:
-            return ("DIAGNOSTIC");
-            break;
-        case JOZA_MSG_DIRECTORY_REQUEST:
-            return ("DIRECTORY_REQUEST");
-            break;
-        case JOZA_MSG_DIRECTORY:
-            return ("DIRECTORY");
-            break;
-        case JOZA_MSG_ENQ:
-            return ("ENQ");
-            break;
-        case JOZA_MSG_ACK:
-            return ("ACK");
-            break;
+    case JOZA_MSG_DATA:
+        return ("DATA");
+        break;
+    case JOZA_MSG_RR:
+        return ("RR");
+        break;
+    case JOZA_MSG_RNR:
+        return ("RNR");
+        break;
+    case JOZA_MSG_CALL_REQUEST:
+        return ("CALL_REQUEST");
+        break;
+    case JOZA_MSG_CALL_ACCEPTED:
+        return ("CALL_ACCEPTED");
+        break;
+    case JOZA_MSG_CLEAR_REQUEST:
+        return ("CLEAR_REQUEST");
+        break;
+    case JOZA_MSG_CLEAR_CONFIRMATION:
+        return ("CLEAR_CONFIRMATION");
+        break;
+    case JOZA_MSG_RESET_REQUEST:
+        return ("RESET_REQUEST");
+        break;
+    case JOZA_MSG_RESET_CONFIRMATION:
+        return ("RESET_CONFIRMATION");
+        break;
+    case JOZA_MSG_CONNECT:
+        return ("CONNECT");
+        break;
+    case JOZA_MSG_CONNECT_INDICATION:
+        return ("CONNECT_INDICATION");
+        break;
+    case JOZA_MSG_DISCONNECT:
+        return ("DISCONNECT");
+        break;
+    case JOZA_MSG_DISCONNECT_INDICATION:
+        return ("DISCONNECT_INDICATION");
+        break;
+    case JOZA_MSG_DIAGNOSTIC:
+        return ("DIAGNOSTIC");
+        break;
+    case JOZA_MSG_DIRECTORY_REQUEST:
+        return ("DIRECTORY_REQUEST");
+        break;
+    case JOZA_MSG_DIRECTORY:
+        return ("DIRECTORY");
+        break;
+    case JOZA_MSG_ENQ:
+        return ("ENQ");
+        break;
+    case JOZA_MSG_ACK:
+        return ("ACK");
+        break;
     }
     return "?";
 }

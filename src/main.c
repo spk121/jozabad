@@ -37,11 +37,10 @@
 gint main_port = 5555;
 gboolean verbose = FALSE;
 
-static GOptionEntry entries[] =
-{
-  { "port", 'p', 0, G_OPTION_ARG_INT, &main_port, "Listening port N", "N" },
-  { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
-  { NULL }
+static GOptionEntry entries[] = {
+    { "port", 'p', 0, G_OPTION_ARG_INT, &main_port, "Listening port N", "N" },
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
+    { NULL }
 };
 
 /* Note the ':' shown below in the pattern string, to specify additional arg */
@@ -59,20 +58,17 @@ int main (int argc, char *argv[])
     context = g_option_context_new("- server options");
     g_option_context_set_summary(context, "This is an exchange server for the Jozabad chat protocol.");
     g_option_context_add_main_entries (context, entries, NULL);
-    if (!g_option_context_parse (context, &argc, &argv, &error))
-    {
+    if (!g_option_context_parse (context, &argc, &argv, &error)) {
         g_print ("option parsing failed: %s\n", error->message);
         exit (1);
     }
-    
-    if (main_port < 1 || main_port > 65535)
-    {
+
+    if (main_port < 1 || main_port > 65535) {
         g_print("invalid port number %d", main_port);
         exit (1);
     }
 
-    if (verbose) 
-    {
+    if (verbose) {
         g_print("port = %d", main_port);
         g_print("per-channel tput = %s", tput_name(g_tput_threshold));
     }
@@ -85,4 +81,4 @@ int main (int argc, char *argv[])
     //channel_disconnect_all(poll->sock);
     //worker_remove_all();
     return 0;
- }
+}

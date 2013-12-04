@@ -101,7 +101,7 @@ bool channel_available()
 
 channel_t *
 channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
-                  packet_t pkt, seq_t window, tput_t tput)
+               packet_t pkt, seq_t window, tput_t tput)
 {
     channel_t *c;
 
@@ -122,7 +122,7 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
     c->tput = tput;
 
     g_message("creating channel #%d %s/%s - packet = %d, window = %d, tput %d", c->lcn, xname, yname, packet_bytes(pkt),
-         window, tput_bps(tput));
+              window, tput_bps(tput));
     g_message("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %p",
               __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, (void *)c);
 
@@ -182,7 +182,7 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
     _lcn = iu.key;
 
     g_message("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
-         window, tput_bps(tput));
+              window, tput_bps(tput));
     g_message("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
               __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, iu.key);
 
@@ -228,7 +228,7 @@ static void reset_flow_by_chan_idx(chan_idx_t idx)
 // This punishment action is a result of a message received a worker
 // that is incorrect for the current state.
 static state_t do_reset(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, state_t state)
-    __attribute__ ((warn_unused_result));
+__attribute__ ((warn_unused_result));
 
 static state_t do_reset(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, state_t state)
 {
@@ -241,7 +241,7 @@ static state_t do_reset(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr,
 // This punishement action is a result of a message received from a
 // worker that is incorrect for the current state.
 static state_t do_clear(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, state_t state)
-    __attribute__ ((warn_unused_result));
+__attribute__ ((warn_unused_result));
 
 static state_t do_clear(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, state_t state)
 {
@@ -255,7 +255,7 @@ static state_t do_clear(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr,
 // Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
 // close the channel immediately, and disconnect caller
 static state_t do_i_disconnect(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr)
-    __attribute__ ((warn_unused_result));
+__attribute__ ((warn_unused_result));
 
 static state_t do_i_disconnect(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr)
 {
@@ -267,7 +267,7 @@ static state_t do_i_disconnect(void *sock, zframe_t *self_zaddr, zframe_t *other
 }
 
 static state_t do_y_call_accepted(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, joza_msg_t *M, gchar *self_name, gchar *other_name,
-                               state_t state, seq_t *self_window, packet_t *self_pkt, tput_t *self_tput)
+                                  state_t state, seq_t *self_window, packet_t *self_pkt, tput_t *self_tput)
 {
     char     *xname      = joza_msg_calling_address(M);
     char     *yname      = joza_msg_called_address(M);
@@ -315,7 +315,7 @@ static state_t do_y_call_accepted(void *sock, zframe_t *self_zaddr, zframe_t *ot
 // To resolve this, broker informs Y of the call collision.  Y is
 // supposed to then send a CALL_ACCEPTED.
 static state_t do_y_call_collision(void *sock, zframe_t *self_zaddr)
-    __attribute__ ((warn_unused_result));
+__attribute__ ((warn_unused_result));
 
 static state_t do_y_call_collision(void *sock, zframe_t *self_zaddr)
 {
@@ -430,7 +430,7 @@ static void do_i_reset(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, 
 
 // Caller has confirmed callee's request for a reset.
 static state_t do_i_reset_confirmation(void *sock, zframe_t *other_zaddr, seq_t *self_ps, seq_t *self_pr, seq_t *other_ps, seq_t *other_pr)
-    __attribute__ ((warn_unused_result));
+__attribute__ ((warn_unused_result));
 
 static state_t do_i_reset_confirmation(void *sock, zframe_t *other_zaddr, seq_t *self_ps, seq_t *self_pr, seq_t *other_ps, seq_t *other_pr)
 {
@@ -509,7 +509,7 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
         do_i_reset(sock, self_zaddr, other_zaddr, M);
         break;
     case a_x_reset_confirmation:
-        state = do_i_reset_confirmation(sock, other_zaddr, &channel->xps, &channel->xpr, 
+        state = do_i_reset_confirmation(sock, other_zaddr, &channel->xps, &channel->xpr,
                                         &channel->yps, &channel->ypr);
         break;
 
@@ -527,7 +527,7 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
         state = do_i_clear_request(sock, self_zaddr, other_zaddr, M, 1, state);
         break;
     case a_y_clear_confirmation:
-        state = do_i_clear_confirmation(sock, other_zaddr, &channel->xps, &channel->xpr, &channel->yps, &channel->ypr); 
+        state = do_i_clear_confirmation(sock, other_zaddr, &channel->xps, &channel->xpr, &channel->yps, &channel->ypr);
         break;
     case a_y_data:
         do_i_data(sock, self_zaddr, other_zaddr, M, channel->pkt, channel->window, &channel->yps, &channel->ypr, channel->xps, channel->xpr);
@@ -539,10 +539,10 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
         do_i_rnr(sock, self_zaddr, other_zaddr, M, &channel->ypr, channel->xps);
         break;
     case a_y_reset:
-        do_i_reset(sock, self_zaddr, other_zaddr, M); 
+        do_i_reset(sock, self_zaddr, other_zaddr, M);
         break;
     case a_y_reset_confirmation:
-        state = do_i_reset_confirmation(sock, other_zaddr, &channel->yps, &channel->ypr, 
+        state = do_i_reset_confirmation(sock, other_zaddr, &channel->yps, &channel->ypr,
                                         &channel->xps, &channel->xpr);
         break;
     }

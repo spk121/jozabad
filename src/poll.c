@@ -82,7 +82,10 @@ static void bad_free (gpointer data __attribute__ ((unused)))
     g_assert_not_reached();
 }
 
-static gboolean compare_worker_to_name(gpointer key, gpointer value, gpointer user_data)
+static gboolean
+compare_worker_to_name(gpointer key __attribute__ ((unused)),
+                       gpointer value,
+                       gpointer user_data)
 {
     worker_t *w = value;
     gchar *str = user_data;
@@ -92,7 +95,10 @@ static gboolean compare_worker_to_name(gpointer key, gpointer value, gpointer us
         return false;
 }
 
-static void add_directory_entry_to_zhash (gpointer key, gpointer value, gpointer user_data)
+static void
+add_directory_entry_to_zhash (gpointer key __attribute__ ((unused)),
+                              gpointer value,
+                              gpointer user_data)
 {
     worker_t *worker = value;
     zhash_t *hash = user_data;
@@ -174,28 +180,23 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
     g_message("In %s(%p)", __FUNCTION__, (void *) msg);
 
     ////////////////////////////////////////////////////////////////
-    // Validate here all message components 
+    // Validate here all message components
     // that can be validates w/o any specific context
     ////////////////////////////////////////////////////////////////
 
-    if ((diag = prevalidate_message(msg)) != d_unspecified)
-    {
+    if ((diag = prevalidate_message(msg)) != d_unspecified) {
         diagnostic(sock, joza_msg_const_address(msg), c_malformed_message, diag);
-    }
-    else
-    {
-        worker_t *worker; 
-        channel_t *channel; 
+    } else {
+        worker_t *worker;
+        channel_t *channel;
         key = msg_addr2key(joza_msg_address(msg));
-    do_more:
-        
+do_more:
+
         channel = NULL;
         worker = (worker_t *) g_hash_table_lookup (workers_table, &key);
 
-        if (worker != NULL)
-        {
-            switch (worker->role) 
-            {
+        if (worker != NULL) {
+            switch (worker->role) {
             case X_CALLER:
             case Y_CALLEE:
                 // If this worker is connected and part of a virtual call,
@@ -206,8 +207,7 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                     channel->state = channel_dispatch(channel, sock, msg, 0);
                 else
                     channel->state = channel_dispatch(channel, sock, msg, 1);
-                if (channel->state == state_ready)
-                {
+                if (channel->state == state_ready) {
                     // This channel is no longer connected: remove it
                     g_hash_table_remove(channels_table, &(worker->lcn));
                 }
@@ -216,97 +216,88 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
             case READY:
                 // If this worker is connected, but, not part of a call,
                 // we handle it here because it involves the whole channel store
-                {
-                    if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST)
-                    {
-                        g_assert(g_hash_table_size(channels_table) <= LCN_COUNT);
+            {
+                if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
+                    g_assert(g_hash_table_size(channels_table) <= LCN_COUNT);
 
-                        if (g_hash_table_size(channels_table) == LCN_COUNT)
-                            // send busy diagnostic
-                            ;
-                        else
-                        {
-                            worker_t *other = g_hash_table_find(workers_table, compare_worker_to_name, joza_msg_called_address(msg));
-                            if (other == NULL)
-                            {
-                                // send can't find diagnostic
+                    if (g_hash_table_size(channels_table) == LCN_COUNT)
+                        // send busy diagnostic
+                        ;
+                    else {
+                        worker_t *other = g_hash_table_find(workers_table, compare_worker_to_name, joza_msg_called_address(msg));
+                        if (other == NULL) {
+                            // send can't find diagnostic
+                        } else {
+                            // Find an unused logical channel number (aka hash table key) for the new channel.
+                            while (g_hash_table_lookup(channels_table, &_lcn) != NULL) {
+                                _lcn ++;
+                                if (_lcn > LCN_MAX)
+                                    _lcn = LCN_MIN;
                             }
-                            else
-                            {
-                                // Find an unused logical channel number (aka hash table key) for the new channel.
-                                while (g_hash_table_lookup(channels_table, &_lcn) != NULL)
-                                {
-                                    _lcn ++;
-                                    if (_lcn > LCN_MAX)
-                                        _lcn = LCN_MIN;
-                                }
-                                // Make a new channel and stuff it in the hash table
-                                worker->role = X_CALLER;
-                                worker->lcn = _lcn;
-                                other->role = Y_CALLEE;
-                                other->lcn = _lcn;
-                                channel_t *new_channel = channel_create(_lcn,
-                                                                        worker->zaddr,
-                                                                        worker->name,
-                                                                        other->zaddr,
-                                                                        other->name,
-                                                                        joza_msg_const_packet(msg),
-                                                                        joza_msg_const_window(msg),
-                                                                        joza_msg_const_throughput(msg));
-                                g_assert(new_channel != NULL);
-                                new_channel->state = state_x_call_request;
-                                g_hash_table_insert(channels_table, &_lcn, new_channel);
-                                joza_msg_send_addr_call_request(sock,
-                                                                other->zaddr,
-                                                                joza_msg_const_calling_address(msg),
-                                                                joza_msg_const_called_address(msg),
-                                                                joza_msg_packet(msg),
-                                                                joza_msg_window(msg),
-                                                                joza_msg_throughput(msg),
-                                                                joza_msg_data(msg));
-                            }
+                            // Make a new channel and stuff it in the hash table
+                            worker->role = X_CALLER;
+                            worker->lcn = _lcn;
+                            other->role = Y_CALLEE;
+                            other->lcn = _lcn;
+                            channel_t *new_channel = channel_create(_lcn,
+                                                                    worker->zaddr,
+                                                                    worker->name,
+                                                                    other->zaddr,
+                                                                    other->name,
+                                                                    joza_msg_const_packet(msg),
+                                                                    joza_msg_const_window(msg),
+                                                                    joza_msg_const_throughput(msg));
+                            g_assert(new_channel != NULL);
+                            new_channel->state = state_x_call_request;
+                            g_hash_table_insert(channels_table, &_lcn, new_channel);
+                            joza_msg_send_addr_call_request(sock,
+                                                            other->zaddr,
+                                                            joza_msg_const_calling_address(msg),
+                                                            joza_msg_const_called_address(msg),
+                                                            joza_msg_packet(msg),
+                                                            joza_msg_window(msg),
+                                                            joza_msg_throughput(msg),
+                                                            joza_msg_data(msg));
                         }
                     }
-                    else if (joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST)
-                    {
-                        // send directory request back to worker
-                        do_directory_request(sock, joza_msg_const_address(msg), channels_table);
-                    }
-                    else if (joza_msg_const_id(msg) == JOZA_MSG_DISCONNECT)
-                    {
-                        // remove the worker
-                        g_hash_table_remove(workers_table, &key);
-                    }
+                } else if (joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST) {
+                    // send directory request back to worker
+                    do_directory_request(sock, joza_msg_const_address(msg), channels_table);
+                } else if (joza_msg_const_id(msg) == JOZA_MSG_DISCONNECT) {
+                    // remove the worker
+                    g_hash_table_remove(workers_table, &key);
                 }
-                break;
+            }
+            break;
             default:
                 g_assert_not_reached ();
                 break;
             }
         }
-        
+
         // If this worker is heretofore unknown, we handle it here.  The
         // only message we handle from unconnected workers are connection requests.
-        else if (joza_msg_id(msg) == JOZA_MSG_CONNECT)
-        {
+        else if (joza_msg_id(msg) == JOZA_MSG_CONNECT) {
             g_message("handling %s from unconnected worker", joza_msg_const_command(msg));
-            worker_t *new_worker = worker_create(sock,
-                                                 joza_msg_const_address(msg),
-                                                 joza_msg_const_calling_address(msg),
-                                                 (iodir_t) joza_msg_const_directionality(msg));
-            if (new_worker)
-            {
-                g_hash_table_insert (workers_table, &key, new_worker);
-                joza_msg_send_addr_connect_indication(sock, joza_msg_const_address(msg));
+            if (g_hash_table_size(workers_table) >= WORKER_COUNT) {
+                diagnostic(sock, joza_msg_const_address(msg), c_network_congestion, d_no_connections_available);
+                g_warning("cannot add new worker. No free worker slots");
+            } else {
+                worker_t *new_worker = worker_create(sock,
+                                                     joza_msg_const_address(msg),
+                                                     joza_msg_const_calling_address(msg),
+                                                     (iodir_t) joza_msg_const_directionality(msg));
+                if (new_worker) {
+                    g_hash_table_insert (workers_table, &key, new_worker);
+                    joza_msg_send_addr_connect_indication(sock, joza_msg_const_address(msg));
+                }
             }
 
-        }
-        else
-        {
+        } else {
             g_message("ignoring %s from unconnected worker", joza_msg_const_command(msg));
         }
     }
-    
+
     g_message("%s(%p) returns %d", __FUNCTION__, (void *)msg, ret);
     return ret;
 }

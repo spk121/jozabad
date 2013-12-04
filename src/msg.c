@@ -70,24 +70,20 @@ diag_t prevalidate_message (const joza_msg_t *msg)
     diag_t ret = d_unspecified;
 
     int id = joza_msg_const_id (msg);
-    if (id == JOZA_MSG_DATA) 
-    {
+    if (id == JOZA_MSG_DATA) {
         byte q = joza_msg_const_q(msg);
     }
-    if (id == JOZA_MSG_DATA || id == JOZA_MSG_RR || id == JOZA_MSG_RNR)
-    {
+    if (id == JOZA_MSG_DATA || id == JOZA_MSG_RR || id == JOZA_MSG_RNR) {
         uint16_t pr = joza_msg_const_pr(msg);
         if (pr > SEQ_MAX)
             ret = d_pr_too_large;
     }
-    if (id == JOZA_MSG_DATA)
-    {
+    if (id == JOZA_MSG_DATA) {
         uint16_t ps = joza_msg_const_ps(msg);
         if (ps > SEQ_MAX)
             ret = d_ps_too_large;
     }
-    if (id == JOZA_MSG_DATA)
-    {
+    if (id == JOZA_MSG_DATA) {
         zframe_t *data = joza_msg_const_data(msg);
         size_t data_len = zframe_size(data);
         if (data_len == 0)
@@ -95,15 +91,13 @@ diag_t prevalidate_message (const joza_msg_t *msg)
         if (data_len > packet_bytes(p_last))
             ret = d_data_too_long;
     }
-    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED)
-    {
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED) {
         zframe_t *data = joza_msg_const_data(msg);
         size_t data_len = zframe_size(data);
         if (data_len > packet_bytes(p_default))
             ret = d_data_too_long;
     }
-    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED || id == JOZA_MSG_CONNECT)
-    {
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED || id == JOZA_MSG_CONNECT) {
         char *calling_address = joza_msg_const_calling_address(msg);
 
         if (strnlen_s(calling_address, NAME_LEN + 1) == 0)
@@ -113,8 +107,7 @@ diag_t prevalidate_message (const joza_msg_t *msg)
         else if (!safeascii(calling_address, NAME_LEN))
             ret = d_calling_address_format_invalid;
     }
-    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED)
-    {
+    if (id == JOZA_MSG_CALL_REQUEST || id == JOZA_MSG_CALL_ACCEPTED) {
         char *called_address = joza_msg_const_called_address(msg);
         byte packet = joza_msg_const_packet(msg);
         uint16_t window = joza_msg_const_window(msg);
@@ -143,8 +136,7 @@ diag_t prevalidate_message (const joza_msg_t *msg)
             ret = d_throughput_facility_too_large;
 
     }
-    if (id == JOZA_MSG_CLEAR_REQUEST || id == JOZA_MSG_RESET_REQUEST || id == JOZA_MSG_DIAGNOSTIC)
-    {
+    if (id == JOZA_MSG_CLEAR_REQUEST || id == JOZA_MSG_RESET_REQUEST || id == JOZA_MSG_DIAGNOSTIC) {
         byte cause = joza_msg_const_cause(msg);
         byte diagnostic = joza_msg_const_diagnostic(msg);
 
@@ -153,14 +145,12 @@ diag_t prevalidate_message (const joza_msg_t *msg)
         else if (diagnostic > d_last)
             ret = d_invalid_diagnostic;
     }
-    if (id == JOZA_MSG_CONNECT)
-    {
+    if (id == JOZA_MSG_CONNECT) {
         byte directionality = joza_msg_const_directionality(msg);
         if (iodir_validate(directionality) == 0)
             ret = d_invalid_directionality_facility;
     }
-    if (id == JOZA_MSG_DIRECTORY)
-    {
+    if (id == JOZA_MSG_DIRECTORY) {
         zhash_t *workers = joza_msg_workers(msg);
     }
     return ret;
