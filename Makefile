@@ -1,8 +1,10 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS?=-std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS)
-LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
-PREFIX?=/usr/local
+CFLAGS ?= -std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS) \
+	`pkg-config glib-2.0 --cflags`
+LIBS = -ldl -lczmq -lzmq -lm $(OPTLIBS) \
+	`pkg-config glib-2.0 --libs`
+PREFIX ?=/usr/local
 
 HEADERS=$(wildcard src/**/*.h src/*.h)
 GCH=$(patsubst %.h,%.gch,$(HEADERS))
