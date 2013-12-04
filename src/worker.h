@@ -47,7 +47,7 @@ typedef struct {
     gint64 ctime;
     gint64 mtime;
 } worker_t;
-    
+
 extern wkey_t   w_wkey[WORKER_COUNT];
 extern char     w_name[WORKER_COUNT][NAME_LEN + 1];
 extern zframe_t *w_zaddr[WORKER_COUNT];

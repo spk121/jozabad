@@ -60,6 +60,43 @@
   for the secondary key
 */
 
+worker_t *worker_create(void *sock, const zframe_t *A, const char *N, iodir_t io)
+{
+    worker_t *worker = NULL;
+    wkey_t key = 0;
+    worker_idx_t i;
+    guint64 elapsed_time = g_get_monotonic_time();
+
+    g_message("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, A, N, io);
+
+    key = msg_addr2key(A);
+    // First, validate the message
+    if (strnlen_s(N, NAME_LEN + 1) == 0) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_short);
+        g_warning("%s: calling address too short", N);
+    } else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_long);
+        g_warning("%s: calling address too long", N);
+    } else if (!safeascii(N, NAME_LEN)) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_format_invalid);
+        g_warning("%s: calling address invalid format", N);
+    } else if (!iodir_validate(io)) {
+        diagnostic(sock, A, c_malformed_message, d_invalid_directionality_facility);
+        g_warning("%s: directionality invalid - %d", io);
+    } else {
+        worker = g_new0(worker_t, 1);
+        worker->wkey = key;
+        worker->name = g_strdup(N);
+        worker->zaddr = zframe_dup(A);
+        worker->iodir = io;
+        worker->lcn = 0;
+        worker->role = READY;
+        worker->ctime = elapsed_time;
+        worker->mtime = elapsed_time;
+    }
+    return worker;
+}
+
 // Number of workers
 static worker_idx_t _count = 0;
 
@@ -256,50 +293,6 @@ static void name_index_sort(char *arr[], worker_idx_t n, worker_idx_t indx[])
 #undef SWAP
 }
 
-// Add a new worker to the store.  Returns the key of the new worker, or
-// zero on failure.
-worker_t *worker_create(void *sock, const zframe_t *A, const char *N, iodir_t io)
-{
-    worker_t *worker = NULL;
-    wkey_t key = 0;
-    worker_idx_t i;
-    guint64 elapsed_time = g_get_monotonic_time();
-
-    assert(_count < WORKER_COUNT);
-
-    g_message("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, A, N, io);
-
-    key = msg_addr2key(A);
-    // First, validate the message
-    if (strnlen_s(N, NAME_LEN + 1) == 0) {
-        diagnostic(sock, A, c_malformed_message, d_calling_address_too_short);
-        g_warning("%s: calling address too short", N);
-    } else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
-        diagnostic(sock, A, c_malformed_message, d_calling_address_too_long);
-        g_warning("%s: calling address too long", N);
-    } else if (!safeascii(N, NAME_LEN)) {
-        diagnostic(sock, A, c_malformed_message, d_calling_address_format_invalid);
-        g_warning("%s: calling address invalid format", N);
-    } else if (!iodir_validate(io)) {
-        diagnostic(sock, A, c_malformed_message, d_invalid_directionality_facility);
-        g_warning("%s: directionality invalid - %d", io);
-    } else if (_count >= WORKER_COUNT) {
-        // FIXME: culling of old connections would go here.
-        diagnostic(sock, A, c_network_congestion, d_no_connections_available);
-        g_warning("%s: cannot add. No free connections", N);
-    } else {
-        worker = g_new0(worker_t, 1);
-        worker->wkey = key;
-        worker->name = g_strdup(N);
-        worker->zaddr = zframe_dup(A);
-        worker->iodir = io;
-        worker->lcn = 0;
-        worker->role = READY;
-        worker->ctime = elapsed_time;
-        worker->mtime = elapsed_time;
-    }
-    return worker;
-}
 
 
 // Add a new worker to the store.  Returns the key of the new worker, or
@@ -571,7 +564,7 @@ static void do_call_request(void *sock, joza_msg_t *M, worker_idx_t I)
 
         // Send the call request to the peer
         joza_msg_send_addr_call_request(sock, w_zaddr[bi_y.index],
-                     xname, yname, pkt, window, tput, joza_msg_data(M));
+                                        xname, yname, pkt, window, tput, joza_msg_data(M));
     }
 }
 
