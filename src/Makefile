@@ -1,7 +1,7 @@
 INCLUDES = \
     action.h \
     connections.h \
-    dname.h \
+    name.h \
     flow.h \
     lib.h \
     poll.h \
