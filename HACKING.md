@@ -2,17 +2,29 @@
 
 Lessons learned and info to remember.
 
-## Logging ##
+## Comparison to X.25 ##
 
-ERR is for fatals.
+One thing I could never figure out from reading these X.25 docs is how callers get their X.25 addresses in the first place, and what protection exists agains spoofing.  The calling and caller addresses are in every packet, but, it
+looks like anyone can just create a packet with a given calling address.
 
-WARN is for things that are fatal in debug, and just critical in release.
+Anyway, I found a file here: http://www.textfiles.com/phreak/x25.txt.  "This report specifies the attachment of an X.25 host to the Defense Data Network (DDN)."
 
-INFO is for messages that are sent and for how they are dispatched.  These should just before message is dispatched in the broker or just after it is sent by the broker.
+It says
 
-NOTE is for every change of internal state.  These should go just after each internal state change.
+>     DDN addresses are assigned to subscriber DTEs by the
+> Administration.     Two  basic  forms  of  address  are  provided:
+> physical addresses, which correspond to the node number and DCE
+> port number of the node to which the DTE is connected, and
+> logical addresses, which are mapped transparently by DCE software
+> into a corresponding physical network address.  Each DTE is
+> assigned one physical address, and may be assigned one or more
+> logical addresses.  All DDN addresses are either twelve or
+> fourteen BCD (binary-coded decimal) digits in length.  A calling
+> DTE need not determine whether a given address is a physical or
+> logical address, in order to establish a call to that address.
 
-TRACE is for entering / leaving critical functions.
+So it looks like getting a name was an off-line pre-assigned thing.  And I guess there was no protection against spoofing.
+
 
 ## Cross platform issues ##
 
