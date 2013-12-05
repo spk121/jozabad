@@ -1,11 +1,9 @@
 INCLUDES = \
     action.h \
     connections.h \
-    dname.h \
+    name.h \
     flow.h \
     lib.h \
-    log.h \
-    pgetopt.h \
     poll.h \
     state.h \
     msg.h
@@ -15,18 +13,17 @@ VPATH = ../libjoza
 CSRC = action.c \
 	channel.c \
 	diag.c \
+	lcn.c \
 	lib.c \
         log.c \
 	main.c \
 	packet.c \
-	pgetopt.c \
 	poll.c \
+	raii.c \
 	state.c \
 	tput.c \
-	worker.c \
 	joza_lib.c \
 	joza_msg.c \
-	ukey.c \
 	msg.c \
 	seq.c \
 	iodir.c
@@ -40,7 +37,8 @@ CPPFLAGS = \
     -Wall \
     -Wunused-macros \
     -Wendif-labels \
-    -pedantic
+    -pedantic \
+    `pkg-config glib-2.0 --cflags-only-I`
 
 CWARN = \
     -Wall \
@@ -63,7 +61,8 @@ CFLAGS = $(CPPFLAGS)\
     -ggdb \
     -march=native \
     -O0 \
-    -std=c11 \
+    -std=gnu11 \
+    `pkg-config glib-2.0 --cflogs-only-other` \
     $(CWARN)
 
 CC = gcc
@@ -102,7 +101,7 @@ all: broker
 
 
 broker: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lczmq -lzmq -lm
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lczmq -lzmq -lm `pkg-config glib-2.0 --libs`
 
 clean:
 	-rm $(OBJ)

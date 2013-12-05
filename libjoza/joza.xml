@@ -118,6 +118,10 @@ Node tells broker that it is disconnecting.
     <field name = "workers" type = "dictionary" />
 </message>
 
+<message name = "ENQ" id = "16" />
+
+<message name = "ACK" id = "17" />
+
 <!-- message name = "REJ" id = "3" -->
 
 <!-- message name = "INTERRUPT" id = "10" -->

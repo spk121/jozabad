@@ -80,6 +80,8 @@ extern "C" {
     DIRECTORY_REQUEST - This is the Switched Virtual Call protocol version 1
     DIRECTORY - This is the Switched Virtual Call protocol version 1
         workers       dictionary
+    ENQ - This is the Switched Virtual Call protocol version 1
+    ACK - This is the Switched Virtual Call protocol version 1
 */
 
 #define JOZA_MSG_VERSION                    1
@@ -101,6 +103,8 @@ extern "C" {
 #define JOZA_MSG_DIAGNOSTIC                 13
 #define JOZA_MSG_DIRECTORY_REQUEST          14
 #define JOZA_MSG_DIRECTORY                  15
+#define JOZA_MSG_ENQ                        16
+#define JOZA_MSG_ACK                        17
 
 //  Structure of our class
 
@@ -312,6 +316,20 @@ joza_msg_send_directory (void *output,
 int
 joza_msg_send_addr_directory (void *output, const zframe_t *addr,
                               zhash_t *workers);
+
+//  Send the ENQ to the output in one step
+int
+joza_msg_send_enq (void *output);
+
+int
+joza_msg_send_addr_enq (void *output, const zframe_t *addr);
+
+//  Send the ACK to the output in one step
+int
+joza_msg_send_ack (void *output);
+
+int
+joza_msg_send_addr_ack (void *output, const zframe_t *addr);
 
 //  Duplicate the joza_msg message
 joza_msg_t *

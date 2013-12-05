@@ -20,6 +20,7 @@
 
 */
 
+#include <glib.h>
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
@@ -36,10 +37,8 @@
 #include "channel.h"
 #include "packet.h"
 #include "poll.h"
-#include "log.h"
 #include "msg.h"
 #include "joza_msg.h"
-#include "bool.h"
 #include "lib.h"
 
 #define CALL_REQUEST_DATA_LEN (16)
@@ -60,6 +59,43 @@
   nidx  worker_idx_t     [secondary key]  an array that keeps the sort indices
   for the secondary key
 */
+
+worker_t *worker_create(void *sock, const zframe_t *A, const char *N, iodir_t io)
+{
+    worker_t *worker = NULL;
+    wkey_t key = 0;
+    worker_idx_t i;
+    guint64 elapsed_time = g_get_monotonic_time();
+
+    g_message("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, A, N, io);
+
+    key = msg_addr2key(A);
+    // First, validate the message
+    if (strnlen_s(N, NAME_LEN + 1) == 0) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_short);
+        g_warning("%s: calling address too short", N);
+    } else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_long);
+        g_warning("%s: calling address too long", N);
+    } else if (!safeascii(N, NAME_LEN)) {
+        diagnostic(sock, A, c_malformed_message, d_calling_address_format_invalid);
+        g_warning("%s: calling address invalid format", N);
+    } else if (!iodir_validate(io)) {
+        diagnostic(sock, A, c_malformed_message, d_invalid_directionality_facility);
+        g_warning("%s: directionality invalid - %d", io);
+    } else {
+        worker = g_new0(worker_t, 1);
+        worker->wkey = key;
+        worker->name = g_strdup(N);
+        worker->zaddr = zframe_dup(A);
+        worker->iodir = io;
+        worker->lcn = 0;
+        worker->role = READY;
+        worker->ctime = elapsed_time;
+        worker->mtime = elapsed_time;
+    }
+    return worker;
+}
 
 // Number of workers
 static worker_idx_t _count = 0;
@@ -83,9 +119,9 @@ static char     *w_pname[WORKER_COUNT];
     memmove(arr + idx + 1, arr + idx, sizeof(arr[0]) * (count - idx))
 
 
-static void do_call_request(joza_msg_t *M, worker_idx_t I);
-static void do_directory_request(joza_msg_t *M);
-static void do_disconnect(joza_msg_t *M);
+static void do_call_request(void *sock, joza_msg_t *M, worker_idx_t I);
+static void do_directory_request(void *sock, joza_msg_t *M);
+static void do_disconnect(void *sock, joza_msg_t *M);
 static worker_idx_t find_idx_from_key(wkey_t arr[], worker_idx_t n, wkey_t X);
 static void init_pname(void);
 
@@ -257,9 +293,11 @@ static void name_index_sort(char *arr[], worker_idx_t n, worker_idx_t indx[])
 #undef SWAP
 }
 
-// Add a new worker to the store.  Returns the key key of the new worker, or
+
+
+// Add a new worker to the store.  Returns the key of the new worker, or
 // zero on failure.
-wkey_t worker_add(const zframe_t *A, const char *N, iodir_t io)
+wkey_t worker_add(void *sock, const zframe_t *A, const char *N, iodir_t io)
 {
     wkey_t key = 0;
     worker_idx_t i;
@@ -267,7 +305,7 @@ wkey_t worker_add(const zframe_t *A, const char *N, iodir_t io)
 
     assert(_count < WORKER_COUNT);
 
-    TRACE("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, A, N, io);
+    g_message("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, A, N, io);
 
     key = msg_addr2key(A);
     i = find_idx_from_key(w_wkey, _count, key);
@@ -275,21 +313,21 @@ wkey_t worker_add(const zframe_t *A, const char *N, iodir_t io)
 
     // First, validate the message
     if (strnlen_s(N, NAME_LEN + 1) == 0) {
-        DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_short);
-        WARN("%s: calling address too short", N);
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_short);
+        g_warning("%s: calling address too short", N);
     } else if (strnlen_s(N, NAME_LEN + 1) > NAME_LEN) {
-        DIAGNOSTIC(A, c_malformed_message, d_calling_address_too_long);
-        WARN("%s: calling address too long", N);
+        diagnostic(sock, A, c_malformed_message, d_calling_address_too_long);
+        g_warning("%s: calling address too long", N);
     } else if (!safeascii(N, NAME_LEN)) {
-        DIAGNOSTIC(A, c_malformed_message, d_calling_address_format_invalid);
-        WARN("%s: calling address invalid format", N);
+        diagnostic(sock, A, c_malformed_message, d_calling_address_format_invalid);
+        g_warning("%s: calling address invalid format", N);
     } else if (!iodir_validate(io)) {
-        DIAGNOSTIC(A, c_malformed_message, d_invalid_directionality_facility);
-        WARN("%s: directionality invalid - %d", io);
+        diagnostic(sock, A, c_malformed_message, d_invalid_directionality_facility);
+        g_warning("%s: directionality invalid - %d", io);
     } else if (_count >= WORKER_COUNT) {
         // FIXME: culling of old connections would go here.
-        DIAGNOSTIC(A, c_network_congestion, d_no_connections_available);
-        WARN("%s: cannot add. No free connections", N);
+        diagnostic(sock, A, c_network_congestion, d_no_connections_available);
+        g_warning("%s: cannot add. No free connections", N);
     } else {
         if (i < _count) {
             INSERT(w_wkey, i, _count);
@@ -317,10 +355,10 @@ wkey_t worker_add(const zframe_t *A, const char *N, iodir_t io)
         // Update the index table that alphabetizes the names.
         init_pname();
         name_index_sort(w_pname, _count, w_nidx);
-        INFO("added new channel %s, %s at index %d", N, iodir_name(io), i);
-        CONNECT_INDICATION(A);
+        g_message("added new channel %s, %s at index %d", N, iodir_name(io), i);
+        joza_msg_send_addr_connect_indication(sock, A);
     }
-    TRACE("%s(A = %p, N = %s, io = %d) returns %d", __FUNCTION__, A, N, io, key);
+    g_message("%s(A = %p, N = %s, io = %d) returns %d", __FUNCTION__, A, N, io, key);
 
     return key;
 }
@@ -418,9 +456,10 @@ void remove_worker(wkey_t key)
     _count --;
 }
 
-bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
+#if 0
+gboolean worker_dispatch_by_idx (void *sock, joza_msg_t *M, worker_idx_t I)
 {
-    bool_t more = FALSE;        /* When TRUE, message needs dowmstream processing.  */
+    gboolean more = FALSE;        /* When TRUE, message needs dowmstream processing.  */
     const char *cmdname, *name;
     int id;
 
@@ -429,19 +468,19 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
     name = w_name[I];
     w_mtime[I] = now();
 
-    INFO("handling %s from connected worker '%s'", cmdname, name);
+    g_message("handling %s from connected worker '%s'", cmdname, name);
     switch(id) {
     case JOZA_MSG_CALL_REQUEST:
         // Worker has requested a channel to another worker
-        do_call_request(M, I);
+        do_call_request(sock, M, I);
         break;
     case JOZA_MSG_DIRECTORY_REQUEST:
         // Worker has request a list of the currently connected workers
-        do_directory_request(M);
+        do_directory_request(sock, M);
         break;
     case JOZA_MSG_DISCONNECT:
         // Worker has requested to be disconnected
-        do_disconnect(M);
+        do_disconnect(sock, M);
         break;
     default:
         break;
@@ -449,7 +488,7 @@ bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I)
     return more;
 }
 
-static void do_call_request(joza_msg_t *M, worker_idx_t I)
+static void do_call_request(void *sock, joza_msg_t *M, worker_idx_t I)
 {
     zframe_t *addr       = joza_msg_address(M);
     char     *xname      = joza_msg_calling_address(M);
@@ -466,46 +505,46 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
     // Validate the message
 
     if (strnlen_s(xname, NAME_LEN + 1) == 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_short);
+        diagnostic(sock, addr, c_malformed_message, d_calling_address_too_short);
     else if (strnlen_s(xname, NAME_LEN + 1) > NAME_LEN)
-        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_too_long);
+        diagnostic(sock, addr, c_malformed_message, d_calling_address_too_long);
     else if (!safeascii(xname, NAME_LEN))
-        DIAGNOSTIC(addr, c_malformed_message, d_calling_address_format_invalid);
+        diagnostic(sock, addr, c_malformed_message, d_calling_address_format_invalid);
     else if (strnlen_s(yname, NAME_LEN + 1) == 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_short);
+        diagnostic(sock, addr, c_malformed_message, d_called_address_too_short);
     else if (strnlen_s(yname, NAME_LEN + 1) > NAME_LEN)
-        DIAGNOSTIC(addr, c_malformed_message, d_called_address_too_long);
+        diagnostic(sock, addr, c_malformed_message, d_called_address_too_long);
     else if (!safeascii(yname, NAME_LEN))
-        DIAGNOSTIC(addr, c_malformed_message, d_called_address_format_invalid);
+        diagnostic(sock, addr, c_malformed_message, d_called_address_format_invalid);
     else if (pkt_rcheck < 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_packet_facility_too_small);
+        diagnostic(sock, addr, c_malformed_message, d_packet_facility_too_small);
     else if (pkt_rcheck > 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_packet_facility_too_large);
+        diagnostic(sock, addr, c_malformed_message, d_packet_facility_too_large);
     else if (tput_rcheck < 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_throughput_facility_too_small);
+        diagnostic(sock, addr, c_malformed_message, d_throughput_facility_too_small);
     else if (tput_rcheck > 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_throughput_facility_too_large);
+        diagnostic(sock, addr, c_malformed_message, d_throughput_facility_too_large);
     else if (window_rcheck < 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_window_facility_too_small);
+        diagnostic(sock, addr, c_malformed_message, d_window_facility_too_small);
     else if (window_rcheck > 0)
-        DIAGNOSTIC(addr, c_malformed_message, d_window_facility_too_large);
+        diagnostic(sock, addr, c_malformed_message, d_window_facility_too_large);
     else if (data_len > CALL_REQUEST_DATA_LEN)
-        DIAGNOSTIC(addr, c_malformed_message, d_data_too_long);
+        diagnostic(sock, addr, c_malformed_message, d_data_too_long);
 
     // Check that the other peer is ready to receive a call
 
     else if (bi_y.flag == FALSE)
-        DIAGNOSTIC(addr, c_unknown_address, d_unknown_worker_address);
+        diagnostic(sock, addr, c_unknown_address, d_unknown_worker_address);
     else if (w_role[bi_y.index] != READY)
-        DIAGNOSTIC(addr, c_number_busy, d_number_busy);
+        diagnostic(sock, addr, c_number_busy, d_number_busy);
     else if (w_iodir[bi_y.index] == io_incoming_calls_barred)
-        DIAGNOSTIC(addr, c_access_barred, d_input_barred);
+        diagnostic(sock, addr, c_access_barred, d_input_barred);
 
     // Check that there is a free channel to the message
 
     else if (channel_available() == FALSE)
         // FIXME: logic to destroy unused channels goes here
-        DIAGNOSTIC(addr, c_network_congestion, d_no_channels_available);
+        diagnostic(sock, addr, c_network_congestion, d_no_channels_available);
 
     else {
 
@@ -524,12 +563,12 @@ static void do_call_request(joza_msg_t *M, worker_idx_t I)
         // FIXME: set the call request timer
 
         // Send the call request to the peer
-        CALL_REQUEST(w_zaddr[bi_y.index],
-                     addr, xname, yname, pkt, window, tput, joza_msg_data(M));
+        joza_msg_send_addr_call_request(sock, w_zaddr[bi_y.index],
+                                        xname, yname, pkt, window, tput, joza_msg_data(M));
     }
 }
 
-static void do_directory_request(joza_msg_t *M)
+static void do_directory_request(void *sock, joza_msg_t *M)
 {
     zframe_t *addr       = joza_msg_address(M);
     zhash_t  *dir       = zhash_new();
@@ -540,17 +579,17 @@ static void do_directory_request(joza_msg_t *M)
     for (worker_idx_t i = 0; i < _count; i ++) {
         zhash_insert(dir, w_pname[i], "");
     }
-    directory_request(addr, dir);
+    directory_request(sock, addr, dir);
     zhash_destroy(&dir);
 }
 
 
 // Disconnect this channel, which is not currently on a call.
-static void do_disconnect(joza_msg_t *M)
+static void do_disconnect(void *sock, joza_msg_t *M)
 {
     const zframe_t *addr = joza_msg_const_address(M);
     wkey_t key = msg_addr2key(addr);
-    joza_msg_send_addr_disconnect_indication(g_poll_sock, addr);
+    joza_msg_send_addr_disconnect_indication(sock, addr);
     remove_worker (key);
 }
 
@@ -577,3 +616,4 @@ zhash_t *worker_directory()
     }
     return dir;
 }
+#endif

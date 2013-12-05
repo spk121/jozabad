@@ -20,104 +20,65 @@
 
 */
 
+#include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <czmq.h>
 #include "lib.h"
-#include "log.h"
-#include "pgetopt.h"
 #include "poll.h"
+#include "raii.h"
 #include "tput.h"
 #include "channel.h"
 #include "worker.h"
 // #include "lib.h"
 //#include "../libjoza/joza_lib.h"
 
-int main_port = 5555;
+gint main_port = 5555;
+gboolean verbose = FALSE;
+
+static GOptionEntry entries[] = {
+    { "port", 'p', 0, G_OPTION_ARG_INT, &main_port, "Listening port N", "N" },
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
+    { NULL }
+};
 
 /* Note the ':' shown below in the pattern string, to specify additional arg */
-static char options[] = "p:t:v:V?";
 static char PROGNAME[] = "Jozabad Broker";
 static char VERSION[] = "0.0";
 static char PROTOCOL[] = "tcp://*:";
 
-static void
-usage (void)
-{
-    printf("%s : %s\n", PROGNAME, VERSION);
-    printf("\n");
-    printf("A server for the Jozabad chat protocol.\n");
-    printf("\n");
-    printf("\t-p(n)\tport number from 1 to 65535\n");
-    printf("\t-v(n)\tverbosity level from zero (quiet) to five (verbose)\n");
-    printf("\t-t(n)\tper-channel tput level 3 (slow) to %d (fast)\n", t_last);
-    printf("\t-V\tshow version\n");
-    printf("\t-?\tshow help\n");
-    exit (0);
-}
-
 int main (int argc, char *argv[])
 {
-    NOTE("entering main()");
-    NOTE("argc = %d", argc);
-    for (int i = 0; i < argc; i ++) {
-        NOTE("argv[%d] = '%s'", i, argv[i]);
+    RAII_VARIABLE(GOptionContext *, context, NULL, raii_option_context_free);
+    RAII_VARIABLE(gchar *, s, NULL, raii_gcharp_free);
+    RAII_VARIABLE(joza_poll_t *, poll, NULL, raii_pollp_destroy);
+    GError *error = NULL;
+
+    context = g_option_context_new("- server options");
+    g_option_context_set_summary(context, "This is an exchange server for the Jozabad chat protocol.");
+    g_option_context_add_main_entries (context, entries, NULL);
+    if (!g_option_context_parse (context, &argc, &argv, &error)) {
+        g_print ("option parsing failed: %s\n", error->message);
+        exit (1);
     }
 
-    int c;
-    int val;
-    while ((c = pgetopt(argc, argv, options)) != -1) {
-        switch(c) {
-        case 'p':
-            val = atoi(poptarg);
-            if (val >= 1 && val <= 65535) {
-                main_port = val;
-            } else {
-                ERR("invalid port number %d", val);
-                return (1);
-            }
-            break;
-        case 't':
-            val = atoi(poptarg);
-            if (tput_rngchk((tput_t) val) == 0) {
-                g_tput_threshold = (tput_t) val;
-            } else {
-                ERR("invalid per-channel tput level %d", val);
-                return (1);
-            }
-            break;
-        case 'v':
-            g_log_level = atoi(poptarg);   /* should use strtol() in new code */
-            break;
-        case 'V':
-            printf("%s : %s\n", PROGNAME, VERSION);
-            break;
-        case '?':
-        default:
-            usage();
-            break;
-        }
+    if (main_port < 1 || main_port > 65535) {
+        g_print("invalid port number %d", main_port);
+        exit (1);
     }
 
-    INFO("port = %d", main_port);
-    INFO("verbosity = %d", g_log_level);
-    INFO("per-channel tput = %s", tput_name(g_tput_threshold));
+    if (verbose) {
+        g_print("port = %d", main_port);
+        g_print("per-channel tput = %s", tput_name(g_tput_threshold));
+    }
 
-    size_t len = intlen(main_port) + strlen(PROTOCOL) + 1;
-    char *s = (char *)calloc(len, sizeof(char));
-    snprintf(s, len, "%s%d", PROTOCOL, main_port);
+    s = g_strdup_printf("%s%d", PROTOCOL, main_port);
 
-    if (g_log_level >= 3)
-        poll_init(TRUE, s);
-    else
-        poll_init(FALSE, s);
-    poll_start();
+    poll = poll_create(verbose, s);
+    poll_start(poll->loop);
 
-    channel_disconnect_all();
-    worker_remove_all();
-    poll_destroy();
-
-    free(s);
+    //channel_disconnect_all(poll->sock);
+    //worker_remove_all();
     return 0;
 }

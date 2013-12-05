@@ -19,8 +19,7 @@
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
 
 */
-#ifndef JOZA_WORKER_H
-#define JOZA_WORKER_H
+#pragma once
 
 #include <czmq.h>
 #include <assert.h>
@@ -29,14 +28,25 @@
 #include "lcn.h"
 #include "joza_msg.h"
 #include "mylimits.h"
-#include "bool.h"
+
 
 typedef struct {
-    bool_t flag;
+    bool flag;
     worker_idx_t index;
 } bool_index_t;
 
 typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
+
+typedef struct {
+    wkey_t wkey;
+    gchar *name;
+    zframe_t *zaddr;
+    iodir_t iodir;
+    lcn_t lcn;
+    role_t role;
+    gint64 ctime;
+    gint64 mtime;
+} worker_t;
 
 extern wkey_t   w_wkey[WORKER_COUNT];
 extern char     w_name[WORKER_COUNT][NAME_LEN + 1];
@@ -45,11 +55,10 @@ extern iodir_t  w_iodir[WORKER_COUNT];
 extern lcn_t    w_lcn[WORKER_COUNT];
 extern role_t   w_role[WORKER_COUNT];
 
-wkey_t worker_add(const zframe_t *A, const char *N, iodir_t I);
+wkey_t worker_add(void *sock, const zframe_t *A, const char *N, iodir_t I);
 zhash_t *worker_directory(void);
 bool_index_t worker_get_idx_by_key(uint32_t key);
-bool_t worker_dispatch_by_idx (joza_msg_t *M, worker_idx_t I);
+gboolean worker_dispatch_by_idx (void *sock, joza_msg_t *M, worker_idx_t I);
 void remove_worker_by_key(wkey_t key);
 void remove_worker(wkey_t key);
 void worker_remove_all(void);
-#endif

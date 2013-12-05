@@ -94,14 +94,14 @@ static const char p_mid[] = "%&+,.:=_- ";
 
 /* Returns TRUE if the character C is in the set of valid initial
 characters for a name.  */
-static bool_t _val_init (char C)
+static gboolean _val_init (char C)
 {
     return ((C != '\0') && (isalnum(C) || strchr(p_ini, C) != NULL));
 }
 
 /* Returns TRUE if the character C is in the set of valid non-initial
 characters for a name.  */
-static bool_t _val_mid (char C)
+static gboolean _val_mid (char C)
 {
     return ((C != '\0') && (isalnum(C) || strchr(p_mid, C) != NULL));
 }
@@ -109,7 +109,7 @@ static bool_t _val_mid (char C)
 /* Returns TRUE if character array STR of length N contains only
 safe characters.  STR need not be NULL-terminated, but, if it is
 NULLs may only appear at the end. */
-bool_t safeascii(const char *mem, size_t n)
+gboolean safeascii(const char *mem, size_t n)
 {
     assert(mem != NULL);
     int state = 1;              /* init = 1, mid = 2, final = 3 */
@@ -153,9 +153,9 @@ bool_t safeascii(const char *mem, size_t n)
 
 // Returns TRUE is character array STR holds a valid 'x121'-style address.
 // STR need not be null terminated.
-bool_t safe121 (const char *str, size_t n)
+gboolean safe121 (const char *str, size_t n)
 {
-    bool_t ret = TRUE;
+    gboolean ret = TRUE;
 
     int len = strnlen_s(str, n);
 
@@ -480,7 +480,7 @@ index_ukey_t keynext(ukey_t arr[], size_t n, ukey_t key)
 {
     index_ukey_t ret;
     int index;
-    bool_t did_loop = FALSE;
+    gboolean did_loop = FALSE;
 
 loop:
     index = keyfind(arr, n, key);

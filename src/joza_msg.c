@@ -373,6 +373,12 @@ joza_msg_recv (void *input)
         }
         break;
 
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
+        break;
+
     default:
         goto malformed;
     }
@@ -542,6 +548,12 @@ joza_msg_send (joza_msg_t **self_p, void *output)
         frame_size += self->workers_bytes;
         break;
 
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
+        break;
+
     default:
         printf ("E: bad message type '%d', not sent\n", self->id);
         //  No recovery, this is a fatal application error
@@ -650,6 +662,12 @@ joza_msg_send (joza_msg_t **self_p, void *output)
             zhash_foreach (self->workers, s_workers_write, self);
         } else
             PUT_NUMBER1 (0);    //  Empty dictionary
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     }
@@ -1169,6 +1187,50 @@ joza_msg_send_addr_directory (
 
 
 //  --------------------------------------------------------------------------
+//  Send the ENQ to the socket in one step
+
+int
+joza_msg_send_enq (
+    void *output)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ENQ);
+    return joza_msg_send (&self, output);
+}
+
+
+int
+joza_msg_send_addr_enq (
+    void *output, const zframe_t *addr)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ENQ);
+    self->address = zframe_dup(addr);
+    return joza_msg_send (&self, output);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Send the ACK to the socket in one step
+
+int
+joza_msg_send_ack (
+    void *output)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ACK);
+    return joza_msg_send (&self, output);
+}
+
+
+int
+joza_msg_send_addr_ack (
+    void *output, const zframe_t *addr)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ACK);
+    self->address = zframe_dup(addr);
+    return joza_msg_send (&self, output);
+}
+
+
+//  --------------------------------------------------------------------------
 //  Duplicate the joza_msg message
 
 joza_msg_t *
@@ -1256,6 +1318,12 @@ joza_msg_dup (joza_msg_t *self)
 
     case JOZA_MSG_DIRECTORY:
         copy->workers = zhash_dup (self->workers);
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     }
@@ -1434,6 +1502,14 @@ joza_msg_dump (joza_msg_t *self)
         printf ("    }\n");
         break;
 
+    case JOZA_MSG_ENQ:
+        puts ("ENQ:");
+        break;
+
+    case JOZA_MSG_ACK:
+        puts ("ACK:");
+        break;
+
     }
 }
 
@@ -1542,6 +1618,12 @@ joza_msg_const_command (const joza_msg_t *self)
         break;
     case JOZA_MSG_DIRECTORY:
         return ("DIRECTORY");
+        break;
+    case JOZA_MSG_ENQ:
+        return ("ENQ");
+        break;
+    case JOZA_MSG_ACK:
+        return ("ACK");
         break;
     }
     return "?";
@@ -2137,6 +2219,20 @@ joza_msg_test (bool verbose)
     assert (joza_msg_workers_size (self) == 2);
     assert (streq (joza_msg_workers_string (self, "Name", "?"), "Brutus"));
     assert (joza_msg_workers_number (self, "Age", 0) == 43);
+    joza_msg_destroy (&self);
+
+    self = joza_msg_new (JOZA_MSG_ENQ);
+    joza_msg_send (&self, output);
+
+    self = joza_msg_recv (input);
+    assert (self);
+    joza_msg_destroy (&self);
+
+    self = joza_msg_new (JOZA_MSG_ACK);
+    joza_msg_send (&self, output);
+
+    self = joza_msg_recv (input);
+    assert (self);
     joza_msg_destroy (&self);
 
     zctx_destroy (&ctx);

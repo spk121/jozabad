@@ -1,8 +1,10 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS?=-std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS)
-LIBS=-ldl -lczmq -lzmq -lm $(OPTLIBS)
-PREFIX?=/usr/local
+CFLAGS ?= -std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS) \
+	`pkg-config glib-2.0 --cflags`
+LIBS = -ldl -lczmq -lzmq -lm $(OPTLIBS) \
+	`pkg-config glib-2.0 --libs`
+PREFIX ?=/usr/local
 
 HEADERS=$(wildcard src/**/*.h src/*.h)
 GCH=$(patsubst %.h,%.gch,$(HEADERS))
@@ -18,12 +20,16 @@ UTESTS=$(patsubst %.c,%,$(UTEST_SRC))
 ITEST_SRC=$(wildcard tests/*_itest.c)
 ITESTS=$(patsubst %.c,%,$(ITEST_SRC))
 
+# Demo workers
+DEMO_SRC=$(wildcard tests/demo*.c)
+DEMOS=$(patsubst %.c,%,$(DEMO_SRC))
+
 EXE_TARGET=build/jozabad
 LIB_TARGET=build/libjoza.a
 SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 
 # The Target Build
-all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests
+all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests demos
 
 release: CFLAGS=-std=c11 -O2 -DNDEBUG $(OPTFLAGS)
 release: all
@@ -51,6 +57,12 @@ $(ITESTS): %: %.c
 	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
 tests: $(UTESTS) $(ITESTS)
 	sh ./tests/runtests.sh
+
+# Demos
+.phony: demos
+$(DEMOS): %: %.c
+	$(CC) $(CFLAGS) -o $@ $< $(LIBS) $(LIB_TARGET)
+demos: $(DEMOS)
 
 valgrind:
 	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE)
