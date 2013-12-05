@@ -11,7 +11,7 @@ Anyway, I found a file here: http://www.textfiles.com/phreak/x25.txt.  "This rep
 
 It says
 
->     DDN addresses are assigned to subscriber DTEs by the
+> DDN addresses are assigned to subscriber DTEs by the
 > Administration.     Two  basic  forms  of  address  are  provided:
 > physical addresses, which correspond to the node number and DCE
 > port number of the node to which the DTE is connected, and
