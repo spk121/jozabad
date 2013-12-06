@@ -4,10 +4,15 @@ Lessons learned and info to remember.
 
 ## Comparison to X.25 ##
 
-One thing I could never figure out from reading these X.25 docs is how callers get their X.25 addresses in the first place, and what protection exists agains spoofing.  The calling and caller addresses are in every packet, but, it
-looks like anyone can just create a packet with a given calling address.
+One thing I could never figure out from reading these X.25 docs is how
+callers get their X.25 addresses in the first place, and what
+protection exists agains spoofing.  The calling and caller addresses
+are in every packet, but, it looks like anyone can just create a
+packet with a given calling address.
 
-Anyway, I found a file here: http://www.textfiles.com/phreak/x25.txt.  "This report specifies the attachment of an X.25 host to the Defense Data Network (DDN)."
+Anyway, I found a file here: http://www.textfiles.com/phreak/x25.txt.
+"This report specifies the attachment of an X.25 host to the Defense
+Data Network (DDN)."
 
 It says
 
@@ -23,8 +28,35 @@ It says
 > DTE need not determine whether a given address is a physical or
 > logical address, in order to establish a call to that address.
 
-So it looks like getting a name was an off-line pre-assigned thing.  And I guess there was no protection against spoofing.
+So it looks like getting a name was an off-line pre-assigned thing.
+And I guess there was no protection against spoofing.
 
+The DDN variant of X.25 address were of the form
+
+ZZZZ F DDDDDDD (SS)
+
+- ZZZZ: always 0000
+
+- F: 0 -> 'physical address', 1 -> 'logical address'
+
+- DDDDDDD: address assigned by the administration
+
+- (SS): optional sub-address used by the DTE for any purpose, carried across the network without modification
+
+A DTE could be assigned a single physical address and multiple logical addresses.
+
+Oooh.  Check this out.  It says
+
+> If a DTE sends a CALL REQUEST packet with no calling address
+> field, the local DCE will insert the physical calling DDN Host
+> Identifier with no subaddress field.  If a DTE sends a CALL
+> REQUEST or CALL ACCEPTED packet with either or both calling or
+> called addresses that contain F = zero and DDDDDDD = zero, the
+> local DCE will replace the DDN Host Identifier field (DDDDDDD)
+> with the physical address of the DTE.
+
+So a client would just send a CALL REQUEST and when it receives its
+CALL ACCEPTED, its address would be filled in.
 
 ## Cross platform issues ##
 
