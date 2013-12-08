@@ -34,7 +34,6 @@ int main(int argc, char** argv)
         joza_msg_t *response;
         char *prefix = i ? calling_address2 : calling_address1;
         void *sock = i ? sock2 : sock1;
-        void *other_sock = i ? sock1 : sock2;
 
         for (int j = 0; j < window; j ++) {
             // Send a X data message
