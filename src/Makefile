@@ -6,7 +6,8 @@ INCLUDES = \
     lib.h \
     poll.h \
     state.h \
-    msg.h
+    msg.h \
+    worker.h
 
 VPATH = ../libjoza
 
@@ -26,7 +27,8 @@ CSRC = action.c \
 	joza_msg.c \
 	msg.c \
 	seq.c \
-	iodir.c
+	iodir.c \
+	worker.c
 
 CPPSRC = 
 
@@ -62,7 +64,7 @@ CFLAGS = $(CPPFLAGS)\
     -march=native \
     -O0 \
     -std=gnu11 \
-    `pkg-config glib-2.0 --cflogs-only-other` \
+    `pkg-config glib-2.0 --cflags-only-other` \
     $(CWARN)
 
 CC = gcc
@@ -75,13 +77,13 @@ CC = gcc
 # functions, classes, and external variables by using the following
 # two compiler flags:
 
-ifeq (CC, gc)
+#ifeq (CC, gcc)
 CFLAGS += -fdata-sections -ffunction-sections
-endif
+#endif
 
 LDFLAGS_LARGE = --verbose -Wl,-L/usr/local/lib
-LDFLAGS_MEDIUM = -Wl,--gc-sections --verbose
-LDFLAGS_SMALL = -Wl,--gc-sections -Wl,--strip-all --verbose
+LDFLAGS_MEDIUM = --verbose -Wl,-L/usr/local/lib -Wl,--gc-sections -Wl,--print-gc-sections
+LDFLAGS_SMALL = --verbose -Wl,-L/usr/local/lib  -Wl,--gc-sections -Wl,--print-gc-sections -Wl,--strip-all 
 
 all: broker
 
@@ -101,7 +103,7 @@ all: broker
 
 
 broker: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lczmq -lzmq -lm `pkg-config glib-2.0 --libs`
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq -lm `pkg-config glib-2.0 --libs`
 
 clean:
 	-rm $(OBJ)
