@@ -27,6 +27,7 @@
 */
 
 #define _GNU_SOURCE
+#pragma GCC diagnostic warning "-w"
 #include <string.h>
 #include <stdint.h>
 #include <zmq.h>

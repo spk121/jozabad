@@ -49,6 +49,8 @@ typedef enum _packet_t {
 
 uint32_t packet_bytes(packet_t x);
 int packet_rngchk(packet_t p);
+char const *packet_name(packet_t x);
 int packet_negotiate(packet_t request, packet_t current);
+packet_t packet_throttle(packet_t request, packet_t limit);
 
 #endif

@@ -1,5 +1,6 @@
 INCLUDES = \
     action.h \
+    cause.h \
     connections.h \
     name.h \
     flow.h \
@@ -12,9 +13,9 @@ INCLUDES = \
 VPATH = ../libjoza
 
 CSRC = action.c \
+       cause.c \
 	channel.c \
 	diag.c \
-	lcn.c \
 	lib.c \
         log.c \
 	main.c \
@@ -23,7 +24,6 @@ CSRC = action.c \
 	raii.c \
 	state.c \
 	tput.c \
-	joza_lib.c \
 	joza_msg.c \
 	msg.c \
 	seq.c \
@@ -40,7 +40,7 @@ CPPFLAGS = \
     -Wunused-macros \
     -Wendif-labels \
     -pedantic \
-    `pkg-config glib-2.0 --cflags-only-I`
+    `pkg-config glib-2.0 libczmq libzmq --cflags-only-I`
 
 CWARN = \
     -Wall \
@@ -64,7 +64,7 @@ CFLAGS = $(CPPFLAGS)\
     -march=native \
     -O0 \
     -std=gnu11 \
-    `pkg-config glib-2.0 --cflags-only-other` \
+    `pkg-config glib-2.0 libczmq libzmq --cflags-only-other` \
     $(CWARN)
 
 CC = gcc
@@ -103,7 +103,8 @@ all: broker
 
 
 broker: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS_MEDIUM) -lczmq -lzmq -lm `pkg-config glib-2.0 --libs`
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS_MEDIUM) -lm \
+	`pkg-config glib-2.0 libczmq libzmq --libs`
 
 clean:
 	-rm $(OBJ)
@@ -112,6 +113,7 @@ clean:
 .PHONY: check-syntax
 
 check-syntax:
-	$(CXX) -Wall -Wextra -pedantic -fsyntax-only $(CPPSRC)
-	$(CC) -Wall -Wextra -pedantic -fsyntax-only $(CSRC)
+	$(CC) -std=gnu11 $(CPPFLAGS) $(CWARN) -pedantic -fsyntax-only $(CSRC)
+	# $(CXX) -Wall -Wextra -pedantic -fsyntax-only $(CPPSRC)
+
 

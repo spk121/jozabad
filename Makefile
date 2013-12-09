@@ -1,14 +1,17 @@
 # The basic outline for this came from "Learning C the Hard Way"
 
-CFLAGS ?= -std=c11 -g -O0 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS) \
-	`pkg-config glib-2.0 --cflags`
-LIBS = -ldl -lczmq -lzmq -lm $(OPTLIBS) \
-	`pkg-config glib-2.0 --libs`
+CFLAGS = -Isrc -std=c11 -g -O0 -Wall -Wextra \
+	-rdynamic $(OPTFLAGS) \
+	`pkg-config glib-2.0 libczmq libzmq --cflags` \
+	-fdata-sections -ffunction-sections
+LIBS = -ldl -lm $(OPTLIBS) \
+	`pkg-config glib-2.0 libczmq libzmq --libs` \
+	--verbose -Wl,-L/usr/local/lib -Wl,--gc-sections -Wl,--print-gc-sections
 PREFIX ?=/usr/local
 
-HEADERS=$(wildcard src/**/*.h src/*.h)
+HEADERS=$(wildcard src/*.h)
 GCH=$(patsubst %.h,%.gch,$(HEADERS))
-SOURCES=$(wildcard src/**/*.c src/*.c)
+SOURCES=$(wildcard src/*.c)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
 MAINS=src/main.o
 
@@ -42,8 +45,8 @@ $(LIB_TARGET): build $(filter-out $(MAINS),$(OBJECTS))
 $(SO_TARGET): $(LIB_TARGET) $(filter-out $(MAINS),$(OBJECTS))
 	$(CC) -shared -o $@ $(filter-out $(MAINS),$(OBJECTS))
 
-$(EXE_TARGET): $(LIB_TARGET) $(MAINS)
-	$(CC) -o $@ $(MAINS) $(LIB_TARGET) $(LIBS)
+$(EXE_TARGET): $(OBJECTS)
+	$(CC) -o $@ $(OBJECTS) $(LIBS)
 
 build:
 	@mkdir -p build
@@ -65,7 +68,7 @@ $(DEMOS): %: %.c
 demos: $(DEMOS)
 
 valgrind:
-	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE)
+	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE) tests
 
 # The Cleaner
 clean:
@@ -80,7 +83,7 @@ install: all
 	install $(TARGET) $(DESTDIR)/$(PREFIX)/lib/
 
 # The Checker
-BADFUNCS='[^_.>a-zA-Z0-9](str(n?cpy|n?cat|xfrm|n?dup|str|pbrk|tok|_)|stpn?cpy|a?sn?printf|byte_)'
+BADFUNCS='[^_.>a-zA-Z0-9](str(n?cpy|n?cat|xfrm|n?dup|str|pbrk|tok|_)|stpn?cpy|a?sn?printf|byte_|alloc)'
 check:
 	@echo Files with potentially dangerous functions.
 	@egrep $(BADFUNCS) $(SOURCES) || true
@@ -93,6 +96,7 @@ check:
 	@echo
 	@echo Files that don\'t contain the phrase "GNU General Public License"
 	@grep -L "GNU General Public License" src/*.[ch] tests/*.[ch] || true
+	@echo
 
 # Enforce some style
 pretty:
@@ -106,5 +110,5 @@ headercheck: $(GCH)
 .PHONY: check-syntax
 
 check-syntax:
-	$(CC) -std=c11 -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
+	$(CC) -Isrc -std=c11 -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
 

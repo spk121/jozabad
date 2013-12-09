@@ -40,12 +40,11 @@
 #include "packet.h"
 #include "msg.h"
 #include "packet.h"
-#include "lcn.h"
 
 // #include "../libjoza/joza_lib.h"
 
-static_assert(ACTION_STATE_COUNT == state_last + 1, "Number of state different than action table");
-static_assert(ACTION_MESSAGE_COUNT == JOZA_MSG_COUNT, "Number of messages different than action table");
+// static_assert(ACTION_STATE_COUNT == state_last + 1, "Number of state different than action table");
+// static_assert(ACTION_MESSAGE_COUNT == JOZA_MSG_COUNT, "Number of messages different than action table");
 static_assert(sizeof(seq_t) <= offsetof(joza_msg_t,ps) - offsetof(joza_msg_t,pr), "Sequence type too large");
 
 /*
@@ -64,40 +63,8 @@ ctime double                       time this channel was created
 mtime double                       time of last message from either peer
 */
 
-
-static chan_idx_t _count = 0;
-#if 0
-lcn_t c_lcn[CHAN_COUNT];
-zframe_t *c_xzaddr[CHAN_COUNT]; /* ZMQ address of caller X */
-zframe_t *c_yzaddr[CHAN_COUNT]; /* ZMQ address of callee Y */
-chan_idx_t c_yidx[CHAN_COUNT]; /* index array that sorts ykey array */
-const char *c_xname[CHAN_COUNT];
-const char *c_yname[CHAN_COUNT];
-state_t c_state[CHAN_COUNT];
-static seq_t c_xps[CHAN_COUNT]; /* sequence number of packets sent by X */
-static seq_t c_xpr[CHAN_COUNT]; /* lowest packet sequence permitted to send to X */
-static seq_t c_yps[CHAN_COUNT]; /* sequence number of packets sent by Y  */
-static seq_t c_ypr[CHAN_COUNT]; /* lowest packet sequence permitted to send to Y */
-packet_t c_pkt[CHAN_COUNT];
-seq_t c_window[CHAN_COUNT];
-tput_t c_tput[CHAN_COUNT]; /* bits/sec permitted on this channel */
-#endif
 #define STATE2DIAG(s) ((diag_t)((s) - state_ready + d_invalid_message_for_state_ready))
 
-bool channel_available()
-{
-    bool ret;
-
-    g_message("In %s()", __FUNCTION__);
-
-    if (_count < CHAN_COUNT)
-        ret = TRUE;
-    else
-        ret = FALSE;
-
-    g_message("%s() returns %d", __FUNCTION__, ret);
-    return ret;
-}
 
 channel_t *
 channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
@@ -110,8 +77,8 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
     c->lcn = lcn;
     c->xzaddr = zframe_dup(xzaddr);
     c->yzaddr = zframe_dup(yzaddr);
-    c->xname = strdup(xname);
-    c->yname = strdup(yname);
+    c->xname = g_strdup(xname);
+    c->yname = g_strdup(yname);
     c->state = state_ready;
     c->xps = SEQ_MIN;
     c->xpr = SEQ_MIN;
@@ -128,102 +95,6 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
 
     return c;
 }
-
-#if 0
-// Make sure that, for xname and yname, you pass a pointer into worker's w_pname store,
-// since we're not duplicating the strings here.
-lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
-                  packet_t pkt, seq_t window, tput_t tput)
-{
-    chan_idx_lcn_t iu;
-
-    g_message("In %s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d)",
-              __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput);
-
-    assert(_count < CHAN_COUNT);
-    assert(xzaddr);
-    assert(yzaddr);
-
-    iu = lcnn_ext(c_lcn, _count, _lcn);
-    assert (_count == 0 || c_lcn[iu.index] != _lcn);
-
-    if (iu.index < _count) {
-        PUSH(c_xzaddr, iu.index, _count);
-        PUSH(c_yzaddr, iu.index, _count);
-        PUSH(c_xname, iu.index, _count);
-        PUSH(c_yname, iu.index, _count);
-        PUSH(c_state, iu.index, _count);
-        PUSH(c_xps, iu.index, _count);
-        PUSH(c_yps, iu.index, _count);
-        PUSH(c_xpr, iu.index, _count);
-        PUSH(c_ypr, iu.index, _count);
-        PUSH(c_pkt, iu.index, _count);
-        PUSH(c_window, iu.index, _count);
-        PUSH(c_tput, iu.index, _count);
-    }
-    c_lcn[iu.index] = iu.key;
-    c_xzaddr[iu.index] = zframe_dup(xzaddr);
-    c_yzaddr[iu.index] = zframe_dup(yzaddr);
-    c_xname[iu.index] = xname;
-    c_yname[iu.index] = yname;
-    c_state[iu.index] = state_ready;
-    c_xps[iu.index] = SEQ_MIN;
-    c_xps[iu.index] = SEQ_MIN;
-    c_ypr[iu.index] = SEQ_MIN;
-    c_ypr[iu.index] = SEQ_MIN;
-    c_pkt[iu.index] = pkt;
-    c_window[iu.index] = window;
-    c_tput[iu.index] = tput;
-
-    // Transition state to X_CALL
-    c_state[iu.index] = state_x_call_request;
-
-    _count ++;
-    _lcn = iu.key;
-
-    g_message("adding channel %s/%s - packet = %d, window = %d, tput %d",xname, yname, packet_bytes(pkt),
-              window, tput_bps(tput));
-    g_message("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %d",
-              __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, iu.key);
-
-    return iu.key;
-}
-
-#define REMOVE(arr,idx,count)                                           \
-    do {                                                                \
-        memmove(arr + idx, arr + idx + 1, sizeof(arr[0]) * (count - idx - 1)); \
-        memset(arr + count - 1, 0, sizeof(arr[0]));                     \
-    }                                                                   \
-    while(0)
-
-static void remove_channel_by_chan_idx(chan_idx_t idx)
-{
-    if (idx < _count) {
-        zframe_destroy(&c_xzaddr[idx]);
-        REMOVE(c_xzaddr, idx, _count);
-        zframe_destroy(&c_yzaddr[idx]);
-        REMOVE(c_yzaddr, idx, _count);
-        REMOVE(c_xname, idx, _count);
-        REMOVE(c_yname, idx, _count);
-        REMOVE(c_state, idx, _count);
-        REMOVE(c_xps, idx, _count);
-        REMOVE(c_yps, idx, _count);
-        REMOVE(c_xpr, idx, _count);
-        REMOVE(c_ypr, idx, _count);
-        REMOVE(c_window, idx, _count);
-        REMOVE(c_tput, idx, _count);
-    }
-    _count --;
-}
-
-static void reset_flow_by_chan_idx(chan_idx_t idx)
-{
-    c_xps[idx] = 0;
-    c_xpr[idx] = 0;
-    c_yps[idx] = 0;
-    c_ypr[idx] = 0;
-}
-#endif
 
 // This punishment action is a result of a message received a worker
 // that is incorrect for the current state.
@@ -262,7 +133,7 @@ static state_t do_i_disconnect(void *sock, zframe_t *self_zaddr, zframe_t *other
     int ret;
     ret = joza_msg_send_addr_clear_request(sock, other_zaddr, c_worker_originated, d_worker_originated);
     if (ret == -1)
-        diagnostic(sock, self_zaddr, c_zmq_sendmsg_err, errno2diag());
+        diagnostic(sock, self_zaddr, NULL, c_zmq_sendmsg_err, errno2diag());
     return state_ready;
 }
 
@@ -278,20 +149,20 @@ static state_t do_y_call_accepted(void *sock, zframe_t *self_zaddr, zframe_t *ot
     // If the caller has modified this channel's facilities,
     // ensure that the caller has obey the negotiation rules
     if (!packet_negotiate(pkt, *self_pkt))
-        diagnostic(sock, self_zaddr, c_invalid_facility_request, d_invalid_packet_facility_negotiation);
+        diagnostic(sock, self_zaddr, self_name, c_invalid_facility_request, d_invalid_packet_facility_negotiation);
     else if (!window_negotiate(window, *self_window))
-        diagnostic(sock, self_zaddr, c_invalid_facility_request, d_invalid_window_facility_negotiation);
+        diagnostic(sock, self_zaddr, self_name, c_invalid_facility_request, d_invalid_window_facility_negotiation);
     else if (!tput_negotiate(tput, *self_tput))
-        diagnostic(sock, self_zaddr, c_invalid_facility_request, d_invalid_throughput_facility_negotiation);
+        diagnostic(sock, self_zaddr, self_name, c_invalid_facility_request, d_invalid_throughput_facility_negotiation);
 
     // TODO: Validate that the addresses still match.
     // If the callee's address has changed, this worker is requesting that the broker forward
     // this message to another worker for processing.  If the caller's address has changed, well,
     // I don't know what that means, yet.
     else if(strcmp(xname, other_name) != 0)
-        diagnostic(sock, self_zaddr, c_invalid_forwarding_request, d_caller_forwarding_not_allowed);
+        diagnostic(sock, self_zaddr, self_name, c_invalid_forwarding_request, d_caller_forwarding_not_allowed);
     else if(strcmp(yname, self_name) != 0)
-        diagnostic(sock, self_zaddr, c_invalid_forwarding_request, d_callee_forwarding_not_allowed);
+        diagnostic(sock, self_zaddr, self_name, c_invalid_forwarding_request, d_callee_forwarding_not_allowed);
 
     else {
 
@@ -319,7 +190,7 @@ __attribute__ ((warn_unused_result));
 
 static state_t do_y_call_collision(void *sock, zframe_t *self_zaddr)
 {
-    diagnostic(sock, self_zaddr, c_call_collision, d_call_collision);
+    diagnostic(sock, self_zaddr, NULL, c_call_collision, d_call_collision);
     return state_call_collision;
 }
 
@@ -328,9 +199,9 @@ static state_t do_i_clear_request(void *sock, zframe_t *self_zaddr, zframe_t *ot
 {
     // The caller's clear request shall only use the diagnostic D_WORKER_REQUESTED.
     if (joza_msg_cause(M) != c_worker_originated)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_invalid_cause);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_invalid_cause);
     else if (joza_msg_diagnostic(M) != d_worker_originated)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_invalid_diagnostic);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_invalid_diagnostic);
     else {
         joza_msg_send_addr_clear_request(sock, other_zaddr, c_worker_originated, d_worker_originated);
         return STATE_CLEAR_REQUEST(is_y);
@@ -357,21 +228,21 @@ static void do_i_data(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, j
 
     // First, check if the message is valid
     if (data_len > packet_bytes(packet_size))
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_data_too_long_for_packet_facility);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_data_too_long_for_packet_facility);
 
     // When caller sends a message, its packet number should match my
     // expected packet number for this caller, and should be in the
     // window of packet numbers that callee has said it will accept.
     else if (ps != *self_ps)
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_ps_out_of_order);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_ps_out_of_order);
     else if (!seq_in_range(ps, other_pr, (other_pr + window_size - 1) % SEQ_MAX))
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_ps_not_in_window);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_ps_not_in_window);
     // When X updates its own window of packets that it will accept,
     // its new lowest packet number that X will allow should be
     // between the previous lowest packet number that X would allow
     // and the next packet number that will be sent by Y.
     else if (!seq_in_range(pr, *self_pr, other_ps))
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_pr_invalid_window_update);
     else {
         joza_msg_send_addr_data (sock, other_zaddr, joza_msg_q(M), pr, ps, joza_msg_data(M));
         *self_ps = (*self_ps + 1) % (SEQ_MAX + 1);
@@ -387,9 +258,9 @@ static void do_i_rr(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, joz
     seq_t pr = joza_msg_pr(M);
 
     if (pr > SEQ_MAX)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_pr_too_large);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, *self_pr, other_ps))
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_pr_invalid_window_update);
     else {
         joza_msg_send_addr_rr (sock, other_zaddr, pr);
         *self_pr = pr;
@@ -406,9 +277,9 @@ static void do_i_rnr(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, jo
     // First, check if the message is valid
 
     if (pr > SEQ_MAX)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_pr_too_large);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_pr_too_large);
     else if (!seq_in_range(pr, *self_pr, other_ps))
-        diagnostic(sock, self_zaddr, c_local_procedure_error, d_pr_invalid_window_update);
+        diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_pr_invalid_window_update);
     else {
         joza_msg_send_addr_rnr (sock, other_zaddr, pr);
         *self_pr = pr;
@@ -420,9 +291,9 @@ static void do_i_rnr(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, jo
 static void do_i_reset(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, joza_msg_t *M)
 {
     if (joza_msg_cause(M) != c_worker_originated)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_invalid_cause);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_invalid_cause);
     else if (joza_msg_diagnostic(M) != d_worker_originated)
-        diagnostic(sock, self_zaddr, c_malformed_message, d_invalid_diagnostic);
+        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_invalid_diagnostic);
     else {
         joza_msg_send_addr_reset_request (sock, other_zaddr, c_worker_originated, d_worker_originated);
     }
@@ -553,16 +424,3 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
     return state;
 }
 
-#if 0
-// Caller is doing a hard stop. I send a CLEAR_REQUEST to callee,
-// close the channel immediately, and disconnect caller
-void channel_disconnect_all(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr)
-{
-    for (int I = _count - 1; I >= 0; I --) {
-        joza_msg_send_addr_clear_request(sock, other_zaddr, c_broker_shutdown, d_unspecified);
-        joza_msg_send_addr_clear_request(sock, self_zaddr, c_broker_shutdown, d_unspecified);
-        remove_channel_by_chan_idx(I);
-    }
-    _count = 0;
-}
-#endif

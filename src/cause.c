@@ -20,9 +20,12 @@
 
 */
 
+#include <glib.h>
 #include "cause.h"
 
-static const char cause_names[c_last + 1][30] = {
+#define CAUSE_NAME_MAX_LEN (30)
+
+static const char cause_names[CAUSE_MAX + 1][CAUSE_NAME_MAX_LEN] = {
     "C_UNSPECIFIED",
     "C_WORKER_ORIGINATED",
     "C_NUMBER_BUSY",
@@ -43,6 +46,8 @@ static const char cause_names[c_last + 1][30] = {
 
 const char *cause_name(cause_t c)
 {
+    g_assert_cmpint(c, <=, CAUSE_MAX);
+
     return &(cause_names[c][0]);
 }
 

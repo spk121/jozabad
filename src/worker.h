@@ -25,7 +25,6 @@
 #include <assert.h>
 #include <stdint.h>
 #include "iodir.h"
-#include "lcn.h"
 #include "joza_msg.h"
 #include "mylimits.h"
 
@@ -48,17 +47,5 @@ typedef struct {
     gint64 mtime;
 } worker_t;
 
-extern wkey_t   w_wkey[WORKER_COUNT];
-extern char     w_name[WORKER_COUNT][NAME_LEN + 1];
-extern zframe_t *w_zaddr[WORKER_COUNT];
-extern iodir_t  w_iodir[WORKER_COUNT];
-extern lcn_t    w_lcn[WORKER_COUNT];
-extern role_t   w_role[WORKER_COUNT];
 
-wkey_t worker_add(void *sock, const zframe_t *A, const char *N, iodir_t I);
-zhash_t *worker_directory(void);
-bool_index_t worker_get_idx_by_key(uint32_t key);
-gboolean worker_dispatch_by_idx (void *sock, joza_msg_t *M, worker_idx_t I);
-void remove_worker_by_key(wkey_t key);
-void remove_worker(wkey_t key);
-void worker_remove_all(void);
+worker_t *worker_create(const zframe_t *A, const char *N, iodir_t io);

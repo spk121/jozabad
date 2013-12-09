@@ -1,6 +1,7 @@
-echo "Running unit tests:"
+echo "Running integration tests:"
 
-for i in tests/*_utest
+src/broker &
+for i in tests/*_itest
 do
     if test -f $i
     then

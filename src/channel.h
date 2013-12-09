@@ -30,7 +30,6 @@
 #include "tput.h"
 #include "seq.h"
 #include "state.h"
-#include "lcn.h"
 
 #ifndef CALL_REQUEST_DATA_LEN
 # define CALL_REQUEST_DATA_LEN (16)
@@ -51,7 +50,6 @@ typedef struct {
 channel_t *
 channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                packet_t pkt, seq_t window, tput_t tput);
-bool channel_available(void);
 lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
                   packet_t pkt, seq_t window, tput_t tput);
 void channel_disconnect_all(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr);

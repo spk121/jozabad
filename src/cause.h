@@ -84,9 +84,9 @@ typedef enum {
 
     // When the broker shuts down a worker for sending data too quickly
     c_quota_exceeded,
-
-    c_last = c_quota_exceeded
 } cause_t;
+
+#define CAUSE_MAX (c_quota_exceeded)
 
 const char *cause_name(cause_t c);
 

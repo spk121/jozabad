@@ -40,14 +40,12 @@ wkey_t msg_addr2key (const zframe_t *z)
     return x[0];
 }
 
-void diagnostic(void *sock, const zframe_t *A, cause_t C, diag_t D)
+void diagnostic(void *sock, const zframe_t *A, const char *name, cause_t C, diag_t D)
 {
-    wkey_t key;
-    bool_index_t bi;
-
-    key = msg_addr2key(A);
-    bi = worker_get_idx_by_key(key);
-    g_message("sending DIAGNOSTIC to %s, %s, %s", w_name[bi.index], cause_name(C), diag_name(D));
+    if (name)
+        g_message("sending DIAGNOSTIC to %s, %s, %s", name, cause_name(C), diag_name(D));
+    else
+        g_message("sending DIAGNOSTIC %s, %s", cause_name(C), diag_name(D));
     joza_msg_send_addr_diagnostic(sock, A, C, D);
 }
 
@@ -57,7 +55,7 @@ void call_request(void *sock, zframe_t *call_addr, zframe_t *return_addr, char *
     int ret;
     ret = joza_msg_send_addr_call_request(sock, call_addr, xname, yname, pkt, window, tput, data);
     if (ret == -1)
-        diagnostic(sock, return_addr, c_zmq_sendmsg_err, errno2diag());
+        diagnostic(sock, return_addr, xname, c_zmq_sendmsg_err, errno2diag());
 }
 
 void directory_request(void *sock, const zframe_t *A, const zhash_t *D)
@@ -140,7 +138,7 @@ diag_t prevalidate_message (const joza_msg_t *msg)
         byte cause = joza_msg_const_cause(msg);
         byte diagnostic = joza_msg_const_diagnostic(msg);
 
-        if (cause > c_last)
+        if (cause > CAUSE_MAX)
             ret = d_invalid_cause;
         else if (diagnostic > d_last)
             ret = d_invalid_diagnostic;
