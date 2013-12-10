@@ -17,7 +17,7 @@
 
     You should have received a copy of the GNU General Public License
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
-
+ 
 */
 
 #include <glib.h>
@@ -36,7 +36,7 @@ static lcn_t _lcn = LCN_MIN;
 // Zero MQ socket
 static zmq_pollitem_t poll_input = {NULL, 0, ZMQ_POLLIN, 0};
 
-static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, joza_poll_t *arg);
+static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data);
 static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GHashTable *channels_table);
 
 static zctx_t *zctx_new_or_die (void)
@@ -146,8 +146,9 @@ joza_poll_t *poll_create(gboolean verbose, const char *endpoint)
 
 // This is the main callback that gets called whenever a
 // message is received from the ZeroMQ loop.
-static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, joza_poll_t *poll)
+static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data)
 {
+    joza_poll_t *poll = data;
     joza_msg_t *msg = NULL;
     int ret = 0;
 
@@ -171,9 +172,6 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, joza_poll_t *poll)
 static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GHashTable *channels_table)
 {
     gint key;
-    bool_index_t bi_worker;
-    gboolean more = FALSE;
-    role_t role = READY;
     int ret = 0;
     diag_t diag;
 
@@ -185,13 +183,11 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
     ////////////////////////////////////////////////////////////////
 
     if ((diag = prevalidate_message(msg)) != d_unspecified) {
-        diagnostic(sock, joza_msg_const_address(msg), c_malformed_message, diag);
+        diagnostic(sock, joza_msg_const_address(msg), NULL, c_malformed_message, diag);
     } else {
         worker_t *worker;
         channel_t *channel;
         key = msg_addr2key(joza_msg_address(msg));
-do_more:
-
         channel = NULL;
         worker = (worker_t *) g_hash_table_lookup (workers_table, &key);
 
@@ -216,7 +212,6 @@ do_more:
             case READY:
                 // If this worker is connected, but, not part of a call,
                 // we handle it here because it involves the whole channel store
-            {
                 if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
                     g_assert(g_hash_table_size(channels_table) <= LCN_COUNT);
 
@@ -224,11 +219,14 @@ do_more:
                         // send busy diagnostic
                         ;
                     else {
-                        worker_t *other = g_hash_table_find(workers_table, compare_worker_to_name, joza_msg_called_address(msg));
+                        worker_t *other = g_hash_table_find(workers_table,
+                                                            compare_worker_to_name,
+                                                            joza_msg_called_address(msg));
                         if (other == NULL) {
                             // send can't find diagnostic
                         } else {
-                            // Find an unused logical channel number (aka hash table key) for the new channel.
+                            // Find an unused logical channel number (aka hash table key) for the
+                            // new channel.
                             while (g_hash_table_lookup(channels_table, &_lcn) != NULL) {
                                 _lcn ++;
                                 if (_lcn > LCN_MAX)
@@ -252,8 +250,8 @@ do_more:
                             g_hash_table_insert(channels_table, &_lcn, new_channel);
                             joza_msg_send_addr_call_request(sock,
                                                             other->zaddr,
-                                                            joza_msg_const_calling_address(msg),
-                                                            joza_msg_const_called_address(msg),
+                                                            joza_msg_calling_address(msg),
+                                                            joza_msg_called_address(msg),
                                                             joza_msg_packet(msg),
                                                             joza_msg_window(msg),
                                                             joza_msg_throughput(msg),
@@ -267,7 +265,6 @@ do_more:
                     // remove the worker
                     g_hash_table_remove(workers_table, &key);
                 }
-            }
             break;
             default:
                 g_assert_not_reached ();
@@ -280,11 +277,14 @@ do_more:
         else if (joza_msg_id(msg) == JOZA_MSG_CONNECT) {
             g_message("handling %s from unconnected worker", joza_msg_const_command(msg));
             if (g_hash_table_size(workers_table) >= WORKER_COUNT) {
-                diagnostic(sock, joza_msg_const_address(msg), c_network_congestion, d_no_connections_available);
+                diagnostic(sock,
+                           joza_msg_const_address(msg),
+                           NULL,
+                           c_network_congestion,
+                           d_no_connections_available);
                 g_warning("cannot add new worker. No free worker slots");
             } else {
-                worker_t *new_worker = worker_create(sock,
-                                                     joza_msg_const_address(msg),
+                worker_t *new_worker = worker_create(joza_msg_const_address(msg),
                                                      joza_msg_const_calling_address(msg),
                                                      (iodir_t) joza_msg_const_directionality(msg));
                 if (new_worker) {
