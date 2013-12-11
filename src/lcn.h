@@ -27,16 +27,4 @@
 // - every member is unique
 // - the list is strictly monotonically increasing
 
-#include <stdint.h>
-#include "mylimits.h"
-
-typedef struct {
-    chan_idx_t index;
-    lcn_t key;
-} chan_idx_lcn_t;
-
-lcn_t lcn_find(lcn_t arr[], chan_idx_t n, lcn_t key);
-chan_idx_lcn_t lcn_next(lcn_t arr[], chan_idx_t n, lcn_t key);
-
-void indexx(lcn_t arr[], uint32_t n, lcn_t indx[]);
 #endif

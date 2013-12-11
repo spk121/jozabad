@@ -28,12 +28,6 @@
 #include "joza_msg.h"
 #include "mylimits.h"
 
-
-typedef struct {
-    bool flag;
-    worker_idx_t index;
-} bool_index_t;
-
 typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
 
 typedef struct {
@@ -43,9 +37,10 @@ typedef struct {
     iodir_t iodir;
     lcn_t lcn;
     role_t role;
-    gint64 ctime;
-    gint64 mtime;
+    gint64 ctime;               /* time of creation */
+    gint64 mtime;               /* time of last modification */
+    gint64 atime;               /* time of last access */
 } worker_t;
 
 
-worker_t *worker_create(const zframe_t *A, const char *N, iodir_t io);
+worker_t *worker_create(zframe_t *A, char *N, iodir_t io);

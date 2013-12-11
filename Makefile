@@ -32,7 +32,7 @@ LIB_TARGET=build/libjoza.a
 SO_TARGET=$(patsubst %.a,%.so,$(LIB_TARGET))
 
 # The Target Build
-all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET) tests demos
+all: $(EXE_TARGET) $(LIB_TARGET) $(SO_TARGET)
 
 release: CFLAGS=-std=c11 -O2 -DNDEBUG $(OPTFLAGS)
 release: all

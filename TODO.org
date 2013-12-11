@@ -217,3 +217,39 @@ N/A until multiple address types are implemented
 "network out of order" cause is longer failure
 
 
+* GLib porting
+** GLib Types
+** use G_DIR_SEPARATOR
+** use TRUE and FALSE
+** MIN and MAX macros
+** ABS macro
+** CLAMP macro
+** G_STRUCT_MEMBER macro
+** G_STRUCT_MEMBER_P macro
+** G_N_ELEMENTS for array size
+** Byte order macros
+** mathematical constants
+** G_STMT_START and end replaces do/while in macros
+** G_BEGIN_DECLS and end appears in each header
+** Use G_STRINGIFY to convert to strings in macros
+** Use G_STATIC_ASSERT for static assertions
+** Use G_GNUC_CONST for constant functions
+** Use G_GNUC_PURE for pure functions
+** Use G_GNUC_MALLOC is the return val is a new pointer
+** Use G_GNUC_ALLOC_SIZE if an input parameter is the size of a block returned as a pointer
+** Use G_GNUC_NORETURN for functions that never return
+** Use G_GNUC_UNUSED for unused parameters and functions
+** Use G_GNUC_PRINT 
+** Use G_GNUC_NULL_TERMINATED for C sentinal functions
+** Use G_GNUC_WARN_UNUSED_RESULT
+** Use G_GNUC_INTERNAL for library functions internal to a library
+** Use g_atomics for thread-local storage
+** Use glib memory allocation / deallocation
+** Use Glib message logging
+** g_strdup, g_strndup, g_strdupv, g_strnfill, g_stpcpy, g_strstr_len
+** g_strrstr, g_strrstr_len, g_str_has_prefix, g_str_has_suffix
+** g_strcmp0, g_strlcpy, g_strlcat
+** g_strdup_printf, g_strdup_vprintf
+** g_printf, g_fprintf, g_vfprintf, g_sprintf, 
+** g_printf_string_upper_bound
+** g_ascii_isalnum, etc

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <czmq.h>
+#include <czmq.h> 
 #include "worker.h"
 #include "packet.h"
 #include "tput.h"
@@ -59,7 +59,7 @@
   for the secondary key
 */
 
-worker_t *worker_create(const zframe_t *A, const char *N, iodir_t io)
+worker_t *worker_create(zframe_t *A, char *N, iodir_t io)
 {
     worker_t *worker = NULL;
     wkey_t key = 0;
@@ -78,6 +78,7 @@ worker_t *worker_create(const zframe_t *A, const char *N, iodir_t io)
     worker->role = READY;
     worker->ctime = elapsed_time;
     worker->mtime = elapsed_time;
+    worker->atime = elapsed_time;
     return worker;
 }
 

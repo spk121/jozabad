@@ -91,13 +91,13 @@ all: broker
 # header files
 
 
-################################################3
+################################################
 # source files
 
 
-################################################3
+################################################
 # object files
-################################################3
+################################################
 
 # executable files
 
@@ -113,7 +113,7 @@ clean:
 .PHONY: check-syntax
 
 check-syntax:
-	$(CC) -std=gnu11 $(CPPFLAGS) $(CWARN) -pedantic -fsyntax-only $(CSRC)
+	$(CC) -std=gnu11 $(CPPFLAGS) `pkg-config glib-2.0 libczmq libzmq --cflags-only-other` -pedantic -fsyntax-only $(CSRC)
 	# $(CXX) -Wall -Wextra -pedantic -fsyntax-only $(CPPSRC)
 
 
