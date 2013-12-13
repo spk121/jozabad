@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <czmq.h> 
+#include <czmq.h>
 #include "worker.h"
 #include "packet.h"
 #include "tput.h"

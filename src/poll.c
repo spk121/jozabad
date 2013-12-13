@@ -17,7 +17,7 @@
 
     You should have received a copy of the GNU General Public License
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 */
 
 #include <glib.h>
@@ -198,7 +198,7 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
 
         if (worker != NULL) {
             worker->atime = g_get_monotonic_time();
-            
+
             switch (worker->role) {
             case X_CALLER:
             case Y_CALLEE:
@@ -215,16 +215,16 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                     g_hash_table_remove(channels_table, &(worker->lcn));
                 }
                 break;
-                
+
             case READY:
                 // If this worker is connected, but, not part of a call,
                 // we handle it here because it involves the whole channel store
                 if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
                     g_assert(g_hash_table_size(channels_table) <= LCN_COUNT);
-                    
+
                     if (g_hash_table_size(channels_table) == LCN_COUNT)
                         // send busy diagnostic
-                            ;
+                        ;
                     else {
                         worker_t *other = g_hash_table_find(workers_table,
                                                             compare_worker_to_name,
@@ -243,26 +243,26 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                             worker->role = X_CALLER;
                             worker->lcn = _lcn;
                             other->role = Y_CALLEE;
-                                other->lcn = _lcn;
-                                channel_t *new_channel = channel_create(_lcn,
-                                                                        worker->zaddr,
-                                                                        worker->name,
-                                                                        other->zaddr,
-                                                                        other->name,
-                                                                        joza_msg_const_packet(msg),
-                                                                        joza_msg_const_window(msg),
-                                                                        joza_msg_const_throughput(msg));
-                                g_assert(new_channel != NULL);
-                                new_channel->state = state_x_call_request;
-                                g_hash_table_insert(channels_table, &_lcn, new_channel);
-                                joza_msg_send_addr_call_request(sock,
-                                                                other->zaddr,
-                                                                joza_msg_calling_address(msg),
-                                                                joza_msg_called_address(msg),
-                                                                joza_msg_packet(msg),
-                                                                joza_msg_window(msg),
-                                                                joza_msg_throughput(msg),
-                                                                joza_msg_data(msg));
+                            other->lcn = _lcn;
+                            channel_t *new_channel = channel_create(_lcn,
+                                                                    worker->zaddr,
+                                                                    worker->name,
+                                                                    other->zaddr,
+                                                                    other->name,
+                                                                    joza_msg_const_packet(msg),
+                                                                    joza_msg_const_window(msg),
+                                                                    joza_msg_const_throughput(msg));
+                            g_assert(new_channel != NULL);
+                            new_channel->state = state_x_call_request;
+                            g_hash_table_insert(channels_table, &_lcn, new_channel);
+                            joza_msg_send_addr_call_request(sock,
+                                                            other->zaddr,
+                                                            joza_msg_calling_address(msg),
+                                                            joza_msg_called_address(msg),
+                                                            joza_msg_packet(msg),
+                                                            joza_msg_window(msg),
+                                                            joza_msg_throughput(msg),
+                                                            joza_msg_data(msg));
                         }
                     }
                 } else if (joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST) {

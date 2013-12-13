@@ -92,6 +92,7 @@ Client node requests connection to the broker.
   <field name = "protocol" type = "string" value = "~SVC" />
   <field name = "version" type = "number" size = "1" value = "JOZA_MSG_VERSION" />
   <field name = "calling address" type = "string" />
+  <field name = "host name" type = "string" />
   <field name = "directionality" type = "number" size = "1" />
 </message>
 

@@ -61,7 +61,7 @@ void call_request(void *sock, zframe_t *call_addr, zframe_t *return_addr, char *
 
 void directory_request(void *sock, const zframe_t *A, zhash_t *D)
 {
-     joza_msg_send_addr_directory (sock, A, D);
+    joza_msg_send_addr_directory (sock, A, D);
 }
 
 diag_t prevalidate_message (joza_msg_t *msg)
