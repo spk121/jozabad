@@ -13,14 +13,14 @@ The *broker* ensures that
 
 A *worker* can
 * connect / disconnect to the *broker* at will
-* get a list of other workers from the broker.
+* get a list of other available workers from the broker.
 * request a *channel* with any other idle worker
 
 The *channel*
 * is exclusive -- a worker can have only one channel at a time
 * is persistent -- it exists as long as the workers want
 * is stateful
-* is pseudonymous -- the workers only know one-anothers' pseudonym
+* is pseudonymous -- the workers only know one-anothers' pseudonym, and not their IP address
 
 The future goals of the protocol are these: 
 
