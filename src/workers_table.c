@@ -1,0 +1,124 @@
+/*
+    workers_table.c - a collection of workers
+
+    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+
+    This file is part of Jozabad.
+
+    Jozabad is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Jozabad is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+#include <glib.h>
+#include "workers_table.h"
+
+#define WORKER_REMOVAL_TIMEOUT (30*1000)  // milliseconds
+
+static void (*foreach_method)(worker_t *worker, gpointer user_data);
+
+static gboolean
+s_compare_worker_to_name_(gpointer key __attribute__ ((unused)),
+                       gpointer value,
+                       gpointer user_data)
+{
+    worker_t *w = value;
+    gchar *str = user_data;
+    if (strcmp(str, w->name) == 0)
+        return true;
+    else
+        return false;
+}
+
+
+static gboolean
+s_cull_dead_worker_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data G_GNUC_UNUSED)
+{
+    worker_t *worker = value;
+    if (g_get_monotonic_time() - worker->atime > WORKER_REMOVAL_TIMEOUT * 1000) {
+        g_message("removing worker %s: %ld ms since last access", worker->name, (g_get_monotonic_time() - worker->atime)/1000);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void
+s_foreach_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+{
+    worker_t *worker = value;
+    foreach_method(worker, user_data);
+}
+
+workers_table_t *
+workers_table_create()
+{
+    return g_hash_table_new_full (g_int_hash, g_int_equal, NULL, g_free);
+}
+
+void
+workers_table_destroy(workers_table_t **p_workers_table)
+{
+    g_hash_table_destroy(*p_workers_table);
+    p_workers_table = NULL;
+}
+
+void
+workers_table_foreach(workers_table_t *workers_table, void func(worker_t *worker, gpointer user_data), gpointer user_data)
+{
+   foreach_method = func;
+   g_hash_table_foreach(workers_table, s_foreach_func_, user_data);   
+   foreach_method = NULL;
+}
+
+gboolean
+workers_table_is_full(workers_table_t *workers_table)
+{
+    return g_hash_table_size(workers_table) >= WORKER_COUNT;
+}
+
+worker_t *
+workers_table_lookup_by_address(workers_table_t *workers_table, const char *address)
+{
+    return (worker_t *) g_hash_table_find(workers_table, s_compare_worker_to_name_, address);
+}
+
+worker_t *
+workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, iodir_t iodir)
+{
+    worker_t *new_worker = worker_create(zaddr, address, iodir);
+    if (new_worker) {
+        new_worker->atime = g_get_monotonic_time();
+        g_hash_table_insert (workers_table, &key, new_worker);
+    }
+    return new_worker;
+}
+
+worker_t *
+workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
+{
+    return (worker_t *) g_hash_table_lookup (workers_table, &key);
+}
+
+void
+workers_table_remove_by_key(workers_table_t *workers_table, gint key)
+{
+    g_hash_table_remove(workers_table, &key);
+}
+
+void
+workers_table_remove_unused(workers_table_t *workers_table)
+{
+    g_hash_table_foreach_remove(workers_table, s_cull_dead_worker_, NULL);
+}
+
+

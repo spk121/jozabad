@@ -45,7 +45,7 @@ $(LIB_TARGET): build $(filter-out $(MAINS),$(OBJECTS))
 $(SO_TARGET): $(LIB_TARGET) $(filter-out $(MAINS),$(OBJECTS))
 	$(CC) -shared -o $@ $(filter-out $(MAINS),$(OBJECTS))
 
-$(EXE_TARGET): $(OBJECTS)
+$(EXE_TARGET): build $(MAINS) $(LIB_TARGET)
 	$(CC) -o $@ $(OBJECTS) $(LIBS)
 
 build:

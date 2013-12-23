@@ -26,13 +26,14 @@
 #include "poll.h"
 
 #include "worker.h"
+#include "workers_table.h"
 #include "channel.h"
 #include "msg.h"
 
 #include "joza_msg.h"
 
-#define POLL_WORKER_PING_TIMER (10000)
-#define POLL_WORKER_REMOVAL_TIMEOUT (3*POLL_WORKER_PING_TIMER)
+#define POLL_WORKER_PING_TIMER (10000)  /* milliseconds */
+
 
 static lcn_t _lcn = LCN_MIN;
 
@@ -40,7 +41,7 @@ static lcn_t _lcn = LCN_MIN;
 static zmq_pollitem_t poll_input = {NULL, 0, ZMQ_POLLIN, 0};
 
 static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data);
-static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GHashTable *channels_table);
+static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, GHashTable *channels_table);
 static int s_ping_(zloop_t *loop, zmq_pollitem_t *item, void *arg);
 
 static zctx_t *zctx_new_or_die (void)
@@ -84,19 +85,6 @@ static zloop_t *zloop_new_or_die(void)
 static void bad_free (gpointer data __attribute__ ((unused)))
 {
     g_assert_not_reached();
-}
-
-static gboolean
-compare_worker_to_name(gpointer key __attribute__ ((unused)),
-                       gpointer value,
-                       gpointer user_data)
-{
-    worker_t *w = value;
-    gchar *str = user_data;
-    if (strcmp(str, w->name) == 0)
-        return true;
-    else
-        return false;
 }
 
 static void
@@ -144,7 +132,7 @@ joza_poll_t *poll_create(gboolean verbose, const char *endpoint)
         exit(1);
     }
     poll->channels_table = g_hash_table_new_full (g_int_hash, g_int_equal, bad_free, bad_free);
-    poll->workers_table = g_hash_table_new_full (g_int_hash, g_int_equal, NULL, g_free);
+    poll->workers_table = workers_table_create();
     zloop_timer(poll->loop, POLL_WORKER_PING_TIMER, 0, s_ping_, poll);
     return poll;
 }
@@ -174,7 +162,7 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data)
 
 // This is entry point for message processing.  Every message
 // being processed start here.
-static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GHashTable *channels_table)
+static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, GHashTable *channels_table)
 {
     gint key;
     int ret = 0;
@@ -194,7 +182,7 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
         channel_t *channel;
         key = msg_addr2key(joza_msg_address(msg));
         channel = NULL;
-        worker = (worker_t *) g_hash_table_lookup (workers_table, &key);
+        worker = workers_table_lookup_by_key(workers_table, key);
 
         if (worker != NULL) {
             worker->atime = g_get_monotonic_time();
@@ -226,9 +214,8 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                         // send busy diagnostic
                         ;
                     else {
-                        worker_t *other = g_hash_table_find(workers_table,
-                                                            compare_worker_to_name,
-                                                            joza_msg_called_address(msg));
+                        worker_t *other = workers_table_lookup_by_address(workers_table,
+                                                                          joza_msg_called_address(msg));
                         if (other == NULL) {
                             // send can't find diagnostic
                         } else {
@@ -270,7 +257,7 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                     do_directory_request(sock, joza_msg_const_address(msg), channels_table);
                 } else if (joza_msg_const_id(msg) == JOZA_MSG_DISCONNECT) {
                     // remove the worker
-                    g_hash_table_remove(workers_table, &key);
+                    workers_table_remove_by_key(workers_table, key);
                 }
                 break;
             default:
@@ -283,7 +270,7 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
         // only message we handle from unconnected workers are connection requests.
         else if (joza_msg_id(msg) == JOZA_MSG_CONNECT) {
             g_message("handling %s from unconnected worker", joza_msg_const_command(msg));
-            if (g_hash_table_size(workers_table) >= WORKER_COUNT) {
+            if (workers_table_is_full(workers_table)) {
                 diagnostic(sock,
                            joza_msg_const_address(msg),
                            NULL,
@@ -291,12 +278,12 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
                            d_no_connections_available);
                 g_warning("cannot add new worker. No free worker slots");
             } else {
-                worker_t *new_worker = worker_create(joza_msg_address(msg),
-                                                     joza_msg_calling_address(msg),
-                                                     (iodir_t) joza_msg_directionality(msg));
+                worker_t *new_worker = workers_table_add_new_worker(workers_table,
+                                                                    key,
+                                                                    joza_msg_address(msg),
+                                                                    joza_msg_calling_address(msg),
+                                                                    (iodir_t) joza_msg_directionality(msg));
                 if (new_worker) {
-                    new_worker->atime = g_get_monotonic_time();
-                    g_hash_table_insert (workers_table, &key, new_worker);
                     joza_msg_send_addr_connect_indication(sock, joza_msg_const_address(msg));
                 }
             }
@@ -310,30 +297,18 @@ static int s_process_(joza_msg_t *msg, void *sock, GHashTable *workers_table, GH
     return ret;
 }
 
-static void s_ping_worker_(gpointer key, gpointer value, gpointer user_data)
+static void s_ping_worker_(worker_t *worker, gpointer user_data)
 {
     void *sock = user_data;
-    worker_t *worker = value;
     g_message("pinging worker %s", worker->name);
     joza_msg_send_addr_enq(sock, worker->zaddr);
-
 }
 
-static gboolean s_cull_dead_worker_(gpointer key, gpointer value, gpointer user_data)
-{
-    worker_t *worker = value;
-    if (g_get_monotonic_time() - worker->atime > POLL_WORKER_REMOVAL_TIMEOUT * 1000) {
-        g_message("removing worker %s: %ld since last access", worker->name, (g_get_monotonic_time() - worker->atime)/1000);
-        return TRUE;
-    }
-    return FALSE;
-}
-
-static int s_ping_(zloop_t *loop, zmq_pollitem_t *item, void *arg)
+static int s_ping_(zloop_t *loop G_GNUC_UNUSED, zmq_pollitem_t *item G_GNUC_UNUSED, void *arg)
 {
     joza_poll_t *poll = arg;
-    g_hash_table_foreach(poll->workers_table, s_ping_worker_, poll->sock);
-    g_hash_table_foreach_remove(poll->workers_table, s_cull_dead_worker_, NULL);
+    workers_table_foreach(poll->workers_table, s_ping_worker_, poll->sock);
+    workers_table_remove_unused(poll->workers_table);
     return 0;
 }
 
@@ -350,7 +325,7 @@ void poll_start(zloop_t *loop)
 void poll_destroy(joza_poll_t *poll)
 {
     g_hash_table_destroy(poll->channels_table);
-    g_hash_table_destroy(poll->workers_table);
+    workers_table_destroy(&(poll->workers_table));
     zloop_destroy(&(poll->loop));
     zsocket_destroy(poll->ctx, poll->sock);
     zctx_destroy(&(poll->ctx));
