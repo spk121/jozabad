@@ -121,4 +121,24 @@ workers_table_remove_unused(workers_table_t *workers_table)
     g_hash_table_foreach_remove(workers_table, s_cull_dead_worker_, NULL);
 }
 
+static void
+s_add_directory_entry_to_zhash_ (gpointer key G_GNUC_UNUSED,
+                                 gpointer *vworker,
+                                 gpointer user_data)
+{
+    worker_t *worker = (worker_t *)vworker;
+    zhash_t *hash = user_data;
+    gchar *str = g_strdup_printf("%s,%s",iodir_name(worker->iodir), worker->role == READY ? "AVAILABLE" : "BUSY");
+    zhash_insert(hash, worker->name, str);
+    g_free(str);
+}
 
+zhash_t *
+workers_table_create_directory_zhash(workers_table_t *workers_table)
+{    zhash_t  *dir       = zhash_new();
+
+    // Fill a hash table with the current directory information
+
+    workers_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
+    return dir;
+}

@@ -47,4 +47,6 @@ void
 workers_table_remove_by_key(workers_table_t *workers_table, gint key);
 void
 workers_table_remove_unused(workers_table_t *workers_table);
+zhash_t *
+workers_table_create_directory_zhash(workers_table_t *workers_table);
 

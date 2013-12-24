@@ -28,6 +28,7 @@
 #include "worker.h"
 #include "workers_table.h"
 #include "channel.h"
+#include "channels_table.h"
 #include "msg.h"
 
 #include "joza_msg.h"
@@ -41,7 +42,7 @@ static lcn_t _lcn = LCN_MIN;
 static zmq_pollitem_t poll_input = {NULL, 0, ZMQ_POLLIN, 0};
 
 static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data);
-static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, GHashTable *channels_table);
+static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, channels_table_t *channels_table);
 static int s_ping_(zloop_t *loop, zmq_pollitem_t *item, void *arg);
 
 static zctx_t *zctx_new_or_die (void)
@@ -87,26 +88,10 @@ static void bad_free (gpointer data __attribute__ ((unused)))
     g_assert_not_reached();
 }
 
-static void
-add_directory_entry_to_zhash (gpointer key __attribute__ ((unused)),
-                              gpointer value,
-                              gpointer user_data)
+static void do_directory_request(void *sock, const zframe_t *zaddr, workers_table_t *workers_table)
 {
-    worker_t *worker = value;
-    zhash_t *hash = user_data;
-    gchar *str = g_strdup_printf("%s,%s",iodir_name(worker->iodir), worker->role == READY ? "AVAILABLE" : "BUSY");
-    zhash_insert(hash, worker->name, str);
-    g_free(str);
-}
-
-static void do_directory_request(void *sock, const zframe_t *zaddr, GHashTable *channels_table)
-{
-    zhash_t  *dir       = zhash_new();
-
     // Fill a hash table with the current directory information
-    // FIXME: probably could put something useful in the "value" part of the
-    // hash table.
-    g_hash_table_foreach (channels_table, add_directory_entry_to_zhash, dir);
+    zhash_t  *dir       = workers_table_create_directory_zhash(workers_table);
     directory_request(sock, zaddr, dir);
     zhash_destroy(&dir);
 }
@@ -131,7 +116,7 @@ joza_poll_t *poll_create(gboolean verbose, const char *endpoint)
         g_error("failed to start a new ZeroMQ main loop poller");
         exit(1);
     }
-    poll->channels_table = g_hash_table_new_full (g_int_hash, g_int_equal, bad_free, bad_free);
+    poll->channels_table = channels_table_create();
     poll->workers_table = workers_table_create();
     zloop_timer(poll->loop, POLL_WORKER_PING_TIMER, 0, s_ping_, poll);
     return poll;
@@ -162,7 +147,7 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data)
 
 // This is entry point for message processing.  Every message
 // being processed start here.
-static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, GHashTable *channels_table)
+static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, channels_table_t *channels_table)
 {
     gint key;
     int ret = 0;
@@ -192,7 +177,7 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
             case Y_CALLEE:
                 // If this worker is connected and part of a virtual call,
                 // the call's state machine processes the message.
-                channel = g_hash_table_lookup(channels_table, &(worker->lcn));
+                channel = channels_table_lookup_by_lcn(channels_table, worker->lcn);
                 g_return_val_if_fail(channel != NULL, 0);
                 if (worker->role == X_CALLER)
                     channel->state = channel_dispatch(channel, sock, msg, 0);
@@ -200,7 +185,7 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                     channel->state = channel_dispatch(channel, sock, msg, 1);
                 if (channel->state == state_ready) {
                     // This channel is no longer connected: remove it
-                    g_hash_table_remove(channels_table, &(worker->lcn));
+                    channels_table_remove_by_lcn(channels_table, worker->lcn);
                 }
                 break;
 
@@ -208,9 +193,7 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                 // If this worker is connected, but, not part of a call,
                 // we handle it here because it involves the whole channel store
                 if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
-                    g_assert(g_hash_table_size(channels_table) <= LCN_COUNT);
-
-                    if (g_hash_table_size(channels_table) == LCN_COUNT)
+                    if (channels_table_is_full(channels_table))
                         // send busy diagnostic
                         ;
                     else {
@@ -221,27 +204,21 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                         } else {
                             // Find an unused logical channel number (aka hash table key) for the
                             // new channel.
-                            while (g_hash_table_lookup(channels_table, &_lcn) != NULL) {
-                                _lcn ++;
-                                if (_lcn > LCN_MAX)
-                                    _lcn = LCN_MIN;
-                            }
+                            _lcn = channels_table_find_free_lcn(channels_table, _lcn);
                             // Make a new channel and stuff it in the hash table
                             worker->role = X_CALLER;
                             worker->lcn = _lcn;
                             other->role = Y_CALLEE;
                             other->lcn = _lcn;
-                            channel_t *new_channel = channel_create(_lcn,
-                                                                    worker->zaddr,
-                                                                    worker->name,
-                                                                    other->zaddr,
-                                                                    other->name,
-                                                                    joza_msg_const_packet(msg),
-                                                                    joza_msg_const_window(msg),
-                                                                    joza_msg_const_throughput(msg));
-                            g_assert(new_channel != NULL);
-                            new_channel->state = state_x_call_request;
-                            g_hash_table_insert(channels_table, &_lcn, new_channel);
+                            channels_table_add_new_channel(channel_table,
+                                                           _lcn,
+                                                           worker->zaddr,
+                                                           worker->name,
+                                                           other->zaddr,
+                                                           other->name,
+                                                           joza_msg_const_packet(msg),
+                                                           joza_msg_const_window(msg),
+                                                           joza_msg_const_throughput(msg));
                             joza_msg_send_addr_call_request(sock,
                                                             other->zaddr,
                                                             joza_msg_calling_address(msg),
@@ -254,7 +231,7 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                     }
                 } else if (joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST) {
                     // send directory request back to worker
-                    do_directory_request(sock, joza_msg_const_address(msg), channels_table);
+                    do_directory_request(sock, joza_msg_const_address(msg), workers_table);
                 } else if (joza_msg_const_id(msg) == JOZA_MSG_DISCONNECT) {
                     // remove the worker
                     workers_table_remove_by_key(workers_table, key);
@@ -324,7 +301,7 @@ void poll_start(zloop_t *loop)
 
 void poll_destroy(joza_poll_t *poll)
 {
-    g_hash_table_destroy(poll->channels_table);
+    channels_table_destroy(&(poll->channels_table));
     workers_table_destroy(&(poll->workers_table));
     zloop_destroy(&(poll->loop));
     zsocket_destroy(poll->ctx, poll->sock);
