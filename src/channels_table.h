@@ -24,9 +24,10 @@
 
 #include <glib.h>
 #include <czmq.h>
+#include "channels_table.h"
 #include "channel.h"
 
-typedef GHashTable workers_table_t;
+typedef GHashTable channels_table_t;
 
 channels_table_t *
   channels_table_create(void);
@@ -37,8 +38,9 @@ lcn_t
 gboolean
   channels_table_is_full(channels_table_t *channels_table);
 channel_t *
-  channels_table_add_new_channel(channel_table_t *channel_table, gint lcn, zframe_t *zaddr, zframe_t *xzaddr, const char *xaddress,
+  channels_table_add_new_channel(channels_table_t *channel_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
                                  zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput);
+channel_t *
   channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn);
 void
   channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn);

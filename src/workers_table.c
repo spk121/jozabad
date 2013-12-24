@@ -34,7 +34,7 @@ s_compare_worker_to_name_(gpointer key __attribute__ ((unused)),
 {
     worker_t *w = value;
     gchar *str = user_data;
-    if (strcmp(str, w->name) == 0)
+    if (strcmp(str, worker_get_address(w)) == 0)
         return true;
     else
         return false;
@@ -46,7 +46,9 @@ s_cull_dead_worker_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_da
 {
     worker_t *worker = value;
     if (g_get_monotonic_time() - worker->atime > WORKER_REMOVAL_TIMEOUT * 1000) {
-        g_message("removing worker %s: %ld ms since last access", worker->name, (g_get_monotonic_time() - worker->atime)/1000);
+        g_message("removing worker %s: %ld ms since last access",
+                  worker_get_address(worker),
+                  (g_get_monotonic_time() - worker->atime)/1000);
         return TRUE;
     }
     return FALSE;
@@ -109,6 +111,21 @@ workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
     return (worker_t *) g_hash_table_lookup (workers_table, &key);
 }
 
+static gboolean s_is_other_(G_GNUC_UNUSED gpointer key, gpointer value, gpointer user_data)
+{
+    worker_t *W = (worker_t *) value;
+    worker_t *worker = (worker_t *) user_data;
+    if (W != worker && W->lcn == worker->lcn)
+        return TRUE;
+    return FALSE;
+}
+
+worker_t *
+workers_table_lookup_other(workers_table_t *workers_table, worker_t *worker)
+{
+    return g_hash_table_find(workers_table, s_is_other_, worker);
+}
+
 void
 workers_table_remove_by_key(workers_table_t *workers_table, gint key)
 {
@@ -123,13 +140,13 @@ workers_table_remove_unused(workers_table_t *workers_table)
 
 static void
 s_add_directory_entry_to_zhash_ (gpointer key G_GNUC_UNUSED,
-                                 gpointer *vworker,
+                                 gpointer vworker,
                                  gpointer user_data)
 {
     worker_t *worker = (worker_t *)vworker;
     zhash_t *hash = user_data;
     gchar *str = g_strdup_printf("%s,%s",iodir_name(worker->iodir), worker->role == READY ? "AVAILABLE" : "BUSY");
-    zhash_insert(hash, worker->name, str);
+    zhash_insert(hash, worker_get_address(worker), str);
     g_free(str);
 }
 
@@ -139,6 +156,6 @@ workers_table_create_directory_zhash(workers_table_t *workers_table)
 
     // Fill a hash table with the current directory information
 
-    workers_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
+    g_hash_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
     return dir;
 }

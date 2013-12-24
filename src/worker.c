@@ -71,7 +71,7 @@ worker_t *worker_create(zframe_t *A, char *N, iodir_t io)
     // First, validate the message
     worker = g_new0(worker_t, 1);
     worker->wkey = key;
-    worker->name = g_strdup(N);
+    worker->address = g_strdup(N);
     worker->zaddr = zframe_dup(A);
     worker->iodir = io;
     worker->lcn = 0;
@@ -81,5 +81,91 @@ worker_t *worker_create(zframe_t *A, char *N, iodir_t io)
     worker->atime = elapsed_time;
     return worker;
 }
+
+const char *worker_get_address(const worker_t *W)
+{
+    return W->address;
+}
+
+const char *worker_get_hostname(const worker_t *W)
+{
+    return W->hostname;
+}
+
+const char *worker_get_iodir_str(const worker_t *W)
+{
+    return iodir_name(W->iodir);
+}
+
+lcn_t worker_get_lcn(const worker_t *W)
+{
+    return W->lcn;
+}
+
+role_t worker_get_role(const worker_t *W)
+{
+    return W->role;
+}
+
+zframe_t *worker_get_zaddr(const worker_t *W)
+{
+    return W->zaddr;
+}
+
+gboolean worker_is_allowed_incoming_call(const worker_t *W)
+{
+    return iodir_incoming_calls_allowed (W->iodir);
+}
+
+gboolean worker_is_available_for_call(const worker_t *W)
+{
+    return worker_is_allowed_incoming_call(W) && W->role == READY;
+}
+
+gboolean worker_is_x_caller(const worker_t *W)
+{
+    return W->role == X_CALLER;
+}
+
+void worker_set_lcn(worker_t *W, lcn_t L)
+{
+    worker_update_mtime(W);
+    W->lcn = L;
+}
+
+void worker_set_role(worker_t *W, role_t R)
+{
+    worker_update_mtime(W);
+    W->role = R;
+}
+
+void worker_set_role_to_ready(worker_t *W)
+{
+    W->lcn = LCN_C(0);
+    W->role = Y_CALLEE;
+}
+
+void worker_set_role_to_x_caller(worker_t *W, lcn_t lcn)
+{
+    W->lcn = lcn;
+    W->role = X_CALLER;
+}
+
+void worker_set_role_to_y_callee(worker_t *W, lcn_t lcn)
+{
+    W->lcn = lcn;
+    W->role = Y_CALLEE;
+}
+
+void *worker_update_atime(worker_t *W)
+{
+    W->atime = g_get_monotonic_time();
+}
+
+void *worker_update_mtime(worker_t *W)
+{
+    W->mtime = g_get_monotonic_time();
+}
+
 
 

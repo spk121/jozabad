@@ -43,6 +43,8 @@ worker_t *
 workers_table_lookup_by_address(workers_table_t *workers_table, const char *address);
 worker_t *
 workers_table_lookup_by_key(workers_table_t *workers_table, gint key);
+worker_t *
+workers_table_lookup_other(workers_table_t *workers_table, worker_t *worker);
 void
 workers_table_remove_by_key(workers_table_t *workers_table, gint key);
 void

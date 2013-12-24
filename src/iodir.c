@@ -30,6 +30,10 @@ const char iodir_names[4][22] = {
     "calls barred"
 };
 
+gboolean iodir_incoming_calls_allowed(iodir_t I)
+{
+    return (I == io_bidirectional || I == io_outgoing_calls_barred);
+}
 
 int iodir_validate(iodir_t x)
 {

@@ -41,7 +41,7 @@ channels_table_create()
 }
 
 void
-channels_table_destroy(**p_channels_table)
+channels_table_destroy(channels_table_t **p_channels_table)
 {
     g_hash_table_destroy(*p_channels_table);
     p_channels_table = NULL;
@@ -50,9 +50,7 @@ channels_table_destroy(**p_channels_table)
 lcn_t
 channels_table_find_free_lcn(channels_table_t *channels_table, lcn_t lcn)
 {
-    g_assert(LCN_MAX - LCN_MIN + 1 > CHANNEL_COUNT_MAX);
-
-    while (g_hash_table_lookup(channels_table, &_lcn) != NULL) {
+    while (g_hash_table_lookup(channels_table, &lcn) != NULL) {
         lcn ++;
         if (lcn > LCN_MAX)
             lcn = LCN_MIN;
@@ -67,12 +65,13 @@ channels_table_is_full(channels_table_t *channels_table)
 }
 
 channel_t *
-  channels_table_add_new_channel(channel_table_t *channel_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
+  channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
                                  zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput)
 {
     channel_t *new_channel = channel_create(lcn, xzaddr, xaddress, yzaddr, yaddress, pkt, window, tput);
     new_channel->state = state_x_call_request;
     g_hash_table_insert(channels_table, &lcn, new_channel);
+    return new_channel;
 }
 
 channel_t *
@@ -95,10 +94,3 @@ channels_table_foreach(channels_table_t *channels_table, void func(channel_t *wo
    foreach_method = NULL;
 }
 
-
-void
-channels_table_destroy(channels_table_t **p_channels_table)
-{
-    g_hash_table_destroy(*p_channels_table);
-    p_workers_table = NULL;
-}

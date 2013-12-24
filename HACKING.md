@@ -101,7 +101,28 @@ http://textfiles.com/hacking/datapac.inf
 > CLEAR REQUEST PACKET.  UP TO 255 SVC'S MAY BE SUPPORTED
 > SIMULTANEOUSLY.
 
-So it looks like I was right to invent a CONNECT message
+So it looks like I was right to invent a CONNECT message.  In X.25
+terms, it looks like the broker sends an SABM message to the client.
+The client needs to respond with a UA, or if it can't connect, it
+sends a DM message. 
+
+There's also a DISC disconnect message that shuts down the
+connection.  UA is the reponse to that as well.
+
+DCE sends SABM, start timer T1 (3 sec), waits for UA or DM.
+
+It it receives UA, stops timer T1, we are connected.
+
+If it receives DM, stops timer T1, we are not connected.
+
+The DCE, after sending SABM, ignores all messages but UA and DM.
+
+If timer T1 times out, the process is repeated N2 (20) times.  If they
+all fail, the connection is destroyed.
+
+The broker has a timer T3 that is the maximum time that a connection
+can have no transmission before it is closed.  It looks like T3 is
+just a synonym for T1 * N2.
 
 ## Cross platform issues ##
 

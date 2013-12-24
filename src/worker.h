@@ -32,15 +32,33 @@ typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
 
 typedef struct {
     wkey_t wkey;
-    gchar *name;
+    gchar *address;
+    gchar *hostname;
     zframe_t *zaddr;
     iodir_t iodir;
     lcn_t lcn;
     role_t role;
     gint64 ctime;               /* time of creation */
     gint64 mtime;               /* time of last modification */
-    gint64 atime;               /* time of last access */
+    gint64 atime;               /* time of last message received from or sent to worker */
 } worker_t;
 
 
 worker_t *worker_create(zframe_t *A, char *N, iodir_t io);
+const char *worker_get_address(const worker_t *W);
+const char *worker_get_hostname(const worker_t *W);
+const char *worker_get_iodir_str(const worker_t *W);
+lcn_t worker_get_lcn(const worker_t *W);
+role_t worker_get_role(const worker_t *W) G_GNUC_CONST;
+zframe_t *worker_get_zaddr(const worker_t *W);
+gboolean worker_is_allowed_incoming_call(const worker_t *W);
+gboolean worker_is_available_for_call(const worker_t *W);
+gboolean worker_is_x_caller(const worker_t *W);
+void worker_set_lcn(worker_t *W, lcn_t L);
+void worker_set_role(worker_t *W, role_t R);
+void worker_set_role_to_ready(worker_t *W);
+void worker_set_role_to_x_caller(worker_t *W, lcn_t lcn);
+void worker_set_role_to_y_callee(worker_t *W, lcn_t lcn);
+void *worker_update_atime(worker_t *W);
+void *worker_update_mtime(worker_t *W);
+

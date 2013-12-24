@@ -23,6 +23,8 @@
 #ifndef JOZA_IODIR_H
 #define JOZA_IODIR_H
 
+#include <glib.h>
+
 typedef enum {
     io_bidirectional,
     io_incoming_calls_barred,
@@ -32,4 +34,5 @@ typedef enum {
 
 int iodir_validate(iodir_t x);
 const char *iodir_name(iodir_t x);
+gboolean iodir_incoming_calls_allowed(iodir_t I);
 #endif

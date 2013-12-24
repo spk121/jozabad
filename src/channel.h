@@ -54,6 +54,7 @@ lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const c
                   packet_t pkt, seq_t window, tput_t tput);
 void channel_disconnect_all(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr);
 state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_y);
-
+void channel_set_state(channel_t *channel, state_t state);
+gboolean channel_is_closed(channel_t *channel);
 
 #endif

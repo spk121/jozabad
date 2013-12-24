@@ -163,29 +163,36 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
     if ((diag = prevalidate_message(msg)) != d_unspecified) {
         diagnostic(sock, joza_msg_const_address(msg), NULL, c_malformed_message, diag);
     } else {
-        worker_t *worker;
+        worker_t *worker, *other;
         channel_t *channel;
         key = msg_addr2key(joza_msg_address(msg));
         channel = NULL;
         worker = workers_table_lookup_by_key(workers_table, key);
 
         if (worker != NULL) {
-            worker->atime = g_get_monotonic_time();
+            worker_update_atime(worker);
 
-            switch (worker->role) {
+            switch (worker_get_role(worker)) {
             case X_CALLER:
             case Y_CALLEE:
                 // If this worker is connected and part of a virtual call,
                 // the call's state machine processes the message.
-                channel = channels_table_lookup_by_lcn(channels_table, worker->lcn);
+                channel = channels_table_lookup_by_lcn(channels_table, worker_get_lcn(worker));
+                other = workers_table_lookup_other(workers_table, worker);
+
                 g_return_val_if_fail(channel != NULL, 0);
-                if (worker->role == X_CALLER)
-                    channel->state = channel_dispatch(channel, sock, msg, 0);
+                g_return_val_if_fail(other != NULL, 0);
+
+                if (worker_is_x_caller(worker))
+                    channel_set_state(channel, channel_dispatch(channel, sock, msg, 0));
                 else
-                    channel->state = channel_dispatch(channel, sock, msg, 1);
-                if (channel->state == state_ready) {
+                    channel_set_state(channel, channel_dispatch(channel, sock, msg, 1));
+
+                if (channel_is_closed(channel)) {
                     // This channel is no longer connected: remove it
-                    channels_table_remove_by_lcn(channels_table, worker->lcn);
+                    channels_table_remove_by_lcn(channels_table, worker_get_lcn(worker));
+                    worker_set_role_to_ready(worker);
+                    worker_set_role_to_ready(other);
                 }
                 break;
 
@@ -206,21 +213,19 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                             // new channel.
                             _lcn = channels_table_find_free_lcn(channels_table, _lcn);
                             // Make a new channel and stuff it in the hash table
-                            worker->role = X_CALLER;
-                            worker->lcn = _lcn;
-                            other->role = Y_CALLEE;
-                            other->lcn = _lcn;
-                            channels_table_add_new_channel(channel_table,
+                            worker_set_role_to_x_caller(worker, _lcn);
+                            worker_set_role_to_y_callee(other, _lcn);
+                            channels_table_add_new_channel(channels_table,
                                                            _lcn,
-                                                           worker->zaddr,
-                                                           worker->name,
-                                                           other->zaddr,
-                                                           other->name,
+                                                           worker_get_zaddr(worker),
+                                                           worker_get_address(worker),
+                                                           worker_get_zaddr(other),
+                                                           worker_get_address(other),
                                                            joza_msg_const_packet(msg),
                                                            joza_msg_const_window(msg),
                                                            joza_msg_const_throughput(msg));
                             joza_msg_send_addr_call_request(sock,
-                                                            other->zaddr,
+                                                            worker_get_zaddr(other),
                                                             joza_msg_calling_address(msg),
                                                             joza_msg_called_address(msg),
                                                             joza_msg_packet(msg),
@@ -277,8 +282,8 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
 static void s_ping_worker_(worker_t *worker, gpointer user_data)
 {
     void *sock = user_data;
-    g_message("pinging worker %s", worker->name);
-    joza_msg_send_addr_enq(sock, worker->zaddr);
+    g_message("pinging worker %s", worker_get_address(worker));
+    joza_msg_send_addr_enq(sock, worker_get_zaddr(worker));
 }
 
 static int s_ping_(zloop_t *loop G_GNUC_UNUSED, zmq_pollitem_t *item G_GNUC_UNUSED, void *arg)

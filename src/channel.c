@@ -424,3 +424,12 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
     return state;
 }
 
+void channel_set_state(channel_t *channel, state_t state)
+{
+    channel->state = state;
+}
+
+gboolean channel_is_closed(channel_t *channel)
+{
+    return channel->state == state_ready;
+}
