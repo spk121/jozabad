@@ -264,6 +264,7 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
                                                                     key,
                                                                     joza_msg_address(msg),
                                                                     joza_msg_calling_address(msg),
+                                                                    joza_msg_host_name(msg),
                                                                     (iodir_t) joza_msg_directionality(msg));
                 if (new_worker) {
                     joza_msg_send_addr_connect_indication(sock, joza_msg_const_address(msg));
@@ -282,15 +283,44 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
 static void s_ping_worker_(worker_t *worker, gpointer user_data)
 {
     void *sock = user_data;
-    g_message("pinging worker %s", worker_get_address(worker));
-    joza_msg_send_addr_enq(sock, worker_get_zaddr(worker));
+    gint64 idle_time = g_get_monotonic_time() - worker_get_atime(worker);
+
+    if (idle_time > POLL_WORKER_REMOVAL_TIMEOUT) {
+        if (worker_get_role(worker) == READY) {
+            g_message("removing worker %s: %ld ms since last access",
+                      worker_get_address(worker),
+                      idle_time);
+            // delete worker
+        } 
+        else {
+            // send a disconnect to the channel on behalf of the worker.
+            g_message("disconnecting worker %s: %ld ms since last access",
+                      worker_get_address(worker),
+                      idle_time);
+            // lookup channel by whatever
+            // create disconnect message
+            channel_dispatch(...);
+            // destroy message
+            // reset access timer for worker
+        }
+    if (idle_time > POLL_WORKER_PING_TIMER) {
+        g_message("pinging worker %s", worker_get_address(worker));
+        joza_msg_send_addr_enq(sock, worker_get_zaddr(worker));
+    }
+
+    if 
 }
 
 static int s_ping_(zloop_t *loop G_GNUC_UNUSED, zmq_pollitem_t *item G_GNUC_UNUSED, void *arg)
 {
     joza_poll_t *poll = arg;
+    
+    // Ping workers that haven't been accessed for a while.
     workers_table_foreach(poll->workers_table, s_ping_worker_, poll->sock);
-    workers_table_remove_unused(poll->workers_table);
+
+    // Close channels whose workers haven't been accessed in a while.  This counts
+    //channels_table_closed_unused(poll->channels_table);
+    // workers_table_remove_unused(poll->workers_table);
     return 0;
 }
 
