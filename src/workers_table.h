@@ -38,7 +38,7 @@ workers_table_foreach(workers_table_t *workers_table, void func(worker_t *worker
 gboolean
 workers_table_is_full(workers_table_t *workers_table);
 worker_t *
-workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, iodir_t iodir);
+workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, const char *hostname, iodir_t iodir);
 worker_t *
 workers_table_lookup_by_address(workers_table_t *workers_table, const char *address);
 worker_t *

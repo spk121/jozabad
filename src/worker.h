@@ -44,8 +44,9 @@ typedef struct {
 } worker_t;
 
 
-worker_t *worker_create(zframe_t *A, char *N, iodir_t io);
+worker_t *worker_create(zframe_t *Z, char *A, char *N, iodir_t io);
 const char *worker_get_address(const worker_t *W);
+gint64 worker_get_atime(const worker_t *W) G_GNUC_CONST;
 const char *worker_get_hostname(const worker_t *W);
 const char *worker_get_iodir_str(const worker_t *W);
 lcn_t worker_get_lcn(const worker_t *W);
@@ -59,6 +60,6 @@ void worker_set_role(worker_t *W, role_t R);
 void worker_set_role_to_ready(worker_t *W);
 void worker_set_role_to_x_caller(worker_t *W, lcn_t lcn);
 void worker_set_role_to_y_callee(worker_t *W, lcn_t lcn);
-void *worker_update_atime(worker_t *W);
-void *worker_update_mtime(worker_t *W);
+void worker_update_atime(worker_t *W);
+void worker_update_mtime(worker_t *W);
 

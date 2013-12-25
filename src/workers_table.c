@@ -95,9 +95,9 @@ workers_table_lookup_by_address(workers_table_t *workers_table, const char *addr
 }
 
 worker_t *
-workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, iodir_t iodir)
+workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, const char *hostname, iodir_t iodir)
 {
-    worker_t *new_worker = worker_create(zaddr, address, iodir);
+    worker_t *new_worker = worker_create(zaddr, address, hostname, iodir);
     if (new_worker) {
         new_worker->atime = g_get_monotonic_time();
         g_hash_table_insert (workers_table, &key, new_worker);

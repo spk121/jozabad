@@ -59,20 +59,21 @@
   for the secondary key
 */
 
-worker_t *worker_create(zframe_t *A, char *N, iodir_t io)
+worker_t *worker_create(zframe_t *Z, char *A, char *N, iodir_t io)
 {
     worker_t *worker = NULL;
     wkey_t key = 0;
     guint64 elapsed_time = g_get_monotonic_time();
 
-    g_message("In %s(A = %p, N = %s, io = %d)", __FUNCTION__, (void *) A, N, io);
+    g_message("In %s(Z = %p, A = %s, N = %s, io = %s)", __FUNCTION__, (void *) Z, A, N, iodir_name(io));
 
-    key = msg_addr2key(A);
+    key = msg_addr2key(Z);
     // First, validate the message
     worker = g_new0(worker_t, 1);
     worker->wkey = key;
-    worker->address = g_strdup(N);
-    worker->zaddr = zframe_dup(A);
+    worker->address = g_strdup(A);
+    worker->hostname = g_strdup(N);
+    worker->zaddr = zframe_dup(Z);
     worker->iodir = io;
     worker->lcn = 0;
     worker->role = READY;
@@ -85,6 +86,11 @@ worker_t *worker_create(zframe_t *A, char *N, iodir_t io)
 const char *worker_get_address(const worker_t *W)
 {
     return W->address;
+}
+
+gint64 worker_get_atime(const worker_t *W)
+{
+    return W->atime;
 }
 
 const char *worker_get_hostname(const worker_t *W)
@@ -157,12 +163,12 @@ void worker_set_role_to_y_callee(worker_t *W, lcn_t lcn)
     W->role = Y_CALLEE;
 }
 
-void *worker_update_atime(worker_t *W)
+void worker_update_atime(worker_t *W)
 {
     W->atime = g_get_monotonic_time();
 }
 
-void *worker_update_mtime(worker_t *W)
+void worker_update_mtime(worker_t *W)
 {
     W->mtime = g_get_monotonic_time();
 }

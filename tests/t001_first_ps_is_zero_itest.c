@@ -14,6 +14,8 @@ int main(int argc, char** argv)
     char *broker = "tcp://localhost:5555";
     char *calling_address1 = "ADAM";
     char *calling_address2 = "EVE";
+    char *name1 = "Adam Smith";
+    char *name2 = "Eve Plum";
     iodir_t dir = io_bidirectional;
     zctx_t *ctx1 = NULL;
     zctx_t *ctx2 = NULL;
@@ -25,8 +27,8 @@ int main(int argc, char** argv)
     int ret;
     char *data = "DATA";
 
-    initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
-    initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, dir);
+    initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, name1, dir);
+    initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, name2, dir);
     call_setup (verbose, sock1, sock2, calling_address1, calling_address2, packet, window, thru);
 
     if (verbose)
@@ -77,7 +79,7 @@ int main(int argc, char** argv)
     } else if(joza_msg_cause(response) != c_local_procedure_error
               || joza_msg_diagnostic(response) != d_ps_out_of_order) {
         if (verbose)
-            printf("peer Y: did not received correct diagnostic (%d/%d)\n",
+            printf("peer Y: did not received correct diagnostic (%s/%s)\n",
                    cause_name(joza_msg_cause(response)),
                    diag_name(joza_msg_diagnostic(response)));
         exit(1);

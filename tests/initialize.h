@@ -2,7 +2,7 @@
 #define JOZA_TESTS_INITIALIZE_H
 
 static void initialize(int verbose, const char *preface, zctx_t **ctx, void **sock, char *broker,
-                       char *calling_address, iodir_t dir)
+                       char *calling_address, char *host_name, iodir_t dir)
 {
     int ret;
 
@@ -35,12 +35,13 @@ static void initialize(int verbose, const char *preface, zctx_t **ctx, void **so
                preface,
                calling_address,
                iodir_name(dir));
-    ret = joza_msg_send_connect(*sock, calling_address, dir);
+    ret = joza_msg_send_connect(*sock, calling_address, host_name, dir);
     if (ret != 0) {
         if (verbose)
-            printf("%s: joza_msg_send_connect (%p, %s, %s) returned %d\n", preface,
+            printf("%s: joza_msg_send_connect (%p, %s, %s, %s) returned %d\n", preface,
                    *sock,
                    calling_address,
+                   host_name, 
                    iodir_name(dir),
                    ret);
         exit(1);
