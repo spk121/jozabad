@@ -46,4 +46,7 @@ void
   channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn);
 void
   channels_table_foreach(channels_table_t *channels_table, void func(channel_t *worker, gpointer user_data), gpointer user_data);
+void
+channels_table_dump(channels_table_t *channels_table);
+
 

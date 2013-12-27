@@ -34,7 +34,7 @@ workers_table_create(void);
 void
 workers_table_destroy(workers_table_t **p_workers_table);
 void
-workers_table_foreach(workers_table_t *workers_table, void func(worker_t *worker, gpointer user_data), gpointer user_data);
+workers_table_foreach(workers_table_t *workers_table, void func(gint key, worker_t *worker, gpointer user_data), gpointer user_data);
 gboolean
 workers_table_is_full(workers_table_t *workers_table);
 worker_t *
@@ -51,4 +51,8 @@ void
 workers_table_remove_unused(workers_table_t *workers_table);
 zhash_t *
 workers_table_create_directory_zhash(workers_table_t *workers_table);
+
+void
+workers_table_dump(workers_table_t *workers_table);
+
 

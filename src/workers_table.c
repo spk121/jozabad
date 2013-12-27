@@ -25,7 +25,7 @@
 
 #define WORKER_REMOVAL_TIMEOUT (30*1000)  // milliseconds
 
-static void (*foreach_method)(worker_t *worker, gpointer user_data);
+static void (*foreach_method)(gint key, worker_t *worker, gpointer user_data);
 
 static gboolean
 s_compare_worker_to_name_(gpointer key __attribute__ ((unused)),
@@ -55,10 +55,11 @@ s_cull_dead_worker_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_da
 }
 
 static void
-s_foreach_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+s_foreach_func_(gpointer key, gpointer value, gpointer user_data)
 {
+    gint ikey = *(gint *)key;
     worker_t *worker = value;
-    foreach_method(worker, user_data);
+    foreach_method(ikey, worker, user_data);
 }
 
 workers_table_t *
@@ -75,7 +76,7 @@ workers_table_destroy(workers_table_t **p_workers_table)
 }
 
 void
-workers_table_foreach(workers_table_t *workers_table, void func(worker_t *worker, gpointer user_data), gpointer user_data)
+workers_table_foreach(workers_table_t *workers_table, void func(gint key, worker_t *worker, gpointer user_data), gpointer user_data)
 {
    foreach_method = func;
    g_hash_table_foreach(workers_table, s_foreach_func_, user_data);   
@@ -145,7 +146,7 @@ s_add_directory_entry_to_zhash_ (gpointer key G_GNUC_UNUSED,
 {
     worker_t *worker = (worker_t *)vworker;
     zhash_t *hash = user_data;
-    gchar *str = g_strdup_printf("%s,%s",iodir_name(worker->iodir), worker->role == READY ? "AVAILABLE" : "BUSY");
+    gchar *str = g_strdup_printf("%s,%s",iodir_name(worker->iodir), worker->role == _READY ? "AVAILABLE" : "BUSY");
     zhash_insert(hash, worker_get_address(worker), str);
     g_free(str);
 }
@@ -158,4 +159,20 @@ workers_table_create_directory_zhash(workers_table_t *workers_table)
 
     g_hash_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
     return dir;
+}
+
+static void
+s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+{
+    gint K = *(gint *)key;
+    worker_t *W = value;
+    g_print("address %s, hostname %s, lcn %d, role %d\n", W->address, W->hostname, W->lcn, W->role);
+}
+
+void
+workers_table_dump(workers_table_t *workers_table)
+{
+    g_print("___WORKERS___\n");
+    g_hash_table_foreach(workers_table, s_dump_func_, NULL);
+    g_print("==============\n");
 }

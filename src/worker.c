@@ -76,7 +76,7 @@ worker_t *worker_create(zframe_t *Z, char *A, char *N, iodir_t io)
     worker->zaddr = zframe_dup(Z);
     worker->iodir = io;
     worker->lcn = 0;
-    worker->role = READY;
+    worker->role = _READY;
     worker->ctime = elapsed_time;
     worker->mtime = elapsed_time;
     worker->atime = elapsed_time;
@@ -125,7 +125,7 @@ gboolean worker_is_allowed_incoming_call(const worker_t *W)
 
 gboolean worker_is_available_for_call(const worker_t *W)
 {
-    return worker_is_allowed_incoming_call(W) && W->role == READY;
+    return worker_is_allowed_incoming_call(W) && W->role == _READY;
 }
 
 gboolean worker_is_x_caller(const worker_t *W)
@@ -148,7 +148,7 @@ void worker_set_role(worker_t *W, role_t R)
 void worker_set_role_to_ready(worker_t *W)
 {
     W->lcn = LCN_C(0);
-    W->role = Y_CALLEE;
+    W->role = _READY;
 }
 
 void worker_set_role_to_x_caller(worker_t *W, lcn_t lcn)

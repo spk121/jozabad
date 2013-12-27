@@ -68,22 +68,42 @@ channel_t *
   channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
                                  zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput)
 {
+    g_print("Before adding new channel\n");
+    channels_table_dump(channels_table);
     channel_t *new_channel = channel_create(lcn, xzaddr, xaddress, yzaddr, yaddress, pkt, window, tput);
     new_channel->state = state_x_call_request;
     g_hash_table_insert(channels_table, &lcn, new_channel);
+    g_print("After adding new channel\n");
+    channels_table_dump(channels_table);
     return new_channel;
+}
+
+static gboolean
+s_lookup_by_lcn_(gpointer key, gpointer value, gpointer data)
+{
+    channel_t *C = value;
+    gint L = *((gint *)data);
+    return C->lcn == L;
 }
 
 channel_t *
   channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn)
 {
+#if 0
     return g_hash_table_lookup(channels_table, &lcn);
+#else
+   return g_hash_table_find(channels_table, s_lookup_by_lcn_, &lcn);   
+#endif
 }
 
 void
 channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn)
 {
+#if 0
     g_hash_table_remove(channels_table, &lcn);
+#else
+   g_hash_table_foreach_remove(channels_table, s_lookup_by_lcn_, &lcn);   
+#endif
 }
 
 void
@@ -94,3 +114,22 @@ channels_table_foreach(channels_table_t *channels_table, void func(channel_t *wo
    foreach_method = NULL;
 }
 
+static void
+s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+{
+    gint K = *(gint *)key;
+    channel_t *C = value;
+    gchar *ctime = monotonic_time_to_string(C->ctime);
+    gchar *mtime = monotonic_time_to_string(C->mtime);
+    g_print("lcn %d, %s/%s, %s, created %s, modified %s\n", C->lcn, C->xname, C->yname, state_name(C->state), ctime, mtime);
+    g_free(ctime);
+    g_free(mtime);
+}
+
+void
+channels_table_dump(channels_table_t *channels_table)
+{
+    g_print("====CHANNELS====\n");
+    g_hash_table_foreach(channels_table, s_dump_func_, NULL);
+    g_print("================\n");
+}

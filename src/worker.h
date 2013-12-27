@@ -28,7 +28,7 @@
 #include "joza_msg.h"
 #include "mylimits.h"
 
-typedef enum {READY, X_CALLER, Y_CALLEE} role_t;
+typedef enum {_READY, X_CALLER, Y_CALLEE} role_t;
 
 typedef struct {
     wkey_t wkey;

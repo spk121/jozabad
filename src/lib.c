@@ -533,6 +533,7 @@ void indexx(ukey_t arr[], size_t n, ukey_t indx[])
     free (arrindx);
 }
 #endif
+
 //----------------------------------------------------------------------------
 // STRICT C11 TIME
 //----------------------------------------------------------------------------
@@ -560,6 +561,20 @@ double now()
     return difftime(time1, time0);
 }
 
+//----------------------------------------------------------------------------
+// GLIB TIME
+//----------------------------------------------------------------------------
+
+char *
+monotonic_time_to_string(gint64 T)
+{
+    GDateTime *date = g_date_time_new_from_unix_utc(T / G_USEC_PER_SEC);
+    char *str;
+    g_date_time_add_seconds(date, (T % G_USEC_PER_SEC) / (double)G_USEC_PER_SEC);
+    str = g_date_time_format(date, "%T");
+    g_date_time_unref(date);
+    return str;
+}
 
 #if 0
 #include <stdio.h>

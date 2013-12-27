@@ -87,6 +87,8 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
     c->pkt = pkt;
     c->window = window;
     c->tput = tput;
+    c->ctime = g_get_monotonic_time();
+    c->mtime = g_get_monotonic_time();
 
     g_message("creating channel #%d %s/%s - packet = %d, window = %d, tput %d", c->lcn, xname, yname, packet_bytes(pkt),
               window, tput_bps(tput));

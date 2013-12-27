@@ -15,6 +15,7 @@ VPATH = ../libjoza
 CSRC = action.c \
        cause.c \
 	channel.c \
+	channels_table.c \
 	diag.c \
 	lib.c \
         log.c \
@@ -28,7 +29,8 @@ CSRC = action.c \
 	msg.c \
 	seq.c \
 	iodir.c \
-	worker.c
+	worker.c \
+	workers_table.c 
 
 CPPSRC = 
 
