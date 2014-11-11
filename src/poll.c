@@ -1,23 +1,23 @@
 /*
-    poll.c - event loop
+  poll.c - event loop
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
-
-    This file is part of Jozabad.
-
-    Jozabad is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Jozabad is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
-
+  Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
+  
+  This file is part of Jozabad.
+  
+  Jozabad is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  
+  Jozabad is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+  
+  You should have received a copy of the GNU General Public License
+  along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
+  
 */
 
 #include <glib.h>
@@ -36,14 +36,12 @@
 #define POLL_WORKER_PING_TIMER (10000)  /* milliseconds */
 #define POLL_WORKER_REMOVAL_TIMEOUT (30000)  /* milliseconds */
 
-
 static lcn_t _lcn = LCN_MIN;
 
-// Zero MQ socket
-static zmq_pollitem_t poll_input = {NULL, 0, ZMQ_POLLIN, 0};
-
 static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data);
-static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, channels_table_t *channels_table);
+static int s_process_(joza_msg_t *msg, void *sock,
+                      workers_table_t *workers_table,
+                      channels_table_t *channels_table);
 static int s_ping_(zloop_t *loop, zmq_pollitem_t *item, void *arg);
 
 static zctx_t *zctx_new_or_die (void)
@@ -66,7 +64,7 @@ static void *zsocket_new_or_die(zctx_t *ctx, int type)
 
     sock = zsocket_new(ctx, type);
     if (sock == NULL) {
-        g_print("failed to create a new ZeroMQ socket");
+        g_error("failed to create a new ZeroMQ socket");
         exit(1);
     }
     return sock;
@@ -74,9 +72,8 @@ static void *zsocket_new_or_die(zctx_t *ctx, int type)
 
 static zloop_t *zloop_new_or_die(void)
 {
-    zloop_t *L = NULL;
+    zloop_t *L = zloop_new();
 
-    L = zloop_new();
     if (L == NULL) {
         g_error("failed to create a new ZeroMQ main loop");
         exit (1);
@@ -84,15 +81,11 @@ static zloop_t *zloop_new_or_die(void)
     return L;
 }
 
-static void bad_free (gpointer data __attribute__ ((unused)))
-{
-    g_assert_not_reached();
-}
-
-static void do_directory_request(void *sock, const zframe_t *zaddr, workers_table_t *workers_table)
+static void do_directory_request(void *sock, const zframe_t *zaddr,
+                                 workers_table_t *workers_table)
 {
     // Fill a hash table with the current directory information
-    zhash_t  *dir       = workers_table_create_directory_zhash(workers_table);
+    zhash_t *dir = workers_table_create_directory_zhash(workers_table);
     directory_request(sock, zaddr, dir);
     zhash_destroy(&dir);
 }
@@ -100,26 +93,49 @@ static void do_directory_request(void *sock, const zframe_t *zaddr, workers_tabl
 
 joza_poll_t *poll_create(gboolean verbose, const char *endpoint)
 {
-    g_message("In %s(verbose = %d, endpoint = %s)", __FUNCTION__, verbose, endpoint);
+    g_message("In %s(verbose = %d, endpoint = %s)", __FUNCTION__,
+              verbose, endpoint);
 
+    g_message("constructing an event-driven reactor to socket %s", endpoint);
+    // Initialize the several structures that make a broker
+    zctx_t *context = zctx_new_or_die();
+
+    void *socket = zsocket_new_or_die(context, ZMQ_ROUTER);
+    zsocket_bind(socket, endpoint);
+
+    zloop_t *loop = zloop_new_or_die();
+    zloop_set_verbose(loop, verbose);
+    
     joza_poll_t *poll = g_new0(joza_poll_t, 1);
+    poll->ctx = context;
+    poll->sock = socket;
+    poll->loop = loop;
+    poll->timer = 0;
+    poll->pollitem.socket = socket;
+    poll->pollitem.fd = 0;
+    poll->pollitem.events = ZMQ_POLLIN;
+    poll->pollitem.revents = 0;
+    poll->channels_table = channels_table_create();
+    poll->workers_table = workers_table_create();
 
-    //  Initialize broker state
-    poll->ctx = zctx_new_or_die();
-    poll->sock = zsocket_new_or_die(poll->ctx, ZMQ_ROUTER);
-    g_message("binding ROUTER socket to %s", endpoint);
-    zsocket_bind(poll->sock, endpoint);
-    poll->loop = zloop_new_or_die();
-    zloop_set_verbose(poll->loop, verbose);
-    poll_input.socket = poll->sock;
-    int rc = zloop_poller(poll->loop, &poll_input, s_recv_, poll);
+    // Here we kick off the event-driven loop, where
+    // the s_recv_ callback will handle each socket event.
+    int rc = zloop_poller(poll->loop, &(poll->pollitem), s_recv_, poll);
     if (rc == -1) {
         g_error("failed to start a new ZeroMQ main loop poller");
         exit(1);
     }
-    poll->channels_table = channels_table_create();
-    poll->workers_table = workers_table_create();
-    zloop_timer(poll->loop, POLL_WORKER_PING_TIMER, 0, s_ping_, poll);
+
+    // And here we kick off the timer-driven loop, where
+    // the s_ping_ callback will be called at regular intervals.
+    int timer = zloop_timer(loop, POLL_WORKER_PING_TIMER, 0, s_ping_,
+                            poll);
+    if (timer == -1) {
+        g_error("failed to start a new ZeroMQ main loop timer");
+        exit(1);
+    }
+
+    poll->timer = timer;
     return poll;
 }
 
@@ -131,40 +147,43 @@ static int s_recv_(zloop_t *loop, zmq_pollitem_t *item, void *data)
     joza_msg_t *msg = NULL;
     int ret = 0;
 
-    g_message("In %s(%p,%p,%p)", __FUNCTION__, (void *)loop, (void *)item, (void *)poll);
+    g_message("In %s(%p,%p,%p)", __FUNCTION__, (void *)loop, (void *)item,
+              (void *)poll);
 
     if (item->revents & ZMQ_POLLIN) {
         msg = joza_msg_recv(poll->sock);
         if (msg != NULL) {
             // Process the valid message
-            ret = s_process_(msg, poll->sock, poll->workers_table, poll->channels_table);
+            ret = s_process_(msg, poll->sock, poll->workers_table,
+                             poll->channels_table);
             joza_msg_destroy(&msg);
         }
     }
 
-    g_message("%s(%p,%p,%p) returns %d", __FUNCTION__, (void *)loop, (void *)item, (void *)poll, ret);
+    g_message("%s(%p,%p,%p) returns %d", __FUNCTION__, (void *)loop,
+              (void *)item, (void *)poll, ret);
     return ret;
 }
 
 // This is entry point for message processing.  Every message
 // being processed start here.
-static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_table, channels_table_t *channels_table)
+static int s_process_(joza_msg_t *msg, void *sock,
+                      workers_table_t *workers_table,
+                      channels_table_t *channels_table)
 {
     gint key;
     int ret = 0;
     diag_t diag;
-
+    
     g_message("In %s(%p)", __FUNCTION__, (void *) msg);
     channels_table_dump(channels_table);
 
-
-    ////////////////////////////////////////////////////////////////
-    // Validate here all message components
-    // that can be validates w/o any specific context
-    ////////////////////////////////////////////////////////////////
+    // Validate here all message components that can be validated w/o
+    // any specific context.
 
     if ((diag = prevalidate_message(msg)) != d_unspecified) {
-        diagnostic(sock, joza_msg_const_address(msg), NULL, c_malformed_message, diag);
+        diagnostic(sock, joza_msg_const_address(msg), NULL,
+                   c_malformed_message, diag);
     } else {
         worker_t *worker, *other;
         channel_t *channel;
@@ -180,43 +199,53 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
             case Y_CALLEE:
                 // If this worker is connected and part of a virtual call,
                 // the call's state machine processes the message.
-                channel = channels_table_lookup_by_lcn(channels_table, worker_get_lcn(worker));
+                channel = channels_table_lookup_by_lcn(channels_table,
+                                        worker_get_lcn(worker));
                 other = workers_table_lookup_other(workers_table, worker);
 
                 g_return_val_if_fail(channel != NULL, 0);
                 g_return_val_if_fail(other != NULL, 0);
 
                 if (worker_is_x_caller(worker))
-                    channel_set_state(channel, channel_dispatch(channel, sock, msg, 0));
+                    channel_set_state(channel,
+                                      channel_dispatch(channel, sock, msg, 0));
                 else
-                    channel_set_state(channel, channel_dispatch(channel, sock, msg, 1));
+                    channel_set_state(channel,
+                                      channel_dispatch(channel, sock, msg, 1));
 
                 if (channel_is_closed(channel)) {
-                    // This channel is no longer connected: remove it
-                    g_message("removing channel %s/%s because it is closed", channel->xname, channel->yname);
-                    channels_table_remove_by_lcn(channels_table, worker_get_lcn(worker));
+                    // This channel is no longer connected; remove it.
+                    g_message("removing channel %s/%s because it is closed",
+                              channel->xname, channel->yname);
+                    channels_table_remove_by_lcn(channels_table,
+                                                 worker_get_lcn(worker));
                     worker_set_role_to_ready(worker);
                     worker_set_role_to_ready(other);
                 }
                 break;
 
             case _READY:
-                // If this worker is connected, but, not part of a call,
-                // we handle it here because it involves the whole channel store
+                // If this worker is connected, but, not part of a
+                // call, we handle it here because it involves the
+                // whole channel store.
                 if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
                     if (channels_table_is_full(channels_table))
                         // send busy diagnostic
                         ;
                     else {
-                        worker_t *other = workers_table_lookup_by_address(workers_table,
-                                                                          joza_msg_called_address(msg));
+                        worker_t *other; 
+                        other = workers_table_lookup_by_address(workers_table,
+                                                                joza_msg_called_address(msg));
                         if (other == NULL) {
                             // send can't find diagnostic
                         } else {
-                            // Find an unused logical channel number (aka hash table key) for the
-                            // new channel.
-                            _lcn = channels_table_find_free_lcn(channels_table, _lcn);
-                            // Make a new channel and stuff it in the hash table
+                            // Find an unused logical channel number
+                            // (aka hash table key) for the new
+                            // channel.
+                            _lcn = channels_table_find_free_lcn(channels_table,
+                                                                _lcn);
+                            // Make a new channel and stuff it in the
+                            // hash table.
                             worker_set_role_to_x_caller(worker, _lcn);
                             worker_set_role_to_y_callee(other, _lcn);
                             channels_table_add_new_channel(channels_table,
@@ -252,10 +281,13 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
             }
         }
 
-        // If this worker is heretofore unknown, we handle it here.  The
-        // only message we handle from unconnected workers are connection requests.
+        // If this worker is heretofore unknown, we handle it here.
+        // The only message we handle from unconnected workers are
+        // connection requests.
         else if (joza_msg_id(msg) == JOZA_MSG_CONNECT) {
-            g_message("handling %s from unconnected worker", joza_msg_const_command(msg));
+            g_message("handling %s from unconnected worker %s",
+                      joza_msg_const_command(msg),
+                      joza_msg_const_calling_address(msg));
             if (workers_table_is_full(workers_table)) {
                 diagnostic(sock,
                            joza_msg_const_address(msg),
@@ -276,7 +308,11 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
             }
 
         } else {
-            g_message("ignoring %s from unconnected worker", joza_msg_const_command(msg));
+            if (joza_msg_id(msg) == JOZA_MSG_CALL_REQUEST)
+                g_message("ignoring %s from unconnected worker %s to %s", joza_msg_const_command(msg),
+                          joza_msg_const_calling_address(msg), joza_msg_const_called_address(msg));
+            else
+                g_message("ignoring %s (%d) from unconnected worker", joza_msg_const_command(msg), joza_msg_id(msg));
         }
     }
 
@@ -284,10 +320,13 @@ static int s_process_(joza_msg_t *msg, void *sock, workers_table_t *workers_tabl
     return ret;
 }
 
-static gboolean s_ping_worker_(gint key, worker_t *worker, gpointer user_data)
+static gboolean s_ping_worker_(void *packed_key, worker_t *worker,
+                               gpointer user_data)
 {
+    gint key = GPOINTER_TO_INT(packed_key);
     joza_poll_t *poll = user_data;
-    gint64 idle_time = (g_get_monotonic_time() - worker_get_atime(worker)) / 1000;
+    gint64 idle_time = ((g_get_monotonic_time() - worker_get_atime(worker))
+                        / 1000);
 
     g_message("checking worker %s: %ld ms since last access",
               worker_get_address(worker), idle_time);

@@ -1,6 +1,6 @@
 echo "Running integration tests:"
 
-src/broker &
+build/jozabad &
 for i in tests/*_itest
 do
     if test -f $i

@@ -1,7 +1,7 @@
 /*
     workers_table.c - a collection of workers
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -28,10 +28,11 @@
 static void (*foreach_method)(gint key, worker_t *worker, gpointer user_data);
 
 static gboolean
-s_compare_worker_to_name_(gpointer key __attribute__ ((unused)),
-                       gpointer value,
-                       gpointer user_data)
+s_compare_worker_to_name_(gpointer packed_key G_GNUC_UNUSED,
+			  gpointer value,
+			  gpointer user_data)
 {
+    gint key = GPOINTER_TO_INT(packed_key);
     worker_t *w = value;
     gchar *str = user_data;
     if (strcmp(str, worker_get_address(w)) == 0)
@@ -40,32 +41,33 @@ s_compare_worker_to_name_(gpointer key __attribute__ ((unused)),
         return false;
 }
 
-
 static gboolean
-s_cull_dead_worker_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data G_GNUC_UNUSED)
+s_cull_dead_worker_(gpointer packed_key G_GNUC_UNUSED, gpointer value,
+		    gpointer user_data G_GNUC_UNUSED)
 {
     worker_t *worker = value;
-    if (g_get_monotonic_time() - worker->atime > WORKER_REMOVAL_TIMEOUT * 1000) {
+    gint64 delta_t = (g_get_monotonic_time() - worker->atime) / 1000;
+    if (delta_t > WORKER_REMOVAL_TIMEOUT) {
         g_message("removing worker %s: %ld ms since last access",
                   worker_get_address(worker),
-                  (g_get_monotonic_time() - worker->atime)/1000);
+		  delta_t);
         return TRUE;
     }
     return FALSE;
 }
 
 static void
-s_foreach_func_(gpointer key, gpointer value, gpointer user_data)
+s_foreach_func_(gpointer packed_key, gpointer value, gpointer user_data)
 {
-    gint ikey = *(gint *)key;
+    gint key = GPOINTER_TO_INT(packed_key);
     worker_t *worker = value;
-    foreach_method(ikey, worker, user_data);
+    foreach_method(key, worker, user_data);
 }
 
 workers_table_t *
 workers_table_create()
 {
-    return g_hash_table_new_full (g_int_hash, g_int_equal, NULL, g_free);
+    return g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_free);
 }
 
 void
@@ -76,7 +78,9 @@ workers_table_destroy(workers_table_t **p_workers_table)
 }
 
 void
-workers_table_foreach(workers_table_t *workers_table, void func(gint key, worker_t *worker, gpointer user_data), gpointer user_data)
+workers_table_foreach(workers_table_t *workers_table,
+		      void func(gint key, worker_t *worker, gpointer user_data),
+		      gpointer user_data)
 {
    foreach_method = func;
    g_hash_table_foreach(workers_table, s_foreach_func_, user_data);   
@@ -96,12 +100,14 @@ workers_table_lookup_by_address(workers_table_t *workers_table, const char *addr
 }
 
 worker_t *
-workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t *zaddr, const char *address, const char *hostname, iodir_t iodir)
+workers_table_add_new_worker(workers_table_t *workers_table, gint key,
+			     zframe_t *zaddr, const char *address,
+			     const char *hostname, iodir_t iodir)
 {
     worker_t *new_worker = worker_create(zaddr, address, hostname, iodir);
     if (new_worker) {
         new_worker->atime = g_get_monotonic_time();
-        g_hash_table_insert (workers_table, &key, new_worker);
+        g_hash_table_insert (workers_table, GINT_TO_POINTER(key), new_worker);
     }
     return new_worker;
 }
@@ -109,11 +115,14 @@ workers_table_add_new_worker(workers_table_t *workers_table, gint key, zframe_t 
 worker_t *
 workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
 {
-    return (worker_t *) g_hash_table_lookup (workers_table, &key);
+    return (worker_t *) g_hash_table_lookup (workers_table,
+					     GINT_TO_POINTER(key));
 }
 
-static gboolean s_is_other_(G_GNUC_UNUSED gpointer key, gpointer value, gpointer user_data)
+static gboolean s_is_other_(G_GNUC_UNUSED gpointer packed_key, gpointer value,
+			    gpointer user_data)
 {
+    gint key = GPOINTER_TO_INT(packed_key);
     worker_t *W = (worker_t *) value;
     worker_t *worker = (worker_t *) user_data;
     if (W != worker && W->lcn == worker->lcn)
@@ -140,7 +149,7 @@ workers_table_remove_unused(workers_table_t *workers_table)
 }
 
 static void
-s_add_directory_entry_to_zhash_ (gpointer key G_GNUC_UNUSED,
+s_add_directory_entry_to_zhash_ (gpointer packed_key G_GNUC_UNUSED,
                                  gpointer vworker,
                                  gpointer user_data)
 {
@@ -162,11 +171,14 @@ workers_table_create_directory_zhash(workers_table_t *workers_table)
 }
 
 static void
-s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+s_dump_func_(gpointer packed_key,
+	     gpointer value,
+	     gpointer user_data G_GNUC_UNUSED)
 {
-    gint K = *(gint *)key;
+    gint K = GPOINTER_TO_INT(packed_key);
     worker_t *W = value;
-    g_print("address %s, hostname %s, lcn %d, role %d\n", W->address, W->hostname, W->lcn, W->role);
+    g_print("address %s, hostname %s, lcn %d, role %d\n",
+	    W->address, W->hostname, W->lcn, W->role);
 }
 
 void

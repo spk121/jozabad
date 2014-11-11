@@ -6,7 +6,7 @@ CFLAGS = -Isrc -std=c11 -g -O0 -Wall -Wextra \
 	-fdata-sections -ffunction-sections
 LIBS = -ldl -lm $(OPTLIBS) \
 	`pkg-config glib-2.0 libczmq libzmq --libs` \
-	--verbose -Wl,-L/usr/local/lib -Wl,--gc-sections -Wl,--print-gc-sections
+	-Wl,-L/usr/local/lib -Wl,--gc-sections -Wl,--print-gc-sections
 PREFIX ?=/usr/local
 
 HEADERS=$(wildcard src/*.h)
@@ -112,3 +112,5 @@ headercheck: $(GCH)
 check-syntax:
 	$(CC) -Isrc -std=c11 -Wall -Wextra -pedantic -fsyntax-only $(SOURCES)
 
+TAGS: $(SOURCES)
+	etags $(SOURCES)

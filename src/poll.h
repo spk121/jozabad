@@ -30,6 +30,8 @@ typedef struct {
     zctx_t *ctx;
     void *sock;
     zloop_t *loop;
+    int timer;
+    zmq_pollitem_t pollitem;
     GHashTable *workers_table;
     GHashTable *channels_table;
 } joza_poll_t;
