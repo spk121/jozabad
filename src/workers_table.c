@@ -165,7 +165,6 @@ workers_table_create_directory_zhash(workers_table_t *workers_table)
 {    zhash_t  *dir       = zhash_new();
 
     // Fill a hash table with the current directory information
-
     g_hash_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
     return dir;
 }
