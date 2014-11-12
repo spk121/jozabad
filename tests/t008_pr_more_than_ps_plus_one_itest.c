@@ -26,8 +26,8 @@ int main(int argc, char** argv)
     int ret;
     char *data = "DATA";
 
-    initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, dir);
-    initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, dir);
+    initialize (verbose, "peer X", &ctx1, &sock1, broker, calling_address1, "Alpha", dir);
+    initialize (verbose, "peer Y", &ctx2, &sock2, broker, calling_address2, "Bravo", dir);
     call_setup (verbose, sock1, sock2, calling_address1, calling_address2, packet, window, thru);
 
     for (int i = 0; i < 2; i ++) {
