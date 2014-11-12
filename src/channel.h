@@ -1,7 +1,7 @@
 /*
     channel.h - peer-to-peer connections
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -20,6 +20,14 @@
 
 */
 
+/**
+ * @file channel.h
+ * @author Mike Gran
+ * @brief A channel is a connection between two workers
+ *
+ * A channel is a stateful connection between two workers.
+ */
+
 #ifndef JOZA_CHANNEL_H
 #define JOZA_CHANNEL_H
 
@@ -35,15 +43,28 @@
 # define CALL_REQUEST_DATA_LEN (16)
 #endif
 
+/**
+ * @brief The channel state structure.
+ *
+ * The channel state structure holds the addresses of two workers and the state
+ * of the communication between them.
+ */
 typedef struct {
-    lcn_t lcn;
-    zframe_t *xzaddr, *yzaddr;
-    gchar *xname, *yname;
-    state_t state;
-    seq_t xps, xpr, yps, ypr, window;
+    lcn_t lcn;        /**< Logical Channel Number, a unique key */
+    zframe_t *xzaddr; /**< a ZMQ frame containing a ZMQ router identity for X caller */
+    zframe_t *yzaddr; /**< a ZMQ frame containing a ZMQ router identity for Y callee*/
+    gchar *xname;
+    gchar *yname;
+    state_t state;    /**< call status */
+    seq_t xps;        /**< ID of next packet to be sent by X */
+    seq_t xpr;        /**< Smallest packet ID that X will accept from Y */
+    seq_t yps;        /**< ID of next packet to be sent by Y */
+    seq_t ypr;        /**< Smallest packet ID Y will accept from X */
+    seq_t window;     /**< delta between the smallest and largest acceptable ID */
     packet_t pkt;
-    tput_t tput;
-    guint64 ctime, mtime;
+    tput_t tput;      /**< Throughput allowed for this channel */
+    guint64 ctime;    /**< Creation time of the channel in microseconds since 1970 */
+    guint64 mtime;    /**< Time of last message from either peer in microseconds since 1970 */
 } channel_t;
 
 

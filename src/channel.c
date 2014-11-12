@@ -47,22 +47,6 @@
 // static_assert(ACTION_MESSAGE_COUNT == JOZA_MSG_COUNT, "Number of messages different than action table");
 static_assert(sizeof(seq_t) <= offsetof(joza_msg_t,ps) - offsetof(joza_msg_t,pr), "Sequence type too large");
 
-/*
-lcn    ukey_t       [primary key]   the unique id for this connection
-xzaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity for X caller
-yzaddr zframe_t *                  a ZMQ frame containing a ZMQ Router identity for Y callee
-state  state_t                     call status
-xps    seq_t                       ID of next packet to be sent by X
-xpr    seq_t                       Smallest packet ID X will accept from Y
-yps    seq_t                       ID of next packet to be sent by Y
-ypr    seq_t                       Smallest packet ID Y will accept from X
-window seq_t                       delta between the smallest and largest acceptable ID
-tput   tput_t                      throughput allowed on this channel
-tok   double                       store for x throughput "leaky bucket" tokens
-ctime double                       time this channel was created
-mtime double                       time of last message from either peer
-*/
-
 #define STATE2DIAG(s) ((diag_t)((s) - state_ready + d_invalid_message_for_state_ready))
 
 
@@ -92,7 +76,7 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
 
     g_message("creating channel #%d %s/%s - packet = %d, window = %d, tput %d", c->lcn, xname, yname, packet_bytes(pkt),
               window, tput_bps(tput));
-    g_message("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %p",
+    g_debug("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %p",
               __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, (void *)c);
 
     return c;

@@ -21,18 +21,21 @@
 */
 
 #include <glib.h>
+#include <inttypes.h>
 #include "workers_table.h"
 
 #define WORKER_REMOVAL_TIMEOUT (30*1000)  // milliseconds
 
 static void (*foreach_method)(gint key, worker_t *worker, gpointer user_data);
 
+// Used in a hash-table iterator to find a worker who's address
+// matches the string in USER_DATA.
 static gboolean
 s_compare_worker_to_name_(gpointer packed_key G_GNUC_UNUSED,
-			  gpointer value,
-			  gpointer user_data)
+                          gpointer value,
+                          gpointer user_data)
 {
-    gint key = GPOINTER_TO_INT(packed_key);
+    // gint key = GPOINTER_TO_INT(packed_key);
     worker_t *w = value;
     gchar *str = user_data;
     if (strcmp(str, worker_get_address(w)) == 0)
@@ -43,14 +46,14 @@ s_compare_worker_to_name_(gpointer packed_key G_GNUC_UNUSED,
 
 static gboolean
 s_cull_dead_worker_(gpointer packed_key G_GNUC_UNUSED, gpointer value,
-		    gpointer user_data G_GNUC_UNUSED)
+                    gpointer user_data G_GNUC_UNUSED)
 {
     worker_t *worker = value;
     gint64 delta_t = (g_get_monotonic_time() - worker->atime) / 1000;
     if (delta_t > WORKER_REMOVAL_TIMEOUT) {
-        g_message("removing worker %s: %ld ms since last access",
+        g_message("removing worker %s: %" PRId64 " ms since last access",
                   worker_get_address(worker),
-		  delta_t);
+                  delta_t);
         return TRUE;
     }
     return FALSE;
@@ -88,6 +91,12 @@ workers_table_foreach(workers_table_t *workers_table,
 }
 
 gboolean
+workers_table_is_empty(workers_table_t *workers_table)
+{
+    return g_hash_table_size(workers_table) == 0;
+}
+
+gboolean
 workers_table_is_full(workers_table_t *workers_table)
 {
     return g_hash_table_size(workers_table) >= WORKER_COUNT;
@@ -120,9 +129,9 @@ workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
 }
 
 static gboolean s_is_other_(G_GNUC_UNUSED gpointer packed_key, gpointer value,
-			    gpointer user_data)
+                            gpointer user_data)
 {
-    gint key = GPOINTER_TO_INT(packed_key);
+    // gint key = GPOINTER_TO_INT(packed_key);
     worker_t *W = (worker_t *) value;
     worker_t *worker = (worker_t *) user_data;
     if (W != worker && W->lcn == worker->lcn)
@@ -170,11 +179,11 @@ workers_table_create_directory_zhash(workers_table_t *workers_table)
 }
 
 static void
-s_dump_func_(gpointer packed_key,
-	     gpointer value,
-	     gpointer user_data G_GNUC_UNUSED)
+s_dump_func_(gpointer packed_key G_GNUC_UNUSED,
+             gpointer value,
+             gpointer user_data G_GNUC_UNUSED)
 {
-    gint K = GPOINTER_TO_INT(packed_key);
+    // gint K = GPOINTER_TO_INT(packed_key);
     worker_t *W = value;
     g_print("address %s, hostname %s, lcn %d, role %d\n",
 	    W->address, W->hostname, W->lcn, W->role);

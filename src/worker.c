@@ -65,7 +65,7 @@ worker_t *worker_create(zframe_t *Z, char *A, char *N, iodir_t io)
     wkey_t key = 0;
     guint64 elapsed_time = g_get_monotonic_time();
 
-    g_message("In %s(Z = %p, A = %s, N = %s, io = %s)", __FUNCTION__, (void *) Z, A, N, iodir_name(io));
+    g_debug("In %s(Z = %p, A = %s, N = %s, io = %s)", __FUNCTION__, (void *) Z, A, N, iodir_name(io));
 
     key = msg_addr2key(Z);
     // First, validate the message

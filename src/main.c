@@ -44,8 +44,8 @@ static GOptionEntry entries[] = {
 };
 
 /* Note the ':' shown below in the pattern string, to specify additional arg */
-static char PROGNAME[] = "Jozabad Broker";
-static char VERSION[] = "0.0";
+// static char PROGNAME[] = "Jozabad Broker";
+// static char VERSION[] = "0.0";
 static char PROTOCOL[] = "tcp://*:";
 
 int main (int argc, char *argv[])

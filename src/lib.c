@@ -568,12 +568,59 @@ double now()
 char *
 monotonic_time_to_string(gint64 T)
 {
-    GDateTime *date = g_date_time_new_from_unix_utc(T / G_USEC_PER_SEC);
-    char *str;
-    g_date_time_add_seconds(date, (T % G_USEC_PER_SEC) / (double)G_USEC_PER_SEC);
-    str = g_date_time_format(date, "%T");
+    GDateTime *date, *date2;
+    double subseconds;
+    // Compute date to the nearest second.
+    date = g_date_time_new_from_unix_utc(T / G_USEC_PER_SEC);
+    // Then add the subsecond fraction.
+    subseconds = (double) (T % G_USEC_PER_SEC) / (double) G_USEC_PER_SEC;
+    date2 = g_date_time_add_seconds(date, subseconds);
+    gchar *str = g_date_time_format(date2, "%T");
+    g_date_time_unref(date2);
     g_date_time_unref(date);
     return str;
+}
+
+//----------------------------------------------------------------------------
+// ZeroMQ HELPERS
+//----------------------------------------------------------------------------
+
+zctx_t *
+zctx_new_or_die (void)
+{
+    zctx_t *c = NULL;
+
+    c = zctx_new();
+    if (c == NULL) {
+        g_error("failed to create a ZeroMQ context");
+        exit(1);
+    }
+    return c;
+}
+
+void *zsocket_new_or_die(zctx_t *ctx, int type)
+{
+    void *sock;
+
+    g_assert(ctx != NULL);
+
+    sock = zsocket_new(ctx, type);
+    if (sock == NULL) {
+        g_error("failed to create a new ZeroMQ socket");
+        exit(1);
+    }
+    return sock;
+}
+
+zloop_t *zloop_new_or_die(void)
+{
+    zloop_t *L = zloop_new();
+
+    if (L == NULL) {
+        g_error("failed to create a new ZeroMQ main loop");
+        exit (1);
+    }
+    return L;
 }
 
 #if 0

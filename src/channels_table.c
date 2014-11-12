@@ -68,13 +68,13 @@ channel_t *
   channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
                                  zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput)
 {
-    g_print("Before adding new channel\n");
-    channels_table_dump(channels_table);
+    // g_print("Before adding new channel\n");
+    // channels_table_dump(channels_table);
     channel_t *new_channel = channel_create(lcn, xzaddr, xaddress, yzaddr, yaddress, pkt, window, tput);
     new_channel->state = state_x_call_request;
     g_hash_table_insert(channels_table, &lcn, new_channel);
-    g_print("After adding new channel\n");
-    channels_table_dump(channels_table);
+    // g_print("After adding new channel\n");
+    // channels_table_dump(channels_table);
     return new_channel;
 }
 
@@ -119,11 +119,12 @@ s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
 {
     gint K = *(gint *)key;
     channel_t *C = value;
-    gchar *ctime = monotonic_time_to_string(C->ctime);
-    gchar *mtime = monotonic_time_to_string(C->mtime);
-    g_print("lcn %d, %s/%s, %s, created %s, modified %s\n", C->lcn, C->xname, C->yname, state_name(C->state), ctime, mtime);
-    g_free(ctime);
-    g_free(mtime);
+    gchar *ctime_str = monotonic_time_to_string(C->ctime);
+    gchar *mtime_str = monotonic_time_to_string(C->mtime);
+    g_print("lcn %d, %s/%s, %s, created %s, modified %s\n",
+            C->lcn, C->xname, C->yname, state_name(C->state), ctime_str, mtime_str);
+    g_free(ctime_str);
+    g_free(mtime_str);
 }
 
 void

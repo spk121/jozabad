@@ -1,7 +1,7 @@
 /*
     worker_table.h - a collection of workers
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -20,6 +20,15 @@
 
 */
 
+/**
+ * @file workers_table.h
+ * @author Mike Gran
+ * @brief A hash table of all connected workers.
+ *
+ * These are functions that manipulate a hash table that contains information
+ * about all the workers connected to the server.
+ */
+
 #pragma once
 
 #include <glib.h>
@@ -35,6 +44,8 @@ void
 workers_table_destroy(workers_table_t **p_workers_table);
 void
 workers_table_foreach(workers_table_t *workers_table, void func(gint key, worker_t *worker, gpointer user_data), gpointer user_data);
+gboolean
+workers_table_is_empty(workers_table_t *workers_table);
 gboolean
 workers_table_is_full(workers_table_t *workers_table);
 worker_t *

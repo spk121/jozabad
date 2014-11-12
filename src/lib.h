@@ -19,13 +19,20 @@
     along with Jozabad.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+
+/**
+ * @file lib.h
+ * @author Mike Gran
+ * @brief Miscellaneous library functions
+ */
+
 #ifndef JOZA_LIB_H
 #define JOZA_LIB_H
 
 #include <glib.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <czmq.h>
 
 //----------------------------------------------------------------------------
 // BASICS
@@ -74,7 +81,53 @@ double now(void);
 // GLIB TIME
 //----------------------------------------------------------------------------
 
-char *monotonic_time_to_string(gint64 T);
+/**
+ * @brief Returns a string representation of time.
+ *
+ * Given @p T, the number of microseconds since 1970, it returns a
+ * string representation in HH:MM:SS.  It must be freed by the caller.
+ *
+ * @param T microseconds since 1970
+ * @return A null-terminated string, to be freed by caller.
+ */
+G_GNUC_INTERNAL
+char *monotonic_time_to_string(gint64 T) G_GNUC_WARN_UNUSED_RESULT;
+
+// ZeroMQ Helpers
+
+/**
+ * @brief Return a new ZeroMQ context, or die in the attempt.
+ *
+ * Return a new ZeroMQ context, or die in the attempt.  If it can't
+ * be done, log a fatal error and quit.
+ * @return a ZeroMQ context, to be freed by caller.
+ */
+G_GNUC_INTERNAL
+zctx_t *zctx_new_or_die (void) G_GNUC_WARN_UNUSED_RESULT;
+
+/**
+ * @brief Return a new ZeroMQ socket, or die in the attempt.
+ *
+ * Return a new ZeroMQ socket, or die in the attempt.  If it can't
+ * be done, log a fatal error and quit.
+ *
+ * @param ctx  a ZeroMQ context
+ * @param type a ZeroMQ socket type, e.g. ZMQ_ROUTER
+ * @return a ZeroMQ socket, to be freed by caller
+ */
+G_GNUC_INTERNAL
+void *zsocket_new_or_die(zctx_t *ctx, int type) G_GNUC_WARN_UNUSED_RESULT;
+
+/**
+ * @brief Return a new CZMQ loop, or die in the attempt.
+ *
+ * Return a new CZMQ loop, or die in the attempt.  If it can't
+ * be done, log a fatal error and quit.
+ *
+ * @return a CZMQ socket, to be freed by caller
+ */
+G_GNUC_INTERNAL
+zloop_t *zloop_new_or_die(void) G_GNUC_WARN_UNUSED_RESULT;
 
 #endif  /* LIB_H */
 
