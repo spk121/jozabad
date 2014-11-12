@@ -35,4 +35,5 @@ typedef enum {
 int iodir_validate(iodir_t x);
 const char *iodir_name(iodir_t x);
 gboolean iodir_incoming_calls_allowed(iodir_t I);
+gboolean iodir_outgoing_calls_allowed(iodir_t I);
 #endif

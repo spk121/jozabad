@@ -82,12 +82,12 @@ workers_table_destroy(workers_table_t **p_workers_table)
 
 void
 workers_table_foreach(workers_table_t *workers_table,
-		      void func(gint key, worker_t *worker, gpointer user_data),
-		      gpointer user_data)
+                      void func(gint key, worker_t *worker, gpointer user_data),
+                      gpointer user_data)
 {
-   foreach_method = func;
-   g_hash_table_foreach(workers_table, s_foreach_func_, user_data);   
-   foreach_method = NULL;
+    foreach_method = func;
+    g_hash_table_foreach(workers_table, s_foreach_func_, user_data);
+    foreach_method = NULL;
 }
 
 gboolean
@@ -110,8 +110,8 @@ workers_table_lookup_by_address(workers_table_t *workers_table, const char *addr
 
 worker_t *
 workers_table_add_new_worker(workers_table_t *workers_table, gint key,
-			     zframe_t *zaddr, const char *address,
-			     const char *hostname, iodir_t iodir)
+                             zframe_t *zaddr, const char *address,
+                             const char *hostname, iodir_t iodir)
 {
     worker_t *new_worker = worker_create(zaddr, address, hostname, iodir);
     if (new_worker) {
@@ -125,7 +125,7 @@ worker_t *
 workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
 {
     return (worker_t *) g_hash_table_lookup (workers_table,
-					     GINT_TO_POINTER(key));
+            GINT_TO_POINTER(key));
 }
 
 static gboolean s_is_other_(G_GNUC_UNUSED gpointer packed_key, gpointer value,
@@ -171,7 +171,8 @@ s_add_directory_entry_to_zhash_ (gpointer packed_key G_GNUC_UNUSED,
 
 zhash_t *
 workers_table_create_directory_zhash(workers_table_t *workers_table)
-{    zhash_t  *dir       = zhash_new();
+{
+    zhash_t  *dir       = zhash_new();
 
     // Fill a hash table with the current directory information
     g_hash_table_foreach (workers_table, s_add_directory_entry_to_zhash_, dir);
@@ -186,7 +187,7 @@ s_dump_func_(gpointer packed_key G_GNUC_UNUSED,
     // gint K = GPOINTER_TO_INT(packed_key);
     worker_t *W = value;
     g_print("address %s, hostname %s, lcn %d, role %d\n",
-	    W->address, W->hostname, W->lcn, W->role);
+            W->address, W->hostname, W->lcn, W->role);
 }
 
 void

@@ -123,6 +123,11 @@ gboolean worker_is_allowed_incoming_call(const worker_t *W)
     return iodir_incoming_calls_allowed (W->iodir);
 }
 
+gboolean worker_is_allowed_outgoing_call(const worker_t *W)
+{
+    return iodir_incoming_calls_allowed (W->iodir);
+}
+
 gboolean worker_is_available_for_call(const worker_t *W)
 {
     return worker_is_allowed_incoming_call(W) && W->role == _READY;

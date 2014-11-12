@@ -3,11 +3,19 @@
 CFLAGS = -Isrc -std=c11 -g -O0 -Wall -Wextra \
 	-rdynamic $(OPTFLAGS) \
 	`pkg-config glib-2.0 libczmq libzmq --cflags` \
-	-fdata-sections -ffunction-sections
+	-fdiagnostics-color=always
 LIBS = -ldl -lm $(OPTLIBS) \
 	`pkg-config glib-2.0 libczmq libzmq --libs` \
-	-Wl,-L/usr/local/lib -Wl,--gc-sections -Wl,--print-gc-sections
+	-Wl,-L/usr/local/lib 
 PREFIX ?=/usr/local
+
+# GCOV
+CFLAGS += -fprofile-arcs -ftest-coverage
+LIBS += -fprofile-arcs -ftest-coverage
+
+# REMOVE UNUSED PROCEDURES
+#CFLAGS += -fdata-sections -ffunction-sections
+#LIBS += -Wl,--gc-sections -Wl,--print-gc-sections
 
 HEADERS=$(wildcard src/*.h)
 GCH=$(patsubst %.h,%.gch,$(HEADERS))

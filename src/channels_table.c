@@ -54,8 +54,8 @@ channels_table_find_free_lcn(channels_table_t *channels_table, lcn_t lcn)
         lcn ++;
         if (lcn > LCN_MAX)
             lcn = LCN_MIN;
-   }
-   return lcn;
+    }
+    return lcn;
 }
 
 gboolean
@@ -65,8 +65,8 @@ channels_table_is_full(channels_table_t *channels_table)
 }
 
 channel_t *
-  channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
-                                 zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput)
+channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
+                               zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput)
 {
     // g_print("Before adding new channel\n");
     // channels_table_dump(channels_table);
@@ -87,12 +87,12 @@ s_lookup_by_lcn_(gpointer key, gpointer value, gpointer data)
 }
 
 channel_t *
-  channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn)
+channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn)
 {
 #if 0
     return g_hash_table_lookup(channels_table, &lcn);
 #else
-   return g_hash_table_find(channels_table, s_lookup_by_lcn_, &lcn);   
+    return g_hash_table_find(channels_table, s_lookup_by_lcn_, &lcn);
 #endif
 }
 
@@ -102,16 +102,16 @@ channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn)
 #if 0
     g_hash_table_remove(channels_table, &lcn);
 #else
-   g_hash_table_foreach_remove(channels_table, s_lookup_by_lcn_, &lcn);   
+    g_hash_table_foreach_remove(channels_table, s_lookup_by_lcn_, &lcn);
 #endif
 }
 
 void
 channels_table_foreach(channels_table_t *channels_table, void func(channel_t *worker, gpointer user_data), gpointer user_data)
 {
-   foreach_method = func;
-   g_hash_table_foreach(channels_table, s_foreach_func_, user_data);   
-   foreach_method = NULL;
+    foreach_method = func;
+    g_hash_table_foreach(channels_table, s_foreach_func_, user_data);
+    foreach_method = NULL;
 }
 
 static void

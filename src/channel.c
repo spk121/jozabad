@@ -77,7 +77,7 @@ channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr,
     g_message("creating channel #%d %s/%s - packet = %d, window = %d, tput %d", c->lcn, xname, yname, packet_bytes(pkt),
               window, tput_bps(tput));
     g_debug("%s(xzaddr = %p, xname = %s, yzaddr = %p, yname = %s, pkt = %d, window = %d, tput = %d) returns %p",
-              __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, (void *)c);
+            __FUNCTION__, (void *) xzaddr, xname, (void *) yzaddr, yname, pkt, window, tput, (void *)c);
 
     return c;
 }
@@ -189,6 +189,7 @@ static state_t do_i_clear_request(void *sock, zframe_t *self_zaddr, zframe_t *ot
     else if (joza_msg_diagnostic(M) != d_worker_originated)
         diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_invalid_diagnostic);
     else {
+
         joza_msg_send_addr_clear_request(sock, other_zaddr, c_worker_originated, d_worker_originated);
         return STATE_CLEAR_REQUEST(is_y);
     }
@@ -243,9 +244,7 @@ static void do_i_rr(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, joz
 {
     seq_t pr = joza_msg_pr(M);
 
-    if (pr > SEQ_MAX)
-        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_pr_too_large);
-    else if (!seq_in_range(pr, *self_pr, other_ps))
+    if (!seq_in_range(pr, *self_pr, other_ps))
         diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_pr_invalid_window_update);
     else {
         joza_msg_send_addr_rr (sock, other_zaddr, pr);
@@ -262,9 +261,7 @@ static void do_i_rnr(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr, jo
 
     // First, check if the message is valid
 
-    if (pr > SEQ_MAX)
-        diagnostic(sock, self_zaddr, NULL, c_malformed_message, d_pr_too_large);
-    else if (!seq_in_range(pr, *self_pr, other_ps))
+    if (!seq_in_range(pr, *self_pr, other_ps))
         diagnostic(sock, self_zaddr, NULL, c_local_procedure_error, d_pr_invalid_window_update);
     else {
         joza_msg_send_addr_rnr (sock, other_zaddr, pr);
@@ -407,6 +404,24 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
     if (state_orig != state)
         g_message("%s/%s after %s state is now %s", channel->xname, channel->yname,
                   action_name(a), state_name(state));
+
+    // FIXME: entering state_{x,y}_reset_request initiates 60s time-out timer T12, which
+    // is the timer waiting for a reset to be confirmed.
+
+    // FIXME: entering state_{x,y}_clear_request initiates 60s time-out timer T13, which
+    // is the timer waiting for a clear to be confirmed.
+
+    // FIXME: leaving state_x_call_request cancels 180s time-out timer T11, which it the timer
+    // waiting for a call to be accepted.
+    if (state_orig == state_x_call_request && state != state_x_call_request)
+        // Clear timer T11
+        ;
+
+    // FIXME: leaving state_{x,y}_reset_request cancels 60s time-out timer T12, which is the
+    // timer waiting for a reset to be confirmed.
+
+    // FIXME: leaving state_{x,y}_clear_request cancels 60s time-out timer T13, which is the
+    // timer waiting for a clear request to be confirmed.
     return state;
 }
 

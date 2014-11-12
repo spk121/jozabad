@@ -53,6 +53,7 @@ lcn_t worker_get_lcn(const worker_t *W);
 role_t worker_get_role(const worker_t *W) G_GNUC_CONST;
 zframe_t *worker_get_zaddr(const worker_t *W);
 gboolean worker_is_allowed_incoming_call(const worker_t *W);
+gboolean worker_is_allowed_outgoing_call(const worker_t *W);
 gboolean worker_is_available_for_call(const worker_t *W);
 gboolean worker_is_x_caller(const worker_t *W);
 void worker_set_lcn(worker_t *W, lcn_t L);

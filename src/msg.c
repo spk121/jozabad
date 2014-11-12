@@ -1,7 +1,7 @@
 /*
     msg.c - helper functions for message passing
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -70,16 +70,17 @@ diag_t prevalidate_message (joza_msg_t *msg)
 
     int id = joza_msg_const_id (msg);
     if (id == JOZA_MSG_DATA) {
-        // byte q = joza_msg_const_q(msg);
-        ;
+        q_t q = joza_msg_const_q(msg);
+        if (q > Q_MAX)
+            ret = d_invalid_q_too_large;
     }
     if (id == JOZA_MSG_DATA || id == JOZA_MSG_RR || id == JOZA_MSG_RNR) {
-        uint16_t pr = joza_msg_const_pr(msg);
+        seq_t pr = joza_msg_const_pr(msg);
         if (pr > SEQ_MAX)
             ret = d_pr_too_large;
     }
     if (id == JOZA_MSG_DATA) {
-        uint16_t ps = joza_msg_const_ps(msg);
+        seq_t ps = joza_msg_const_ps(msg);
         if (ps > SEQ_MAX)
             ret = d_ps_too_large;
     }

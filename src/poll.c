@@ -48,43 +48,43 @@ static int s_process_(joza_msg_t *msg, void *sock,
                       workers_table_t *workers_table,
                       channels_table_t *channels_table);
 static void s_process_msg_from_known_worker(worker_t *worker,
-                                            joza_msg_t *msg, void *sock, gint key,
-                                            workers_table_t *workers_table,
-                                            channels_table_t *channels_table);
+        joza_msg_t *msg, void *sock, gint key,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table);
 static void s_process_msg_from_connected_worker(worker_t *worker,
-                                                joza_msg_t *msg, void *sock,
-                                                workers_table_t *workers_table,
-                                                channels_table_t *channels_table);
+        joza_msg_t *msg, void *sock,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table);
 static void s_process_msg_from_unconnected_worker(worker_t *worker,
-                                            joza_msg_t *msg, void *sock,
-                                            gint key,
-                                            workers_table_t *workers_table,
-                                                  channels_table_t *channels_table);
+        joza_msg_t *msg, void *sock,
+        gint key,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table);
 static void s_process_msg_from_unknown_worker(joza_msg_t *msg, void *sock,
-                                              gint key,
-                                              workers_table_t *workers_table);
+        gint key,
+        workers_table_t *workers_table);
 static void
 s_process_call_request_from_unconnected_worker(worker_t *worker,
-                                               joza_msg_t *msg, void *sock,
-                                               workers_table_t *workers_table,
-                                               channels_table_t *channels_table);
+        joza_msg_t *msg, void *sock,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table);
 static int s_ping_(zloop_t *loop, zmq_pollitem_t *item, void *arg);
 static void s_disconnect_idle_channel_(void *sock, worker_t *worker,
                                        workers_table_t *workers_table,
                                        channels_table_t *channels_table);
 
 // This signal handler shuts down the main loop
-void
+static void
 catch_signal (int sig)
 {
     shutdown_now = 1;
     signal (sig, catch_signal);
 }
 
-
-
-static void do_directory_request(void *sock, const zframe_t *zaddr,
-                                 workers_table_t *workers_table)
+static void
+s_process_directory_request_from_unconnected_worker(void *sock,
+        const zframe_t *zaddr,
+        workers_table_t *workers_table)
 {
     // Fill a hash table with the current directory information
     zhash_t *dir = workers_table_create_directory_zhash(workers_table);
@@ -201,10 +201,10 @@ static int s_process_(joza_msg_t *msg, void *sock,
 }
 
 static void s_process_msg_from_known_worker(worker_t *worker,
-                                            joza_msg_t *msg, void *sock,
-                                            gint key,
-                                            workers_table_t *workers_table,
-                                            channels_table_t *channels_table)
+        joza_msg_t *msg, void *sock,
+        gint key,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table)
 {
     worker_update_atime(worker);
 
@@ -265,21 +265,23 @@ s_process_msg_from_connected_worker(worker_t *worker,
 }
 
 static void s_process_msg_from_unconnected_worker(worker_t *worker,
-                                            joza_msg_t *msg, void *sock,
-                                            gint key,
-                                            workers_table_t *workers_table,
-                                            channels_table_t *channels_table)
+        joza_msg_t *msg, void *sock,
+        gint key,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table)
 {
     // If this worker is known, but, not part of a call, we handle it
     // here because it involves the whole channel store.
-    if (joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) {
+    if ((joza_msg_const_id(msg) == JOZA_MSG_CALL_REQUEST) && !shutdown_now) {
         s_process_call_request_from_unconnected_worker(worker, msg, sock,
-                                                       workers_table,
-                                                       channels_table);
-    } else if (joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST) {
+                workers_table,
+                channels_table);
+    } else if ((joza_msg_const_id(msg) == JOZA_MSG_DIRECTORY_REQUEST)
+               && !shutdown_now) {
         // send directory request back to worker
-        do_directory_request(sock, joza_msg_const_address(msg),
-                             workers_table);
+        s_process_directory_request_from_unconnected_worker(sock,
+                joza_msg_const_address(msg),
+                workers_table);
     } else if (joza_msg_const_id(msg) == JOZA_MSG_DISCONNECT) {
         // remove the worker
         workers_table_remove_by_key(workers_table, key);
@@ -288,20 +290,30 @@ static void s_process_msg_from_unconnected_worker(worker_t *worker,
 
 static void
 s_process_call_request_from_unconnected_worker(worker_t *worker,
-                                               joza_msg_t *msg, void *sock,
-                                               workers_table_t *workers_table,
-                                               channels_table_t *channels_table)
+        joza_msg_t *msg, void *sock,
+        workers_table_t *workers_table,
+        channels_table_t *channels_table)
 {
-    worker_t *other;
-
     if (channels_table_is_full(channels_table))
-        // send busy diagnostic
-        ;
-    else {
+        diagnostic(sock, joza_msg_const_address(msg), NULL,
+                   c_network_congestion, d_no_channels_available);
+    else if (!worker_is_allowed_outgoing_call (worker)) {
+        diagnostic (sock, joza_msg_const_addres(msg), NULL,
+                    c_access_barred, d_output_barred);
+    } else {
+        worker_t *other;
+
         other = workers_table_lookup_by_address(workers_table,
                                                 joza_msg_called_address(msg));
         if (other == NULL) {
-            // send can't find diagnostic
+            diagnostic (sock, joza_msg_const_addres(msg), NULL,
+                        c_unknown_address, d_unknown_worker_address);
+        } else if (!worker_is_allowed_incoming_call (other)) {
+            diagnostic(sock, joza_msg_const_address(msg), NULL,
+                       c_access_barred, d_input_barred);
+        } else if (!worker_is_available_for_call (worker)) {
+            diagnostic(sock, joza_msg_const_address(msg), NULL,
+                       c_number_busy, d_number_busy);
         } else {
             // Find an unused logical channel number (aka hash
             // table key) for the new channel.
@@ -328,13 +340,21 @@ s_process_call_request_from_unconnected_worker(worker_t *worker,
                                              joza_msg_window(msg),
                                              joza_msg_throughput(msg),
                                              joza_msg_data(msg));
+            // FIXME: Set time-limit T11, which is the maximum time this
+            // channel will wait for a CALL_ACCEPTED or CLEAR_REQUST,
+            // before it considers it a procedure error and clears the
+            // virtual call.
+
+            // NOTE: There is also time-limit T21 which is the maximum
+            // time that the channel has to send out the CALL_ACCEPTED
+            // back to peer X.
         }
     }
 }
 
 static void s_process_msg_from_unknown_worker(joza_msg_t *msg, void *sock,
-                                              gint key,
-                                              workers_table_t *workers_table)
+        gint key,
+        workers_table_t *workers_table)
 {
 
     // If this worker is heretofore unknown, we handle it here.  The
@@ -345,20 +365,20 @@ static void s_process_msg_from_unknown_worker(joza_msg_t *msg, void *sock,
                   joza_msg_const_command(msg),
                   joza_msg_const_calling_address(msg));
         if (workers_table_is_full(workers_table)) {
-            diagnostic(sock,
-                       joza_msg_const_address(msg),
-                       NULL,
-                       c_network_congestion,
-                       d_no_connections_available);
+            diagnostic(sock, joza_msg_const_address(msg), NULL,
+                       c_network_congestion, d_no_connections_available);
             g_warning("cannot add new worker. No free worker slots");
+        } else if (workers_table_lookup_by_address (workers_table, joza_msg_calling_address (msg)) == NULL) {
+            diagnostic(sock, joza_msg_const_address(msg), NULL,
+                       c_address_in_use, d_address_in_use);
         } else {
             worker_t *new_worker;
             new_worker = workers_table_add_new_worker(workers_table,
-                                                      key,
-                                                      joza_msg_address(msg),
-                                                      joza_msg_calling_address(msg),
-                                                      joza_msg_host_name(msg),
-                                                      (iodir_t) joza_msg_directionality(msg));
+                         key,
+                         joza_msg_address(msg),
+                         joza_msg_calling_address(msg),
+                         joza_msg_host_name(msg),
+                         (iodir_t) joza_msg_directionality(msg));
             if (new_worker) {
                 const zframe_t *addr = joza_msg_const_address(msg);
                 joza_msg_send_addr_connect_indication(sock, addr);
@@ -394,8 +414,7 @@ static gboolean s_ping_worker_(void *packed_key G_GNUC_UNUSED,
                       idle_time);
             // delete worker
             return TRUE;
-        }
-        else {
+        } else {
             // send a disconnect to the channel on behalf of the worker.
             g_message("disconnecting worker %s: %" PRId64 " ms since last access",
                       worker_get_address(worker),
@@ -404,8 +423,7 @@ static gboolean s_ping_worker_(void *packed_key G_GNUC_UNUSED,
                                        poll->workers_table,
                                        poll->channels_table);
         }
-    }
-    else if (idle_time > POLL_WORKER_PING_TIMER) {
+    } else if (idle_time > POLL_WORKER_PING_TIMER) {
         g_message("pinging worker %s", worker_get_address(worker));
         joza_msg_send_addr_enq(poll->sock, worker_get_zaddr(worker));
     }

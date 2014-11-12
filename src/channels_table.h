@@ -30,22 +30,22 @@
 typedef GHashTable channels_table_t;
 
 channels_table_t *
-  channels_table_create(void);
+channels_table_create(void);
 void
-  channels_table_destroy(channels_table_t **p_channels_table);
+channels_table_destroy(channels_table_t **p_channels_table);
 lcn_t
-  channels_table_find_free_lcn(channels_table_t *channels_table, lcn_t last_lcn);
+channels_table_find_free_lcn(channels_table_t *channels_table, lcn_t last_lcn);
 gboolean
-  channels_table_is_full(channels_table_t *channels_table);
+channels_table_is_full(channels_table_t *channels_table);
 channel_t *
-  channels_table_add_new_channel(channels_table_t *channel_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
-                                 zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput);
+channels_table_add_new_channel(channels_table_t *channel_table, gint lcn, zframe_t *xzaddr, const char *xaddress,
+                               zframe_t *yzaddr, const char *yaddress, packet_t pkt, lcn_t window, tput_t tput);
 channel_t *
-  channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn);
+channels_table_lookup_by_lcn(channels_table_t *channels_table, gint lcn);
 void
-  channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn);
+channels_table_remove_by_lcn(channels_table_t *channels_table, gint lcn);
 void
-  channels_table_foreach(channels_table_t *channels_table, void func(channel_t *worker, gpointer user_data), gpointer user_data);
+channels_table_foreach(channels_table_t *channels_table, void func(channel_t *worker, gpointer user_data), gpointer user_data);
 void
 channels_table_dump(channels_table_t *channels_table);
 
