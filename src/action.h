@@ -22,7 +22,7 @@
 
 /**
  * @file action.h
- * @author Mike Gran
+ * @brief List of actions that a broker may take
  *
  * When the broker receives a message from a worker, it
  * performs an action.  This is the list of actions.

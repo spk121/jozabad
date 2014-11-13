@@ -22,9 +22,7 @@
 
 /**
  * @file channel.h
- * @author Mike Gran
- *
- * A channel is a stateful connection between two workers.
+ * @brief A stateful connection between two workers
  */
 
 #ifndef JOZA_CHANNEL_H

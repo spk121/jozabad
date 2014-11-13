@@ -41,14 +41,29 @@
 size_t intlen(int x);
 char *cstrdup (const char *s);
 
-#if __GLIBC__ == 2
-// This can be removed once Annex K hits GNU libc
+
+/**
+ * @brief A safer string length function
+ *
+ * @param s  A null-terminated string
+ * @param maxsize  A the maximum length of the string
+ * @return the lesser of the string length or @p maxsize
+ */
 size_t strnlen_s (const char *s, size_t maxsize);
-#endif
 
 //----------------------------------------------------------------------------
 // ASCII-STYLE NAMES
 //----------------------------------------------------------------------------
+/**
+ * @brief TRUE if a string contains the safe ASCII subset of characters
+ *
+ * The initial and terminal non-NULL character must be ASCII
+ * alphanumeric or "%&+,.:=_" Middle character can also be SPACE.
+ *
+ * @param mem  A buffer of 8-bit characters
+ * @param n  The number of bytes in the buffer
+ * @return TRUE if the buffer contains the allowed ASCII characters
+ */
 gboolean safeascii(const char *mem, size_t n);
 
 //----------------------------------------------------------------------------

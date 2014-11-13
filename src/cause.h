@@ -22,9 +22,10 @@
 
 /**
  * @file cause.h
- * @author Mike Gran
+ * @brief List of error categories for diagnostic messages
  *
- * The list of error categories for diagnostic messages.
+ * Diagnostic messages have a general 'cause' and a more specific
+ * 'diagnostic'.
  */
 
 #ifndef JOZA_CAUSE_H
