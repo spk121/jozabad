@@ -1,7 +1,7 @@
 /*
   worker.c - connected peers
 
-  Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+  Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
   This file is part of Jozabad.
 
@@ -93,16 +93,6 @@ gint64 worker_get_atime(const worker_t *W)
     return W->atime;
 }
 
-const char *worker_get_hostname(const worker_t *W)
-{
-    return W->hostname;
-}
-
-const char *worker_get_iodir_str(const worker_t *W)
-{
-    return iodir_name(W->iodir);
-}
-
 lcn_t worker_get_lcn(const worker_t *W)
 {
     return W->lcn;
@@ -136,18 +126,6 @@ gboolean worker_is_available_for_call(const worker_t *W)
 gboolean worker_is_x_caller(const worker_t *W)
 {
     return W->role == X_CALLER;
-}
-
-void worker_set_lcn(worker_t *W, lcn_t L)
-{
-    worker_update_mtime(W);
-    W->lcn = L;
-}
-
-void worker_set_role(worker_t *W, role_t R)
-{
-    worker_update_mtime(W);
-    W->role = R;
 }
 
 void worker_set_role_to_ready(worker_t *W)

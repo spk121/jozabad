@@ -148,7 +148,7 @@ diag_t prevalidate_message (joza_msg_t *msg)
     }
     if (id == JOZA_MSG_CONNECT) {
         byte directionality = joza_msg_const_directionality(msg);
-        if (iodir_validate(directionality) == 0)
+        if (iodir_validate(directionality) == FALSE)
             ret = d_invalid_directionality_facility;
     }
     if (id == JOZA_MSG_DIRECTORY) {

@@ -26,8 +26,6 @@
 
 #define WORKER_REMOVAL_TIMEOUT (30*1000)  // milliseconds
 
-static void (*foreach_method)(gint key, worker_t *worker, gpointer user_data);
-
 // Used in a hash-table iterator to find a worker who's address
 // matches the string in USER_DATA.
 static gboolean
@@ -59,14 +57,6 @@ s_cull_dead_worker_(gpointer packed_key G_GNUC_UNUSED, gpointer value,
     return FALSE;
 }
 
-static void
-s_foreach_func_(gpointer packed_key, gpointer value, gpointer user_data)
-{
-    gint key = GPOINTER_TO_INT(packed_key);
-    worker_t *worker = value;
-    foreach_method(key, worker, user_data);
-}
-
 workers_table_t *
 workers_table_create()
 {
@@ -78,16 +68,6 @@ workers_table_destroy(workers_table_t **p_workers_table)
 {
     g_hash_table_destroy(*p_workers_table);
     p_workers_table = NULL;
-}
-
-void
-workers_table_foreach(workers_table_t *workers_table,
-                      void func(gint key, worker_t *worker, gpointer user_data),
-                      gpointer user_data)
-{
-    foreach_method = func;
-    g_hash_table_foreach(workers_table, s_foreach_func_, user_data);
-    foreach_method = NULL;
 }
 
 gboolean
@@ -109,7 +89,7 @@ workers_table_lookup_by_address(workers_table_t *workers_table, const char *addr
 }
 
 worker_t *
-workers_table_add_new_worker(workers_table_t *workers_table, gint key,
+workers_table_add_new_worker(workers_table_t *workers_table, wkey_t key,
                              zframe_t *zaddr, const char *address,
                              const char *hostname, iodir_t iodir)
 {
@@ -122,7 +102,7 @@ workers_table_add_new_worker(workers_table_t *workers_table, gint key,
 }
 
 worker_t *
-workers_table_lookup_by_key(workers_table_t *workers_table, gint key)
+workers_table_lookup_by_key(workers_table_t *workers_table, wkey_t key)
 {
     return (worker_t *) g_hash_table_lookup (workers_table,
             GINT_TO_POINTER(key));
@@ -142,19 +122,13 @@ static gboolean s_is_other_(G_GNUC_UNUSED gpointer packed_key, gpointer value,
 worker_t *
 workers_table_lookup_other(workers_table_t *workers_table, worker_t *worker)
 {
-    return g_hash_table_find(workers_table, s_is_other_, worker);
+    return (worker_t *) g_hash_table_find(workers_table, s_is_other_, worker);
 }
 
 void
-workers_table_remove_by_key(workers_table_t *workers_table, gint key)
+workers_table_remove_by_key(workers_table_t *workers_table, wkey_t key)
 {
-    g_hash_table_remove(workers_table, &key);
-}
-
-void
-workers_table_remove_unused(workers_table_t *workers_table)
-{
-    g_hash_table_foreach_remove(workers_table, s_cull_dead_worker_, NULL);
+    g_hash_table_remove(workers_table, GINT_TO_POINTER(key));
 }
 
 static void

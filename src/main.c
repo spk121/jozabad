@@ -70,7 +70,7 @@ int main (int argc, char *argv[])
 
     if (verbose) {
         g_print("port = %d", main_port);
-        g_print("per-channel tput = %s", tput_name(g_tput_threshold));
+        g_print("per-channel tput = %s", tput_name(TPUT_MAX));
     }
 
     s = g_strdup_printf("%s%d", PROTOCOL, main_port);

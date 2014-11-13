@@ -73,33 +73,33 @@ typedef enum {
     d_data_too_short = 33, /**< for c_malformed_message, data packet is empty */
     d_data_too_long = 34, /**< for c_malformed_message, data packet is too big for the channel */
     d_invalid_directionality_facility = 35, /**< for c_malformed_message, the directionality is invalid */
-    
+
     // For c_invalid_facility_request
     d_invalid_packet_facility_negotiation = 36, /**< for c_invalid_facility_request, the packet size negotiation broke the rules */
     d_invalid_window_facility_negotiation = 37, /**< for c_invalid_facility_request, the window size negotiation broke the rules */
     d_invalid_throughput_facility_negotiation = 38, /**< for c_invalid_facility_request, the throughput speed negotiation broke the rules */
     d_invalid_directionality_negotiation = 39, /**< for c_invalid_facility_request, the directionality negotiation broke the rules */
-    
+
     // For c_invalid_forwarding_request
     d_callee_forwarding_not_allowed = 40, /**< for c_invalid_forwarding_request, forwarding not allowed */
     d_caller_forwarding_not_allowed = 41, /**< for c_invalid_forwarding_request, forwarding not allowed */
-    
+
     // For c_access_barred
     d_output_barred = 42, /**< for c_access_barred, sender not allowed to initiate calls */
     d_input_barred = 43, /**< for c_access_barred, receiver not allowed to receive calls */
-    
+
     // for c_address_in_use
     d_reserved_address = 44, /**< for c_address_in_use, the "operator" address is reserved */
     d_address_in_use = 45, /**< for c_address_in_use, the requested name is already in use */
-    
+
     // for c_unknown_address
     d_unknown_worker_address = 46, /**< for c_unknown_address, the callee is not found */
     d_unknown_reserved_address = 47, /**< for c_unknown_address,  the "operator" is not online */
-    
+
     // for c_network_congestion
     d_no_connections_available = 48, /**< for c_network_congestion, too many workers */
     d_no_channels_available = 49, /**< for c_network_congestion, too many channels */
-    
+
     // for procedure errors
     d_invalid_message_for_state_ready = 50, /**< for c_local_procedure_error or c_remote_procedure_error */
     d_invalid_message_for_state_x_call_request = 51, /**< for c_local_procedure_error or c_remote_procedure_error */
@@ -114,11 +114,11 @@ typedef enum {
     d_ps_not_in_window = 60, /**< for c_local_procedure_error or c_remote_procedure_error */
     d_pr_invalid_window_update = 61, /**< for c_local_procedure_error or c_remote_procedure_error */
     d_data_too_long_for_packet_facility = 62, /**< for c_local_procedure_error or c_remote_procedure_error */
-    
+
     // for quota_exceeded
     d_data_rate_exceeded = 63, /**< for c_quota_exceeded, too many bytes-per-second */
     d_message_rate_exceeded = 64, /**< for c_quota_exceeded, too many messages-per-second  */
-    
+
     d_last = d_message_rate_exceeded
 } diag_t;
 

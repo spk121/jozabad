@@ -1,7 +1,7 @@
 /*
     tput.c
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -22,8 +22,6 @@
 
 #include <assert.h>
 #include "tput.h"
-
-tput_t g_tput_threshold = t_last;
 
 static const uint32_t tput_rate[t_last + 1] = {
     0,
@@ -136,21 +134,21 @@ char const *tput_name(tput_t x)
 // Checks to see if, in the context of an CALL_REQUEST negotiation, it
 // is valid to set the throughput from CURRENT to REQUEST.  Returns
 // non-zero if true.
-int tput_negotiate(tput_t request, tput_t current)
+gboolean tput_negotiate(tput_t request, tput_t current)
 {
     assert (tput_rngchk(request) == 0);
     assert (tput_rngchk(current) == 0);
 
     if (request > t_negotiate) {
         if (request <= current)
-            return 1;
+            return TRUE;
         else
-            return 0;
+            return FALSE;
     } else if (request < t_negotiate) {
         if (request >= current)
-            return 1;
+            return TRUE;
         else
-            return 0;
+            return FALSE;
     }
     /* else request == t_negotiate */
     return 1;
@@ -162,7 +160,7 @@ int tput_rngchk(tput_t x)
 {
     if (x < t_75bps)
         return -1;
-    else if (x > t_2048kbps)
+    else if (x > t_2048kbps || x > TPUT_MAX)
         return 1;
     return 0;
 }

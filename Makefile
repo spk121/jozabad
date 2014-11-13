@@ -14,8 +14,8 @@ PREFIX ?=/usr/local
 #LIBS += -fprofile-arcs -ftest-coverage
 
 # REMOVE UNUSED PROCEDURES
-#CFLAGS += -fdata-sections -ffunction-sections
-#LIBS += -Wl,--gc-sections -Wl,--print-gc-sections
+CFLAGS += -fdata-sections -ffunction-sections
+LIBS += -Wl,--gc-sections -Wl,--print-gc-sections
 
 HEADERS=$(wildcard src/*.h)
 GCH=$(patsubst %.h,%.gch,$(HEADERS))

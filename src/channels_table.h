@@ -45,11 +45,6 @@
 typedef GHashTable channels_table_t;
 
 /**
- * @brief The maximum allowed number of simultaneous channels
- */
-#define CHANNEL_COUNT_MAX (100);
-
-/**
  * @brief Create a new empty channels table
  *
  * Allocates a new empty hash table whose key is an integer and whose

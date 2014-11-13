@@ -51,7 +51,7 @@ channels_table_find_free_lcn(channels_table_t *channels_table, lcn_t lcn)
 gboolean
 channels_table_is_full(channels_table_t *channels_table)
 {
-    return g_hash_table_size(channels_table) >= CHANNEL_COUNT_MAX;
+    return g_hash_table_size(channels_table) >= CHAN_COUNT;
 }
 
 channel_t *

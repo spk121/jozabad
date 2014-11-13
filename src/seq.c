@@ -35,8 +35,6 @@ int seq_rngchk(seq_t x)
     return 0;
 }
 
-// To do this comparison, we use double-wide integer types to avoid worrying about
-// numerical overflow.
 gboolean seq_in_range(seq_t x, seq_t lo, seq_t hi)
 {
     if (hi < lo && (x <= hi || x >= lo))

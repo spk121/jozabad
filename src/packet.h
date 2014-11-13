@@ -61,7 +61,14 @@ typedef enum _packet_t {
     p_last = p_4_Kbytes      /**< Largest valid packet size */
 } packet_t;
 
+/**
+ * @brief Converts a packet enum to a byte count
+ *
+ * @param x  A packet enum
+ * @return The number of bytes that @p x represents
+ */
 uint32_t packet_bytes(packet_t x);
+
 int packet_rngchk(packet_t p);
 char const *packet_name(packet_t x);
 int packet_negotiate(packet_t request, packet_t current);
