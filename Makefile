@@ -10,8 +10,8 @@ LIBS = -ldl -lm $(OPTLIBS) \
 PREFIX ?=/usr/local
 
 # GCOV
-CFLAGS += -fprofile-arcs -ftest-coverage
-LIBS += -fprofile-arcs -ftest-coverage
+#CFLAGS += -fprofile-arcs -ftest-coverage
+#LIBS += -fprofile-arcs -ftest-coverage
 
 # REMOVE UNUSED PROCEDURES
 #CFLAGS += -fdata-sections -ffunction-sections

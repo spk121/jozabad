@@ -1,7 +1,7 @@
 /*
     cause.h - general categories of errors
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -20,74 +20,51 @@
 
 */
 
+/**
+ * @file cause.h
+ * @author Mike Gran
+ *
+ * The list of error categories for diagnostic messages.
+ */
+
 #ifndef JOZA_CAUSE_H
 #define JOZA_CAUSE_H
 
 // These are general error categories for DIAGNOSTIC, RESET, and CLEAR
 // messages.
-
+/**
+ * @brief The list of error categories.
+ *
+ * In DIAGNOSTIC, RESET, and CLEAR messages, an error category is supplied
+ * to indicate the reason for the message.
+ */
 typedef enum {
     c_unspecified,
-
-    // CLEAR and RESET messages from workers must have this cause
-    c_worker_originated,
-
-    // As a response to a CALL_REQUEST where the other worker is busy.
-    c_number_busy,
-
-    // As a response to a CALL_REQUEST where the other worker has just
-    // connected to this worker
-    c_call_collision,
-
-    // For any diagnostic sent as a result of a zmq_sendmsg
-    // returning non-zero.
-    c_zmq_sendmsg_err,
-
-    // For any message from a worker that has either
-    // - address strings that don't meet the address format
-    // - integer types that are out of range
-    // - data frames that are too big or too small
-    c_malformed_message,
-
-    // As a response to any facility request negotiation where
-    // a worker is trying to cheat.
-    c_invalid_facility_request,
-
-    // As a response to any fowarding request that can't be processed.
-    c_invalid_forwarding_request,
-
-    // As a response to a CALL_REQUEST to an output-only
-    // channel, or from an input-only channel.
-    c_access_barred,
-
-    // As a response to a CONNECTION request where the desired
-    // address is in used.
-    c_address_in_use,
-
-    // As a response to a CALL_REQUEST where the called address is
-    // unknown
-    c_unknown_address,
-
-    // As a response when
-    // - a CONNECTION request when all worker slots in use
-    // - CALL_REQUEST when all channels are in use
-    c_network_congestion,
-
-    // As a response when
-    // - a worker sends a message that is inappropriate for the current state
-    c_local_procedure_error,
-    c_remote_procedure_error,
-
-    // As a response when
-    // - the broker is
+    c_worker_originated, /**<  CLEAR and RESET messages from workers must have this cause */
+    c_number_busy,       /**< a CALL_REQUEST when the other worker is busy. */
+    c_call_collision,    /**< a CALL_REQUEST where the other worker has just connected to this worker */
+    c_zmq_sendmsg_err,   /**< the underlying zmq_sendmsg returned non-zero */
+    c_malformed_message, /**< for any message that has out of range or malformed fields */
+    c_invalid_facility_request, /**< a facility negotiation where a worker is trying to cheat */
+    c_invalid_forwarding_request, /**< a forwarding request that can't be processed */
+    c_access_barred,     /**< a CALL_REQUEST to an output-only or from an input-only channel. */
+    c_address_in_use,    /**< a CONNECTION request where the desired address is in use */
+    c_unknown_address,    /**< a CALL_REQUEST where the called address is unknown */
+    c_network_congestion, /**< no available worker slots or channels */
+    c_local_procedure_error, /**< worker sends inapproprate message for the channel state */
+    c_remote_procedure_error, /**< other worker sent inappropriate message for the channel state */
     c_broker_shutdown,
-
-    // When the broker shuts down a worker for sending data too quickly
-    c_quota_exceeded,
+    c_quota_exceeded,    /**< when a broker shuts down a worker or channel for too much data */
 } cause_t;
 
 #define CAUSE_MAX (c_quota_exceeded)
 
+/**
+ * @brief Returns a string reprentation of a cause.
+ *
+ * @param C an cause
+ * @return A null-terminated string. Do not free.
+ */
 const char *cause_name(cause_t c);
 
 #endif

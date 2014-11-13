@@ -22,6 +22,7 @@
 
 #include <glib.h>
 #include "channels_table.h"
+#include "lib.h"
 
 #define CHANNEL_COUNT_MAX (100);
 
@@ -79,7 +80,7 @@ channels_table_add_new_channel(channels_table_t *channels_table, gint lcn, zfram
 }
 
 static gboolean
-s_lookup_by_lcn_(gpointer key, gpointer value, gpointer data)
+s_lookup_by_lcn_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer data)
 {
     channel_t *C = value;
     gint L = *((gint *)data);
@@ -115,9 +116,8 @@ channels_table_foreach(channels_table_t *channels_table, void func(channel_t *wo
 }
 
 static void
-s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data)
+s_dump_func_(gpointer key G_GNUC_UNUSED, gpointer value, gpointer user_data G_GNUC_UNUSED)
 {
-    gint K = *(gint *)key;
     channel_t *C = value;
     gchar *ctime_str = monotonic_time_to_string(C->ctime);
     gchar *mtime_str = monotonic_time_to_string(C->mtime);

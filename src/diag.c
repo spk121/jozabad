@@ -1,7 +1,7 @@
 /*
     diag.c - diagnostics for diagnostic messages
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -63,6 +63,7 @@ static const char diag_names[65][45] = {
     "D_INVALID_DIRECTIONAL_FACILITY",
     "D_INVALID_PACKET_FACILITY_NEGOTIATION",
     "D_INVALID_WINDOW_FACILITY_NEGOTIATION",
+    "D_INVALID_THROUGHPUT_FACILITY_NEGOTIATION",
     "D_INVALID_DIRECTIONALITY_NEGOTIATION",
     /* 40 */ "D_CALLEE_FORWARDING_NOT_ALLOWED",
     "D_CALLER_FORWARDING_NOT_ALLOWED",
@@ -113,5 +114,5 @@ diag_t errno2diag()
 
 const char *diag_name(diag_t D)
 {
-    return &(diag_names[D][0]);
+    return diag_names[D];
 }

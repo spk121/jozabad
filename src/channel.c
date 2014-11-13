@@ -413,15 +413,19 @@ state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_
 
     // FIXME: leaving state_x_call_request cancels 180s time-out timer T11, which it the timer
     // waiting for a call to be accepted.
-    if (state_orig == state_x_call_request && state != state_x_call_request)
+    if (state_orig == state_x_call_request && state != state_x_call_request) {
         // Clear timer T11
         ;
+    }
 
     // FIXME: leaving state_{x,y}_reset_request cancels 60s time-out timer T12, which is the
     // timer waiting for a reset to be confirmed.
 
     // FIXME: leaving state_{x,y}_clear_request cancels 60s time-out timer T13, which is the
     // timer waiting for a clear request to be confirmed.
+
+    channel->state = state;
+
     return state;
 }
 

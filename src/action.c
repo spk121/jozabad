@@ -1,7 +1,7 @@
 /*
     action.c - state machine action table
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -399,16 +399,16 @@ char const *action_name(action_t a)
     return action_names[a];
 }
 
-action_t action_get(int s, int msg_id, int is_y)
+action_t action_get(state_t state, int msg_id, gboolean is_y)
 {
     action_t a;
 
     assert (msg_id < ACTION_MESSAGE_COUNT);
-    assert (s < ACTION_STATE_COUNT);
+    assert (state < ACTION_STATE_COUNT);
 
     if (is_y)
-        a = y_action_table[s][msg_id];
+        a = y_action_table[state][msg_id];
     else
-        a = x_action_table[s][msg_id];
+        a = x_action_table[state][msg_id];
     return a;
 }

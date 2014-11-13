@@ -71,8 +71,8 @@ typedef uint8_t q_t;
 // hundred packets  in transit  "on the wire"  between one  worker and
 // another
 #define SEQ_C(x) UINT16_C(x)
-#define SEQ_MIN UINT16_C(0)
-#define SEQ_MAX (UINT16_MAX/2)
+#define SEQ_MIN (SEQ_C(0))
+#define SEQ_MAX (SEQ_C(8))
 typedef uint16_t seq_t;
 
 // WINDOWS - The delta between two non-identical SEQUENCE numbers

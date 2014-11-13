@@ -228,6 +228,14 @@ static void s_process_msg_from_known_worker(worker_t *worker,
     }
 }
 
+static void s_remove_channel (worker_t *worker, worker_t *other, channels_table_t *channels_table)
+{
+    channels_table_remove_by_lcn(channels_table,
+                                 worker_get_lcn(worker));
+    worker_set_role_to_ready(worker);
+    worker_set_role_to_ready(other);
+}
+
 static void
 s_process_msg_from_connected_worker(worker_t *worker,
                                     joza_msg_t *msg, void *sock,
@@ -236,7 +244,6 @@ s_process_msg_from_connected_worker(worker_t *worker,
 {
     channel_t *channel;
     worker_t *other;
-    state_t state;
 
     // If this worker is connected and part of a virtual call,
     // the call's state machine processes the message.
@@ -248,19 +255,15 @@ s_process_msg_from_connected_worker(worker_t *worker,
     g_return_val_if_fail(other != NULL, 0);
 
     if (worker_is_x_caller(worker))
-        state = channel_dispatch(channel, sock, msg, 0);
+        channel_dispatch(channel, sock, msg, 0);
     else
-        state = channel_dispatch(channel, sock, msg, 1);
-    channel_set_state(channel, state);
+        channel_dispatch(channel, sock, msg, 1);
 
     if (channel_is_closed(channel)) {
         // This channel is no longer connected; remove it.
         g_message("removing channel %s/%s because it is closed",
                   channel->xname, channel->yname);
-        channels_table_remove_by_lcn(channels_table,
-                                     worker_get_lcn(worker));
-        worker_set_role_to_ready(worker);
-        worker_set_role_to_ready(other);
+        s_remove_channel (channel, other, channels_table);
     }
 }
 
@@ -298,7 +301,7 @@ s_process_call_request_from_unconnected_worker(worker_t *worker,
         diagnostic(sock, joza_msg_const_address(msg), NULL,
                    c_network_congestion, d_no_channels_available);
     else if (!worker_is_allowed_outgoing_call (worker)) {
-        diagnostic (sock, joza_msg_const_addres(msg), NULL,
+        diagnostic (sock, joza_msg_const_address(msg), NULL,
                     c_access_barred, d_output_barred);
     } else {
         worker_t *other;
@@ -306,7 +309,7 @@ s_process_call_request_from_unconnected_worker(worker_t *worker,
         other = workers_table_lookup_by_address(workers_table,
                                                 joza_msg_called_address(msg));
         if (other == NULL) {
-            diagnostic (sock, joza_msg_const_addres(msg), NULL,
+            diagnostic (sock, joza_msg_const_address(msg), NULL,
                         c_unknown_address, d_unknown_worker_address);
         } else if (!worker_is_allowed_incoming_call (other)) {
             diagnostic(sock, joza_msg_const_address(msg), NULL,
@@ -368,7 +371,7 @@ static void s_process_msg_from_unknown_worker(joza_msg_t *msg, void *sock,
             diagnostic(sock, joza_msg_const_address(msg), NULL,
                        c_network_congestion, d_no_connections_available);
             g_warning("cannot add new worker. No free worker slots");
-        } else if (workers_table_lookup_by_address (workers_table, joza_msg_calling_address (msg)) == NULL) {
+        } else if (workers_table_lookup_by_address (workers_table, joza_msg_calling_address (msg)) != NULL) {
             diagnostic(sock, joza_msg_const_address(msg), NULL,
                        c_address_in_use, d_address_in_use);
         } else {
@@ -438,7 +441,6 @@ static void s_disconnect_idle_channel_(void *sock, worker_t *worker,
 {
     channel_t *channel;
     joza_msg_t *disconnect_msg;
-    state_t state;
 
     // send a disconnect to the channel on behalf of the worker.
     channel = channels_table_lookup_by_lcn(channels_table,
@@ -446,19 +448,16 @@ static void s_disconnect_idle_channel_(void *sock, worker_t *worker,
     // create disconnect message
     disconnect_msg = joza_msg_new(JOZA_MSG_DISCONNECT);
     if (worker_is_x_caller(worker))
-        state = channel_dispatch(channel, sock, disconnect_msg, 0);
+        channel_dispatch(channel, sock, disconnect_msg, 0);
     else
-        state = channel_dispatch(channel, sock, disconnect_msg, 1);
-    channel_set_state (channel, state);
+        channel_dispatch(channel, sock, disconnect_msg, 1);
 
     if (channel_is_closed(channel)) {
         worker_t *other;
         other = workers_table_lookup_other(workers_table, worker);
 
-        channels_table_remove_by_lcn(channels_table,
-                                     worker_get_lcn(worker));
-        worker_set_role_to_ready(worker);
-        worker_set_role_to_ready(other);
+        s_remove_channel (channel, other, channels_table);
+
         // reset access timer for worker
         worker_update_atime(worker);
         worker_update_atime(other);

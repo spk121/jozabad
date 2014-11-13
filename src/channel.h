@@ -23,7 +23,6 @@
 /**
  * @file channel.h
  * @author Mike Gran
- * @brief A channel is a connection between two workers
  *
  * A channel is a stateful connection between two workers.
  */
@@ -51,31 +50,77 @@
  */
 typedef struct {
     lcn_t lcn;        /**< Logical Channel Number, a unique key */
-    zframe_t *xzaddr; /**< a ZMQ frame containing a ZMQ router identity for X caller */
-    zframe_t *yzaddr; /**< a ZMQ frame containing a ZMQ router identity for Y callee*/
-    gchar *xname;
-    gchar *yname;
+    zframe_t *xzaddr; /**< a CZMQ frame containing a ZMQ router identity for X caller */
+    zframe_t *yzaddr; /**< a CZMQ frame containing a ZMQ router identity for Y callee */
+    gchar *xname;     /**< a plain-text identifier for X caller */
+    gchar *yname;     /**< a plain-text identifier for Y callee */
     state_t state;    /**< call status */
     seq_t xps;        /**< ID of next packet to be sent by X */
     seq_t xpr;        /**< Smallest packet ID that X will accept from Y */
     seq_t yps;        /**< ID of next packet to be sent by Y */
     seq_t ypr;        /**< Smallest packet ID Y will accept from X */
     seq_t window;     /**< delta between the smallest and largest acceptable ID */
-    packet_t pkt;
+    packet_t pkt;     /**< packet size allowed on this channel */
     tput_t tput;      /**< Throughput allowed for this channel */
     guint64 ctime;    /**< Creation time of the channel in microseconds since 1970 */
     guint64 mtime;    /**< Time of last message from either peer in microseconds since 1970 */
 } channel_t;
 
+/**
+ * @brief Allocates and populates a new channel_t structure
+ *
+ * @param lcn The unique Logical Channel Number for this channel
+ * @param xzaddr  a CZMQ frame containing a ZMQ router identity for X caller
+ * @param xname  a plain-text identifier for X caller
+ * @param yzaddr  a CZMQ frame containing a ZMQ router identity for Y callee
+ * @param yname  a plain-text identifier for Y callee
+ * @param pkt   the negotiated maximum packet size category for this channel
+ * @param window  the delta between the smallest and largest acceptable sequence number
+ * @param tput  the maximum allowed throughput category for this channel
+ * @return An new channel.  Must be freed by the caller.
+ */
+G_GNUC_INTERNAL
+channel_t *channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
+                          packet_t pkt, seq_t window, tput_t tput) G_GNUC_WARN_UNUSED_RESULT;
 
-channel_t *
-channel_create(lcn_t lcn, zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
-               packet_t pkt, seq_t window, tput_t tput);
-lcn_t channel_add(zframe_t *xzaddr, const char *xname, zframe_t *yzaddr, const char *yname,
-                  packet_t pkt, seq_t window, tput_t tput);
-void channel_disconnect_all(void *sock, zframe_t *self_zaddr, zframe_t *other_zaddr);
+/**
+ * @brief Has a channel act on the contents of a message
+ *
+ * This procedure is a dispatcher, calling appropriate actions based
+ * on the state of the channel and the contents of a received message.
+ *
+ * @param channel
+ * @param sock  a ZeroMQ socket
+ * @param M  a joza_msg
+ * @param is_y TRUE if the message is from Y callee.  False if it is from X caller.
+ * @return The resulting state of the channel.
+ */
+G_GNUC_INTERNAL
 state_t channel_dispatch(channel_t *channel, void *sock, joza_msg_t *M, bool is_y);
+
+/**
+ * @brief Sets the state of the channel
+ *
+ * Sometimes, usually as a result of timer time-outs, one might want
+ * to set the channel's state directly.  Normally a channel's state is
+ * modified in the channel_dispatch function.
+ *
+ * @param channel
+ * @param state
+ */
+G_GNUC_INTERNAL
 void channel_set_state(channel_t *channel, state_t state);
+
+/**
+ * @brief Check if a channel is closed
+ *
+ * Before the peers are connected to a channel, or after they are
+ * disconnected, this procedure will return TRUE.  (A closed
+ * channel should be quickly culled from the channels_table.)
+ *
+ * @param channel
+ * @return TRUE if the channel is closed
+ */
 gboolean channel_is_closed(channel_t *channel);
 
 #endif
