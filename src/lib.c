@@ -129,6 +129,8 @@ gboolean safeascii(const char *mem, size_t n)
         if (state == 3) {
             if (mem[i] != '\0')
                 bad = i;
+            else if (mem[i-1] == ' ')
+                bad = i - 1;
             /* We only check for one NULL */
             break;
         }

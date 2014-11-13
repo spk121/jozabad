@@ -20,20 +20,60 @@
 
 */
 
+/**
+ * @file iodir.h
+ * @brief List of possibilities of whether incoming or outgoing calls are allowed
+ *
+ * Workers and channels can be prevented from making or receiving
+ * calls.  The iodir type indicates this behavior.
+ */
+
 #ifndef JOZA_IODIR_H
 #define JOZA_IODIR_H
 
 #include <glib.h>
 
+/**
+ * @brief The directionality, e.g. whether incoming or outgoing calls are allowed
+ *
+ */
 typedef enum {
-    io_bidirectional,
-    io_incoming_calls_barred,
-    io_outgoing_calls_barred,
-    io_calls_barred
+    io_bidirectional = 0,          /**< worker can place or receive calls */
+    io_incoming_calls_barred = 1,  /**< worker won't receive calls */
+    io_outgoing_calls_barred = 2,  /**< worker won't place calls */
+    io_calls_barred = 3            /**< worker won't place or receive calls */
 } iodir_t;
 
-int iodir_validate(iodir_t x);
+/**
+ * @brief Return TRUE if the iodir_t is valid
+ *
+ * @param x An iodir_t directionality
+ * @return TRUE if the directionality is valid.  FALSE otherwise
+ */
+gboolean iodir_validate(iodir_t x);
+
+/**
+ * @brief Returns the string representation of the directionality.
+ *
+ * @param x  An iodir_t directionality
+ * @return A string.  Caller must not free.
+ */
 const char *iodir_name(iodir_t x);
+
+/**
+ * @brief Return TRUE if the iodir_t indicates that a worker can receive calls
+ *
+ * @param x An iodir_t directionality
+ * @return TRUE if incoming calls are allowed.  FALSE otherwise.
+ */
 gboolean iodir_incoming_calls_allowed(iodir_t I);
+
+/**
+ * @brief Return TRUE if the iodir_t indicates that a worker can place calls
+ *
+ * @param x An iodir_t directionality
+ * @return TRUE if outgoing calls are allowed.  FALSE otherwise.
+ */
 gboolean iodir_outgoing_calls_allowed(iodir_t I);
+
 #endif

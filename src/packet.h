@@ -1,7 +1,7 @@
 /*
     packet.h -
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013, 2014 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -20,17 +20,31 @@
 
 */
 
+/**
+ * @file packet.h
+ * @brief List of allowed maximum packet sizes
+ *
+ * The DATA and CALL_REQUEST packets have data frames that are limited
+ * to an agreed-upon maximum size.  This enum represents the allowed
+ * maximum sizes.
+ */
+
+
 #ifndef JOZA_PKT_H
 #define JOZA_PKT_H
 
 #include <stdint.h>
 
-/* This enum holds the maximum allowed packet size. */
+/**
+ * @brief This enum holds the maximum allowed packet size.
+ *
+ * This is the maximum size of the payload of the DATA packets.
+ */
 typedef enum _packet_t {
-    p_unspecified = 0,
-    p_reserved = 1,
-    p_reserved2 = 2,
-    p_reserved3 = 3,
+    p_unspecified = 0, /**< UNUSED */
+    p_reserved = 1,    /**< UNUSED */
+    p_reserved2 = 2,   /**< UNUSED */
+    p_reserved3 = 3,   /**< UNUSED */
     p_16_bytes = 4,
     p_32_bytes = 5,
     p_64_bytes = 6,
@@ -41,10 +55,10 @@ typedef enum _packet_t {
     p_2_Kbytes = 11,
     p_4_Kbytes = 12,
 
-    p_first = p_16_bytes,
-    p_default = p_128_bytes,
+    p_first = p_16_bytes,    /**< Smallest valid packet size */
+    p_default = p_128_bytes, /**< Default. Also the packet size of the CALL_REQUEST data packet */
     p_negotiate = p_128_bytes,
-    p_last = p_4_Kbytes
+    p_last = p_4_Kbytes      /**< Largest valid packet size */
 } packet_t;
 
 uint32_t packet_bytes(packet_t x);
