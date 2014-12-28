@@ -99,9 +99,16 @@
 #define JZ_MSG_ERROR_INVALID_IODIR           0x4000
 #define JZ_MSG_ERROR_INVALID_HOSTNAME        0x8000
 
+#define JZ_MSG_ENVELOPE_SIGNATURE_SIZE 4
+#define JZ_MSG_ENVELOPE_HEADER_SIZE (JZ_MSG_ENVELOPE_SIGNATURE_SIZE + 4)
+#define JZ_MSG_ENVELOPE_FOOTER_SIZE 4
+#define JZ_MSG_ENVELOPE_SIZE (JZ_MSG_ENVELOPE_HEADER_SIZE + JZ_MSG_ENVELOPE_FOOTER_SIZE)
+#define JZ_MSG_PAYLOAD_HEADER_SIZE 4
+#define JZ_MSG_PADDING_LENGTH(__body_size) ((__body_size) % 4 ? (4 - ((__body_size) % 4)) : 0)
+
 #define JZ_MSG_MAX_DATA_SIZE 1024
 #define JZ_MSG_MAX_CALL_REQUEST_DATA_SIZE 16
-#define JZ_MSG_MAX_BODY_LENGTH (JZ_MSG_MAX_DATA_SIZE + 8)
+#define JZ_MSG_MAX_PAYLOAD_LENGTH (JZ_MSG_MAX_DATA_SIZE + 8)
 
 #define JZ_MSG_MAX_ADDRESS_LENGTH 16
 #define JZ_MSG_MAX_HOSTNAME_LENGTH 80
@@ -114,10 +121,13 @@ struct _JzMsg {
   guint8 id;
 
   // Bookkeeping
-  gboolean valid;
   guint8 *needle;               //  Read/write pointer for serialization
   guint8 *ceiling;              //  Valid upper limit for read pointer
   gsize packed_size;
+
+  // Validity
+  gboolean valid;
+  diag_t invalidity;           // If invalid, the last problem found with the message
 
   // Connections 
   gchar *hostname;
@@ -137,6 +147,9 @@ struct _JzMsg {
   // Diagnostic
   guint8 cause;
   guint8 diagnostic;
+  guint8 diagnostic_version;
+  guint8 diagnostic_id;
+  guint16 diagnostic_lcn;
 
   // Data and flow control
   guint8 q;
@@ -149,14 +162,13 @@ struct _JzMsg {
 
 typedef struct _JzMsg JzMsg;
 
-#define JZ_MSG_HEADER_SIZE (6)
 #define JZ_MSG_SIGNATURE 0x7e535643   // as a string "~SVC"
 
 const char *id_name(guint8 id);
 
 JzMsg *jz_msg_new_from_data (gpointer buf, gsize len);
 gboolean jz_msg_is_valid (JzMsg *M);
-gsize jz_msg_data_size (JzMsg *M);
+gsize jz_msg_binary_size (JzMsg *M);
 void jz_msg_free (JzMsg *M);
 diag_t jz_msg_validate (JzMsg *M);
 
@@ -172,8 +184,17 @@ JzMsg * jz_msg_new_call_accepted (guint16 lcn, gchar *calling_address, gchar *ca
                                   guint16 window, tput_t throughput, GByteArray *arr);
 JzMsg *jz_msg_new_clear_request (guint16 lcn, cause_t cause, diag_t diagnostic);
 JzMsg *jz_msg_new_clear_confirmation (guint16 lcn);
-JzMsg *jz_msg_new_diagnostic (cause_t cause, diag_t diagnostic);
+JzMsg *jz_msg_new_diagnostic (diag_t diagnostic, guint8 version, guint8 id, guint8 lcn);
 JzMsg *jz_msg_new_restart_request (cause_t cause, diag_t diagnostic);
 JzMsg *jz_msg_new_restart_confirmation ();
 
 gboolean jz_msg_is_for_channel (JzMsg *M);
+
+gboolean jz_buffer_begins_with_signature (guint8 *buf, gsize len);
+gboolean jz_buffer_contains_a_message (guint8 *buf, gsize len);
+gboolean jz_buffer_msg_envelope_is_valid (guint8 *buf, gsize len);
+guint32 jz_buffer_msg_body_length (guint8 *buf, gsize len);
+guint16 jz_buffer_msg_lcn (guint8 *buf, gsize len);
+
+
+

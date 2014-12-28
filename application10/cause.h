@@ -39,6 +39,66 @@
  * In DIAGNOSTIC, RESET, and CLEAR messages, an error category is supplied
  * to indicate the reason for the message.
  */
+
+// In a client-originated CLEAR REQUEST, the client may set the cause to
+// either 0 == c_client_originated, or 128 to 255, where only the top bit
+// is significant from the point of view of the server.
+
+// In a server-originated CLEAR REQUEST, the clearing causes are as
+// follows,
+
+typedef enum {
+  c_clear__number_busy = 1,
+  c_clear__invalid_facility_request = 3,
+  c_clear__network_congestion = 5,
+  c_clear__out_of_order = 9,
+  c_clear__access_barred = 11,
+  c_clear__not_obtainable = 13,
+  c_clear__remote_procedure_error = 17,
+  c_clear__local_procedure_error = 19,
+  c_clear__rpoa_out_of_order = 21,
+  c_clear__reverse_charging_not_accepted = 25,
+  c_clear__incompatible_destination = 33,
+  c_clear__fast_select_not_accepted = 41,
+  c_clear__ship_absent = 57,
+} server_clear_clearing_cause_t;
+
+// In a client-originated RESET REQUEST, the clearing cause may be 0
+// or may be 128 to 255, of which only the top bit is checked by the
+// server.  The other 7 bits may be used by the client.
+
+// In a server-originated RESET REQUEST, the clearing cause is one
+// of the following
+
+typedef enum {
+  c_reset__out_of_order = 1,
+  c_reset__remote_procedure_error = 3,
+  c_reset__local_procedure_error = 5,
+  c_reset__network_contestion = 7,
+  c_reset__remote_client_operational = 9,
+  c_reset__network_operational = 15,
+  c_reset__incompatible_destination = 17,
+  c_reset__network_out_of_order = 29,
+} server_reset_clearing_cause_t;
+
+// In a client-originated RESTART REQUEST, the clearing cause may be 0
+// or may be 128 to 255, of which only the top bit is checked by the
+// server.  The other 7 bits may be used by the client.
+
+
+// In a server-originated RESTART REQUEST, the clearing cause is one
+// of the following.
+typedef enum {
+  // These are the cause codes for RESTART packets
+  c_restart__local_procedure_error = 1,
+  c_restart__network_congestion = 3,
+  c_restart__network_operational = 7,
+  
+  c_restart__registration_confirmed = 127,
+  c_restart__client_restarting = 128,
+} server_restart_clearing_cause_t;
+
+#if 0
 typedef enum {
   c_ok,
   c_unspecified,
@@ -59,14 +119,11 @@ typedef enum {
     c_broker_shutdown,
     c_quota_exceeded,    /**< when a broker shuts down a worker or channel for too much data */
 } cause_t;
-
-#if 0
-typedef enum {
-  c_worker_originated = 0,
-} cause2_t;
 #endif
 
-#define CAUSE_MAX (c_quota_exceeded)
+typedef guint8 cause_t;
+
+#define CAUSE_MAX (255)
 
 /**
  * @brief Returns a string reprentation of a cause.

@@ -320,7 +320,7 @@ jz_msg_free (JzMsg *M)
   g_free (M);
 }
 
-gsize jz_msg_data_size (JzMsg *M)
+gsize jz_msg_binary_size (JzMsg *M)
 {
   return M->packed_size;
 }
@@ -333,13 +333,25 @@ jz_msg_is_valid (JzMsg *M)
   return FALSE;
 }
 
+gboolean
+jz_buffer_begins_with_signature (guint8 *buf, gsize len)
+{
+  if (len < JZ_MSG_ENVELOPE_SIGNATURE_SIZE)
+    return FALSE;
+  guint32 signature;
+  signature = (((guint32) (buf [0]) << 24)
+               + ((guint32) (buf [1]) << 16)  
+               + ((guint32) (buf [2]) << 8)   
+               +  (guint32) (buf [3]));
+  return (signature == JZ_MSG_SIGNATURE);
+}
 
 gboolean
 jz_buffer_contains_a_message (guint8 *buf, gsize len)
 {
   guint32 signature, body_length, padding;
   
-  if (len < 12)
+  if (len < JZ_MSG_ENVELOPE_SIZE)
     return FALSE;
   signature = (((guint32) (buf [0]) << 24)
                + ((guint32) (buf [1]) << 16)  
@@ -354,11 +366,7 @@ jz_buffer_contains_a_message (guint8 *buf, gsize len)
                  + ((guint32) (buf [6]) << 8)   
                  +  (guint32) (buf [7]));
 
-  padding = 0;
-  if (body_length % 4)
-    padding = (4 - body_length % 4);
-  
-  if (len < 4 + 4 + body_length + padding + 4)
+  if (len < JZ_MSG_ENVELOPE_SIZE + body_length + JZ_MSG_PADDING_LENGTH(body_length))
     return FALSE;
     
   return TRUE;
@@ -369,7 +377,7 @@ jz_buffer_msg_envelope_is_valid (guint8 *buf, gsize len)
 {
   guint32 signature, body_length, crc, padding;
   
-  if (len < 12)
+  if (len < JZ_MSG_ENVELOPE_SIZE)
     return FALSE;
   signature = (((guint32) (buf [0]) << 24)
                + ((guint32) (buf [1]) << 16)  
@@ -387,21 +395,47 @@ jz_buffer_msg_envelope_is_valid (guint8 *buf, gsize len)
   if (body_length > JZ_MSG_MAX_BODY_LENGTH)
     return FALSE;
   
-  padding = 0;
-  if (body_length % 4)
-    padding = (4 - body_length % 4);
-  
-  unsigned int crc_measured = digital_crc32(buf + 8, body_length);
+  padding = JZ_MSG_PADDING_LENGTH(body_length);
 
-  crc = (((guint32) (buf [8 + body_length + padding]) << 24)
-         + ((guint32) (buf [9 + body_length + padding]) << 16)  
-         + ((guint32) (buf [10 + body_length + padding]) << 8)   
-         +  (guint32) (buf [11 + body_length + padding]));
+  unsigned int crc_measured = digital_crc32(buf + JZ_MSG_ENVELOPE_HEADER_SIZE, body_length);
+
+  crc = (((guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + body_length + padding]) << 24)
+         + ((guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + body_length + padding + 1]) << 16)  
+         + ((guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + body_length + padding + 2]) << 8)   
+         +  (guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + body_length + padding + 3]));
 
   if (crc != crc_measured)
     return FALSE;
   
   return TRUE;  
+}
+
+guint32
+jz_buffer_msg_body_length (guint8 *buf, gsize len)
+{
+  guint32 body_length;
+  
+  g_assert (len >= JZ_MSG_ENVELOPE_HEADER_SIZE);
+
+  body_length = (((guint32) (buf [4]) << 24)
+                 + ((guint32) (buf [5]) << 16)  
+                 + ((guint32) (buf [6]) << 8)   
+                 +  (guint32) (buf [7]));
+
+  return body_length;
+}
+
+guint16
+jz_buffer_msg_lcn (guint8 *buf, gsize len)
+{
+  guint16 lcn;
+  
+  g_assert (len >= JZ_MSG_ENVELOPE_HEADER_SIZE + JZ_MSG_PAYLOAD_HEADER_SIZE);
+
+  lcn = (((guint32) (buf [JZ_MSG_HEADER_SIZE + 2]) << 8)
+                 +  (guint32) (buf [JZ_MSG_HEADER_SIZE + 3]));
+
+  return lcn;
 }
 
 JzMsg *
@@ -415,8 +449,7 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   size_t hash_size;
   size_t frame_length;
   
-  if (len == 0)
-    goto empty;
+  g_assert (len > JZ_MSG_ENVELOPE_SIZE);
   
   //  Get and check protocol signature
   self->needle = buf;
@@ -425,23 +458,23 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   self->ceiling = buf + len;
   
   GET_NUMBER4 (self->signature);
-  if (self->signature != JZ_MSG_SIGNATURE)
-    goto malformed;
+  g_assert (self->signature == JZ_MSG_SIGNATURE);
   //  Get message id and parse per message type
   GET_NUMBER4 (frame_length);
 
   // Now that we have a frame size, we can properly set the ceiling
-  guint32 padding = 0;
-  if (frame_length % 4)
-    padding = (4 - frame_length % 4);  
-  self->ceiling = buf + 8 + frame_length + padding + 4;
+  guint32 padding = JZ_MSG_PADDING_LENGTH (frame_length);
+  self->ceiling = buf + JZ_MSG_ENVELOPE_SIZE + frame_length + padding;
   
   GET_NUMBER1 (self->version);
   GET_NUMBER1 (self->id);
   GET_NUMBER2 (self->lcn);
   
   if (self->version != 1)
-    goto malformed;
+    {
+      self->invalidity = d_invalid_general_format_identifier;
+      goto malformed;
+    }
   
   switch (self->id)
     {
@@ -527,8 +560,10 @@ jz_msg_new_from_data (gpointer buf, gsize len)
       break;
       
     case JZ_MSG_DIAGNOSTIC:
-      GET_NUMBER1 (self->cause);
       GET_NUMBER1 (self->diagnostic);
+      GET_NUMBER1 (self->diagnostic_version);
+      GET_NUMBER1 (self->diagnostic_id);
+      GET_NUMBER2 (self->diagnostic_lcn);
       break;
       
     case JZ_MSG_DIRECTORY_REQUEST:
@@ -565,6 +600,7 @@ jz_msg_new_from_data (gpointer buf, gsize len)
     case JZ_MSG_RESTART_CONFIRMATION:
       break;
     default:
+      self->invalidity = d_invalid_general_format_identifier;
       goto malformed;
     }
 
@@ -577,7 +613,16 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   GET_NUMBER4 (self->crc);
   //  Successful unpacking
   self->packed_size = self->needle - (guint8 *) buf;
-  self->valid = TRUE;
+
+  // If the message is shorter than expected
+  if (self->packed_size < JZ_MSG_ENVELOPE_SIZE + frame_length + padding)
+    {
+      g_critical ("message payload smaller than envelope '%s'\n", id_name (self->id));
+      self->valid = FALSE;
+      self->invalidity = d_packet_too_long;
+    }
+  else
+    self->valid = TRUE;
   return self;
     
   //  Error returns
@@ -588,16 +633,17 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   return self;
   
  premature:
- empty:
-  return NULL;
+  g_critical ("message payload too big for envelope '%s'\n", id_name (self->id));
+  self->invalidity = d_packet_too_short;
+  self->packed_size = self->needle - (guint8 *) buf;
+  return self;
 }
 
 GByteArray *
 jz_msg_to_byte_array (JzMsg *self)
 {
   //  Calculate size of serialized data
-  const size_t envelope_size = 4 + 4 + 4;          //  Envelope: signature + body length + crc
-  size_t frame_size = 1 + 1 + 2;                   //  Header: version + ID + LCN
+  size_t frame_size = JZ_MSG_PAYLOAD_HEADER_SIZE;                   //  Header: version + ID + LCN
   switch (self->id) {
   case JZ_MSG_DATA:
     //  q is a 1-byte integer
@@ -701,10 +747,14 @@ jz_msg_to_byte_array (JzMsg *self)
     break;
 
   case JZ_MSG_DIAGNOSTIC:
-    //  cause is a 1-byte integer
-    frame_size += 1;
     //  diagnostic is a 1-byte integer
     frame_size += 1;
+    //  diagnostic_version is a 1-byte integer
+    frame_size += 1;
+    //  diagnostic_id is a 1-byte integer
+    frame_size += 1;
+    //  diagnostic_lcn is a 2-byte integer
+    frame_size += 2;
     break;
 
   case JZ_MSG_DIRECTORY_REQUEST:
@@ -743,13 +793,11 @@ jz_msg_to_byte_array (JzMsg *self)
     g_error ("bad message type '%s'", id_name (self->id));
   }
 
-  size_t padding = 0;
-  if (frame_size % 4)
-    padding = (4 - frame_size % 4);
+  size_t padding = JZ_MSG_PADDING_LENGTH(frame_size);
   
   //  Now serialize message into the message
-  GByteArray *buf = g_byte_array_sized_new (envelope_size + frame_size + padding);
-  buf->len = envelope_size + frame_size + padding;
+  GByteArray *buf = g_byte_array_sized_new (JZ_MSG_ENVELOPE_SIZE + frame_size + padding);
+  buf->len = JZ_MSG_ENVELOPE_SIZE + frame_size + padding;
   self->needle = buf->data;
   size_t string_size;
   PUT_NUMBER4 (self->signature);
@@ -838,8 +886,10 @@ jz_msg_to_byte_array (JzMsg *self)
     break;
 
   case JZ_MSG_DIAGNOSTIC:
-    PUT_NUMBER1 (self->cause);
     PUT_NUMBER1 (self->diagnostic);
+    PUT_NUMBER1 (self->diagnostic_version);
+    PUT_NUMBER1 (self->diagnostic_id);
+    PUT_NUMBER2 (self->diagnostic_lcn);
     break;
 
   case JZ_MSG_DIRECTORY_REQUEST:
@@ -1198,14 +1248,16 @@ JzMsg *jz_msg_new_reset_confirmation (guint16 lcn)
  
  
 JzMsg *
-jz_msg_new_diagnostic (cause_t cause, diag_t diagnostic)
+jz_msg_new_diagnostic (diag_t diagnostic, guint8 version, guint8 id, guint16 lcn)
 {
   JzMsg *self = g_new0(JzMsg, 1);
     
   MSG_HEADER(self);
   self->id = JZ_MSG_DIAGNOSTIC;
-  self->cause = cause;
   self->diagnostic = diagnostic;
+  self->diagnostic_version = version;
+  self->diagnostic_id = id;
+  self->diagnostic_lcn = lcn;
   MSG_ERROR_CHECK(self);
   return self;
 }

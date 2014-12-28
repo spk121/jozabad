@@ -37,7 +37,7 @@ static const char *client_short_state_name(client_state_t C)
 }
 
 
-static gboolean _jz_client_parse_recv_buffer_into_messages (JzClient *C);
+static gboolean _jz_client_parse_recv_buffer_into_messages (JzClient *C, diag_t *diag);
 static gboolean _jz_client_read_into_recv_buffer (JzClient *C, GPollableInputStream *pollable);
 static void
 _jz_client_process_messages (JzClient *C);
@@ -95,7 +95,7 @@ jz_client_free (JzClient *C)
 
   g_free (C->inet_address_str);
   C->port = 0;
-  
+
   g_source_destroy (C->input_stream_source);
   C->input_stream_source = NULL;
 
@@ -104,7 +104,7 @@ jz_client_free (JzClient *C)
   C->address = NULL;
 
   C->iodir = io_calls_barred;
-  
+
   memset (C->recv_buffer, sizeof(C->recv_buffer), 0);
   C->recv_buffer_size = 0;
 
@@ -130,7 +130,8 @@ _jz_client_input_available_callback (GObject *pollable_stream, JzClient *C)
 
     if (_jz_client_read_into_recv_buffer (C, pollable_input_stream))
     {
-      if (_jz_client_parse_recv_buffer_into_messages (C))
+        diag_t diag;
+      if (_jz_client_parse_recv_buffer_into_messages (C, &diag))
         _jz_client_process_messages (C);
       else
         _jz_client_process_fatally_invalid_message (C);
@@ -155,7 +156,7 @@ _jz_client_read_into_recv_buffer (JzClient *C, GPollableInputStream *pollable)
   const gchar *client_name = jz_client_diagnostic_string (C);
 
   g_assert (C->recv_buffer_size < sizeof (C->recv_buffer));
-  
+
   error = NULL;
   res = g_pollable_input_stream_read_nonblocking (pollable, &C->recv_buffer[C->recv_buffer_size],
                                                   sizeof (C->recv_buffer) - C->recv_buffer_size,
@@ -175,7 +176,7 @@ _jz_client_read_into_recv_buffer (JzClient *C, GPollableInputStream *pollable)
     {
       if (error)
         g_message ("%s: %s", client_name, error ? error->message : "eof");
-      
+
       // Since the client has disappeared, returning G_SOURCE_REMOVE removes
       // this socket from being queried.
       return G_SOURCE_REMOVE;
@@ -191,71 +192,100 @@ _jz_client_parse_recv_buffer_into_messages (JzClient *C, diag_t *diag)
   guint8 *p = NULL, *end = NULL;
   JzMsg *msg = NULL;
   gboolean ret = TRUE;
-  
+
   p = C->recv_buffer;
   end = p + C->recv_buffer_size;
 
-  // The smallest possible message is just an empty envelope of 12 bytes
   while ((p < end) && (ret == TRUE))
     {
-      // The smalles possible message is 12 bytes, which is just an envelope
-      if (end - p < 12)
+      // The smallest possible message is 12 bytes, which is just an envelope
+      if (end - p < JZ_MSG_ENVELOPE_SIZE)
         {
+          // We haven't even received enough data for a message envelope.
           // Do nothing, for now
           break;
         }
       // A message is supposed to start with '~SVC'
       else if (!jz_buffer_begins_with_signature (p, end - p))
         {
-          // It didn't start with the right string.  We're hopelessly confused
-          // now and can't recover.
+          // The message envelope didn't start with the right string.
+          // We're hopelessly confused now and can't recover.
           ret = FALSE;
+          break;
         }
       else if (!jz_buffer_contains_a_message (p, end - p))
         {
-          // We haven't received enough data yet for this message.
-          // Do nothing, for now
+          // We haven't received enough data yet for this message.  Do
+          // nothing, for now.
           break;
         }
       else if (!jz_buffer_msg_envelope_is_valid (p, end - p))
         {
-          // Bad envelope usually means bad checksum
-          // FIXME: send diagnostic with d_invalid_envelope
-          // FIXME: drop the message
+          // Bad envelope usually means bad checksum.
+          // FIXME: extract version, ID, and lcn for the following call
+          JzMsg *reply = jz_msg_new_diagnostic (d_unidentifiable_packet, 0, 0, 0);
+          jz_client_send_msg (C, reply);
+          jz_msg_free (reply);
+          
+          // Don't unpack this message.  Just advance to the next message.
+          p += jz_buffer_msg_binary_size (p, end - p);
+          
         }
-      else if (jz_buffer_msg_body_length (p, end - p) < 4)
+      else if (jz_buffer_msg_body_length (p, end - p) < JZ_MSG_PAYLOAD_HEADER_SIZE)
         {
           // Check that the message body at least contains a complete header
-          // FIXME: send a diagnostic with d_packet_too_short
-          // FIXME: dump the message
+          // FIXME: extract version, ID, and LCN for the following call
+          JzMsg *reply = jz_msg_new_diagnostic (d_packet_too_short, 0, 0, 0);
+          jz_client_send_msg (C, reply);
+          jz_msg_free (reply);
+          
+          // Don't unpack this message.  Just advance to the next message.
+          p += jz_buffer_msg_binary_size (p, end - p);
         }
-      else if (jz_msg_lcn_is_invalid (jz_buffer_message_get_lcn (p, end - p)))
+      else if (jz_buffer_msg_lcn (p, end - p) > JZ_MSG_MAX_LCN)
         {
           // This LCN is out of range for this client
-          // FIXME: send a diagnostic with d_packet_on_unassigned_logical_channel
-          // FIXME: dump the message
+          // FIXME: extract version, ID, and LCN for the following call
+          JzMsg *reply = jz_msg_new_diagnostic (d_packet_on_unassigned_logical_channel, 0, 0, 0);
+          jz_client_send_msg (C, reply);
+          jz_msg_free (reply);
+
+          // Don't unpack this message.  Just advance to the next
+          // message.
+          p += jz_buffer_msg_binary_size (p, end - p);
         }
       else
         {
-          // If we get this far, it is safe to attempt to unpack
-          // the message payload
-          msg = jz_msg_new_from_data (p, end - p, &diag);
-          if (msg == NULL)
+          // If we get this far, it is safe to attempt to unpack the
+          // message payload
+          msg = jz_msg_new_from_data (p, end - p);
+          if (!msg->valid)
             {
-              // The message payload couldn't be unpacked because it is too short or too long
-              // FIXME: send a diagnostic
-              // FIXME: dump the message
+              // The message payload appears to be too short or too
+              // long.
+              JzMsg *reply = jz_msg_new_diagnostic (msg->invalidity, msg->version, msg->id, msg->lcn);
+              jz_client_send_msg (C, reply);
+              jz_msg_free (reply);
+
+              // Advance to the next message
+              p += jz_msg_binary_size (msg);
+
+              // Dump the message
+              jz_msg_free (msg);
             }
           else
             {
-              // There is a complete message envelope and payload, so we can finally queue it.
+              // There is a complete message envelope and payload, so
+              // we can finally queue it.
               g_queue_push_tail (C->incoming, msg);
               g_message ("%s: queued %s",
                          jz_client_diagnostic_string (C), id_name (msg->id));
+
+              // Advance to the next message
+              p += jz_msg_binary_size (msg);
             }
         }
 
-      p += jz_msg_data_size (msg);
     }
 
   if (p < end)
@@ -290,7 +320,7 @@ _jz_client_process_messages (JzClient *C)
       else
         g_message ("Invalid message type %s in queue", id_name (msg->id));
       jz_msg_free (msg);
-    }  
+    }
 }
 
 void
@@ -308,7 +338,7 @@ _jz_client_process_message_in_C1_uninitialized_state (JzClient *C, JzMsg *msg)
             name_in_use = TRUE;
             break;
           }
-      }    
+      }
     if (name_in_use)
       jz_client_do_diagnostic (C, c_address_in_use, d_address_in_use);
     else
@@ -328,7 +358,7 @@ _jz_client_process_message_in_C2_client_restart_request_state (JzClient *C, JzMs
   else if (msg->id == JZ_MSG_RESTART_CONFIRMATION || jz_msg_is_for_channel (msg))
     {
       jz_client_do_server_restart (C, c_local_procedure_error, d_invalid_message_for_state_client_restart_request);
-    }  
+    }
   else
     jz_client_do_diagnostic (C, c_local_procedure_error, d_invalid_message_for_state_client_restart_request);
 }
@@ -341,7 +371,7 @@ _jz_client_process_message_in_C3_server_restart_request_state (JzClient *C, JzMs
   else if (jz_msg_is_for_channel (msg))
     {
       // discard silently
-    }  
+    }
   else
     jz_client_do_diagnostic (C, c_local_procedure_error, d_invalid_message_for_state_server_restart_request);
 }
@@ -376,7 +406,7 @@ jz_client_do_connect (JzClient *C, JzMsg *msg)
 
   g_message ("%s: registering as '%s'", jz_client_diagnostic_string (C),
              msg->calling_address);
-  
+
   C->state = C4_INITIALIZED;
   C->address = g_strdup (msg->calling_address);
   C->iodir = msg->iodir;
@@ -416,12 +446,12 @@ jz_client_do_restart (JzClient *C, cause_t cause, diag_t diagnostic)
       g_hash_table_foreach_remove (C->channels,
                                    _restart_iterator_client,
                                    GINT_TO_POINTER (diagnostic));
-      
+
       JzMsg *msgC = jz_msg_new_restart_confirmation ();
       jz_client_send_msg (C, msgC);
       jz_msg_free (msgC);
       C->state = C4_INITIALIZED;
-    } 
+    }
 }
 
 gboolean _restart_iterator_server (gpointer key, gpointer value, gpointer user_data)
@@ -527,7 +557,7 @@ void jz_client_take_socket_connection (JzClient *C, GSocketConnection *S)
   g_source_attach (C->input_stream_source, NULL);
   g_source_set_callback (C->input_stream_source,
                          _jz_client_input_available_callback, C, NULL);
-  
+
   C->state = C1_UNITIALIZED;
   // C->name is stil NULL
   // recv_buffer is still empty
@@ -552,7 +582,7 @@ JzChannel *jz_client_reserve_low_channel (JzClient *C)
   guint16 lcn = 1;
   JzChannel *ch = NULL;
   gboolean key_is_new;
-  
+
   while (g_hash_table_contains (C->channels, GINT_TO_POINTER (lcn))
          && lcn < JZ_MSG_MAX_LCN)
     lcn ++;
@@ -579,7 +609,7 @@ jz_client_diagnostic_string (JzClient *C)
       addr = g_strdup_printf("%s", temp);
       g_free (temp);
     }
-  
+
  g_sprintf(diag_string_buffer,
            "%-16s %-9s %2s %d %d",
            addr,
@@ -738,7 +768,7 @@ void     process_message_in_c1_unitialized_state (client_t *client, msg_t *msg);
             name_in_use = TRUE;
             brak;
           }
-      }    
+      }
     // If it is, send a DIAGNOSTIC
     if (name_in_use)
       {
@@ -823,7 +853,7 @@ void _g_socket_connection_attach_input_callback (GSocketConnection *connection,
 {
   GInputStream *in;
   GPollableInputStream *pollable;
-  
+
   in = g_io_stream_get_input_stream (G_IO_STREAM (connection));
   pollable = G_POLLABLE_INPUT_STREAM (in);
   *source = g_pollable_input_stream_create_source (pollable, NULL);
@@ -838,11 +868,11 @@ void client_init(GSocketConnection *connection)
   client_t *client = g_new0(client_t, 1);
 
   g_message ("In client init");
-  GSocketAddress *remote = 
+  GSocketAddress *remote =
     g_socket_connection_get_remote_address(connection, NULL);
   GSocketAddress *local =
     g_socket_connection_get_local_address(connection, NULL);
-  
+
   char *remote_address_str = g_inet_address_to_string (g_inet_socket_address_get_address (G_INET_SOCKET_ADDRESS (remote)));
   guint16 remote_port = g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS (remote));
   char *local_address_str = g_inet_address_to_string (g_inet_socket_address_get_address (G_INET_SOCKET_ADDRESS (local)));
@@ -855,7 +885,7 @@ void client_init(GSocketConnection *connection)
   client->port = remote_port;
   client->key = s_client_hash(remote_address_str, remote_port);
   client->state = C1_READY;
-  
+
   // A connection has input and output ports.  Here, I take the
   // input port and hook it into the main loop, so that it calls
   // a callback function whenever there is input available on the

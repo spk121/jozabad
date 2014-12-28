@@ -35,6 +35,9 @@
 
 
 typedef enum {
+  d_packet_too_short,
+  d_packet_on_unassigned_logical_channel,
+  
   d_ok,
 
   // for c_unspecified
