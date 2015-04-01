@@ -3,6 +3,7 @@
 #include "client.h"
 
 GSocketService *m_socket_service = NULL;
+GSocketAddress *m_socket_address = NULL;
 extern GList *client_list;
 
 
@@ -23,7 +24,7 @@ socket_service_incoming_signal_handler  (GSocketService *service,
   guint16 remote_port = g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS (remote));
   char *local_address_str = g_inet_address_to_string (g_inet_socket_address_get_address (G_INET_SOCKET_ADDRESS (local)));
   guint16 local_port = g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS (local));
-  g_message ("incoming connection %s:%u to %s:%u\n", remote_address_str, remote_port, local_address_str, local_port);
+  g_message ("incoming connection %s:%u to %s:%u", remote_address_str, remote_port, local_address_str, local_port);
   g_free (remote_address_str);
   g_free (local_address_str);
 
@@ -40,27 +41,38 @@ socket_service_incoming_signal_handler  (GSocketService *service,
   return FALSE;
 }
 
+gboolean
+socket_service_idle_handler (gpointer user_data)
+{
+  // for each client in the client list, call its idle handler
+
+  GList *l;
+  for (l = client_list; l != NULL; l = l->next)
+	{
+	  jz_client_check_timers (l->data);
+	}
+  return G_SOURCE_CONTINUE;
+}
+
 void service_init ()
 {
-  gboolean ret;
-
   /* create the network service */
   m_socket_service = g_socket_service_new ();
   GInetAddress *inet_address = g_inet_address_new_loopback (G_SOCKET_FAMILY_IPV4);
-  GSocketAddress *socket_address = g_inet_socket_address_new (inet_address, 8516);
+  m_socket_address = g_inet_socket_address_new (inet_address, 8516);
   g_object_unref (inet_address);
 
   GSocketAddress *server_sockaddr = NULL;
   GError *error = NULL;
   
   g_socket_listener_add_address (G_SOCKET_LISTENER (m_socket_service),
-                                 socket_address,
+                                 m_socket_address,
                                  G_SOCKET_TYPE_STREAM,
                                  G_SOCKET_PROTOCOL_DEFAULT,
                                  NULL,
                                  &server_sockaddr,
                                  &error);
-  g_object_unref (socket_address);
+  g_object_unref (m_socket_address);
   if (error)
     g_error ("%s", error->message);
 
@@ -72,6 +84,8 @@ void service_init ()
   
   g_signal_connect (m_socket_service, "incoming",
                     G_CALLBACK (socket_service_incoming_signal_handler), NULL);
+
+  g_idle_add (socket_service_idle_handler, NULL);
 
 }
 
@@ -87,5 +101,16 @@ void service_stop_accepting_new_connections ()
 
 void service_fini ()
 {
+  GList *l;
+  for (l = client_list; l != NULL; l = l->next)
+	{
+	  jz_client_free (l->data);
+	}
+  
   // There is no way to deallocate or finalize a GSocketService
+  g_socket_service_stop (m_socket_service);
+  g_socket_listener_close (G_SOCKET_LISTENER (m_socket_service));
+  g_object_unref (G_OBJECT (m_socket_service));
+  g_object_unref (G_OBJECT (m_socket_address));
+  
 }

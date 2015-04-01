@@ -12,14 +12,14 @@
 GList *client_list;
 
 static const char client_state_names[4][15] = {
-  [C1_UNITIALIZED] = "UNINITIALIZED",
+  [C1_UNINITIALIZED] = "UNINITIALIZED",
   [C2_CLIENT_RESTART_REQUEST] = "CLIENT_RESTART",
   [C3_SERVER_RESTART_REQUEST] = "SERVER_RESTART",
   [C4_INITIALIZED] = "INITIALIZED",
 };
 
 static const char client_short_state_names[4][15] = {
-  [C1_UNITIALIZED] = "UNINIT",
+  [C1_UNINITIALIZED] = "UNINIT",
   [C2_CLIENT_RESTART_REQUEST] = "C_RESTART",
   [C3_SERVER_RESTART_REQUEST] = "S_RESTART",
   [C4_INITIALIZED] = "INIT",
@@ -28,7 +28,7 @@ static const char client_short_state_names[4][15] = {
 
 static const char *client_state_name(client_state_t C)
 {
-    return client_state_names[C];
+  return client_state_names[C];
 }
 
 static const char *client_short_state_name(client_state_t C)
@@ -40,7 +40,7 @@ static const char *client_short_state_name(client_state_t C)
 static gboolean _jz_client_parse_recv_buffer_into_messages (JzClient *C, diag_t *diag);
 static gboolean _jz_client_read_into_recv_buffer (JzClient *C, GPollableInputStream *pollable);
 static void
-_jz_client_process_messages (JzClient *C);
+jz_client_process_messages (JzClient *C);
 static void
 _jz_client_process_fatally_invalid_message (JzClient *C);
 void
@@ -52,19 +52,23 @@ _jz_client_process_message_in_C3_server_restart_request_state (JzClient *C, JzMs
 void
 _jz_client_process_message_in_C4_initialized_state (JzClient *C, JzMsg *msg);
 void
-jz_client_do_diagnostic (JzClient *C, guint8 cause, guint8 diagnostic);
+jz_client_do_diagnostic (JzClient *C, guint8 diagnostic, guint8 version, guint8 id, guint16 lcn);
 void
 jz_client_do_connect (JzClient *C, JzMsg *msg);
 void
 jz_client_do_disconnect (JzClient *C);
 void
-jz_client_do_restart (JzClient *C, cause_t cause, diag_t diagnostic);
+jz_client_do_restart (JzClient *C, restart_cause_t cause, diag_t diagnostic);
 void
-jz_client_do_server_restart (JzClient *C, cause_t cause, diag_t diagnostic);
+jz_client_do_punishment_restart (JzClient *C, restart_cause_t cause, diag_t diagnostic);
+void
+jz_client_do_hangup (JzClient *C);
 void
 jz_client_do_restart_confirmation (JzClient *C);
 const gchar *
 jz_client_diagnostic_string (JzClient *C);
+void jz_client_timer_reset (JzClient *X);
+void jz_client_do_restart_indication_expiration (JzClient *C);
 
 
 // Creates a new JzClient, freshly allocated
@@ -76,8 +80,11 @@ jz_client_new (void)
 
   // Here we'd initialize all the members that are not zero or NULL.
   C->iodir = io_calls_barred;
+
+  C->timer_type = JZ_CLIENT_TIMER_NONE;
+  
   C->incoming = g_queue_new ();
-  C->channels = g_hash_table_new (g_direct_hash, g_direct_equal);
+  C->channels = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, jz_channel_free);
 
   return C;
 }
@@ -99,7 +106,7 @@ jz_client_free (JzClient *C)
   g_source_destroy (C->input_stream_source);
   C->input_stream_source = NULL;
 
-  C->state = C1_UNITIALIZED;
+  C->state = C1_UNINITIALIZED;
   g_free (C->address);
   C->address = NULL;
 
@@ -117,6 +124,13 @@ jz_client_free (JzClient *C)
   g_free (C);
 }
 
+void jz_client_timer_reset (JzClient *X)
+{
+  X->timer_type = JZ_CLIENT_TIMER_NONE;
+  X->timer_expiration_time = 0;
+  X->timer_count = 0;
+}
+
 ////////////////////////////////////////////////////////////////
 // INPUT PROCESSING FROM CLIENT
 ////////////////////////////////////////////////////////////////
@@ -128,11 +142,11 @@ _jz_client_input_available_callback (GObject *pollable_stream, JzClient *C)
 {
   GPollableInputStream *pollable_input_stream = (GPollableInputStream *) pollable_stream;
 
-    if (_jz_client_read_into_recv_buffer (C, pollable_input_stream))
+  if (_jz_client_read_into_recv_buffer (C, pollable_input_stream))
     {
-        diag_t diag;
+	  diag_t diag;
       if (_jz_client_parse_recv_buffer_into_messages (C, &diag))
-        _jz_client_process_messages (C);
+        jz_client_process_messages (C);
       else
         _jz_client_process_fatally_invalid_message (C);
     }
@@ -140,7 +154,7 @@ _jz_client_input_available_callback (GObject *pollable_stream, JzClient *C)
     {
       const gchar *str = jz_client_diagnostic_string (C);
       g_message ("%s: REMOVED", str);
-
+	  jz_client_do_hangup (C);
       // Remove this source from further processing
       return FALSE;
     }
@@ -198,94 +212,37 @@ _jz_client_parse_recv_buffer_into_messages (JzClient *C, diag_t *diag)
 
   while ((p < end) && (ret == TRUE))
     {
-      // The smallest possible message is 12 bytes, which is just an envelope
-      if (end - p < JZ_MSG_ENVELOPE_SIZE)
+      gboolean is_error, is_fatal;
+      gsize siz;
+
+      jz_buffer_parse_into_message (p, end - p, &siz, &msg, &is_error, &is_fatal);
+      if (is_fatal)
+        ret = FALSE;
+      else if (is_error)
+        {
+          jz_client_send_msg (C, msg);
+          jz_msg_free (msg);
+
+          // Advance to the next message
+          p += siz;
+        }
+      else if (siz != 0)
+        {
+          // There is a complete message envelope and payload, so
+          // we can finally queue it.
+          g_queue_push_tail (C->incoming, msg);
+          g_message ("%s: queued %s",
+                     jz_client_diagnostic_string (C), id_name (msg->id));
+
+          // Advance to the next message
+          p += siz;
+        }
+      else
         {
           // We haven't even received enough data for a message envelope.
           // Do nothing, for now
           break;
         }
-      // A message is supposed to start with '~SVC'
-      else if (!jz_buffer_begins_with_signature (p, end - p))
-        {
-          // The message envelope didn't start with the right string.
-          // We're hopelessly confused now and can't recover.
-          ret = FALSE;
-          break;
-        }
-      else if (!jz_buffer_contains_a_message (p, end - p))
-        {
-          // We haven't received enough data yet for this message.  Do
-          // nothing, for now.
-          break;
-        }
-      else if (!jz_buffer_msg_envelope_is_valid (p, end - p))
-        {
-          // Bad envelope usually means bad checksum.
-          // FIXME: extract version, ID, and lcn for the following call
-          JzMsg *reply = jz_msg_new_diagnostic (d_unidentifiable_packet, 0, 0, 0);
-          jz_client_send_msg (C, reply);
-          jz_msg_free (reply);
-          
-          // Don't unpack this message.  Just advance to the next message.
-          p += jz_buffer_msg_binary_size (p, end - p);
-          
-        }
-      else if (jz_buffer_msg_body_length (p, end - p) < JZ_MSG_PAYLOAD_HEADER_SIZE)
-        {
-          // Check that the message body at least contains a complete header
-          // FIXME: extract version, ID, and LCN for the following call
-          JzMsg *reply = jz_msg_new_diagnostic (d_packet_too_short, 0, 0, 0);
-          jz_client_send_msg (C, reply);
-          jz_msg_free (reply);
-          
-          // Don't unpack this message.  Just advance to the next message.
-          p += jz_buffer_msg_binary_size (p, end - p);
-        }
-      else if (jz_buffer_msg_lcn (p, end - p) > JZ_MSG_MAX_LCN)
-        {
-          // This LCN is out of range for this client
-          // FIXME: extract version, ID, and LCN for the following call
-          JzMsg *reply = jz_msg_new_diagnostic (d_packet_on_unassigned_logical_channel, 0, 0, 0);
-          jz_client_send_msg (C, reply);
-          jz_msg_free (reply);
-
-          // Don't unpack this message.  Just advance to the next
-          // message.
-          p += jz_buffer_msg_binary_size (p, end - p);
-        }
-      else
-        {
-          // If we get this far, it is safe to attempt to unpack the
-          // message payload
-          msg = jz_msg_new_from_data (p, end - p);
-          if (!msg->valid)
-            {
-              // The message payload appears to be too short or too
-              // long.
-              JzMsg *reply = jz_msg_new_diagnostic (msg->invalidity, msg->version, msg->id, msg->lcn);
-              jz_client_send_msg (C, reply);
-              jz_msg_free (reply);
-
-              // Advance to the next message
-              p += jz_msg_binary_size (msg);
-
-              // Dump the message
-              jz_msg_free (msg);
-            }
-          else
-            {
-              // There is a complete message envelope and payload, so
-              // we can finally queue it.
-              g_queue_push_tail (C->incoming, msg);
-              g_message ("%s: queued %s",
-                         jz_client_diagnostic_string (C), id_name (msg->id));
-
-              // Advance to the next message
-              p += jz_msg_binary_size (msg);
-            }
-        }
-
     }
 
   if (p < end)
@@ -297,7 +254,7 @@ _jz_client_parse_recv_buffer_into_messages (JzClient *C, diag_t *diag)
 // The client should have unpacked messages in its message storage
 // when this function is called.
 static void
-_jz_client_process_messages (JzClient *C)
+jz_client_process_messages (JzClient *C)
 {
   while (!g_queue_is_empty (C->incoming))
     {
@@ -308,7 +265,7 @@ _jz_client_process_messages (JzClient *C)
       diag_t err = jz_msg_validate (msg);
       if (err == d_ok)
         {
-          if (C->state == C1_UNITIALIZED)
+          if (C->state == C1_UNINITIALIZED)
             _jz_client_process_message_in_C1_uninitialized_state (C, msg);
           else if (C->state == C2_CLIENT_RESTART_REQUEST)
             _jz_client_process_message_in_C2_client_restart_request_state (C, msg);
@@ -326,7 +283,7 @@ _jz_client_process_messages (JzClient *C)
 void
 _jz_client_process_message_in_C1_uninitialized_state (JzClient *C, JzMsg *msg)
 {
-  // The only valid message for an unitialized client is CONNECT
+  // The only valid message for an uninitialized client is CONNECT
   if (msg->id == JZ_MSG_CONNECT) {
     // Check if this calling address is in use.
     gboolean name_in_use = FALSE;
@@ -340,7 +297,8 @@ _jz_client_process_message_in_C1_uninitialized_state (JzClient *C, JzMsg *msg)
           }
       }
     if (name_in_use)
-      jz_client_do_diagnostic (C, c_address_in_use, d_address_in_use);
+      // FIXME: add missing elements to diagnostic message
+      jz_client_do_diagnostic (C, d_address_in_use, 0, 0, 0);
     else
       jz_client_do_connect (C, msg);
   }
@@ -357,15 +315,17 @@ _jz_client_process_message_in_C2_client_restart_request_state (JzClient *C, JzMs
     ;
   else if (msg->id == JZ_MSG_RESTART_CONFIRMATION || jz_msg_is_for_channel (msg))
     {
-      jz_client_do_server_restart (C, c_local_procedure_error, d_invalid_message_for_state_client_restart_request);
+      jz_client_do_punishment_restart (C, c_restart__local_procedure_error, d_invalid_message_for_state_client_restart_request);
     }
   else
-    jz_client_do_diagnostic (C, c_local_procedure_error, d_invalid_message_for_state_client_restart_request);
+    jz_client_do_diagnostic (C, d_invalid_message_for_state_client_restart_request, msg->version, msg->id, msg->lcn);
 }
 
 void
 _jz_client_process_message_in_C3_server_restart_request_state (JzClient *C, JzMsg *msg)
 {
+  client_state_t original_state = C->state;
+  
   if (msg->id == JZ_MSG_RESTART_REQUEST || msg->id == JZ_MSG_RESTART_CONFIRMATION)
     jz_client_do_restart_confirmation (C);
   else if (jz_msg_is_for_channel (msg))
@@ -373,7 +333,10 @@ _jz_client_process_message_in_C3_server_restart_request_state (JzClient *C, JzMs
       // discard silently
     }
   else
-    jz_client_do_diagnostic (C, c_local_procedure_error, d_invalid_message_for_state_server_restart_request);
+    jz_client_do_diagnostic (C, d_invalid_message_for_state_server_restart_request, msg->version, msg->id, msg->lcn);
+  if (C->state != original_state && C->timer_type == JZ_CLIENT_TIMER_RESTART_INDICATION)
+	jz_client_timer_reset (C);
+
 }
 
 void
@@ -382,18 +345,24 @@ _jz_client_process_message_in_C4_initialized_state (JzClient *C, JzMsg *msg)
   if (msg->id == JZ_MSG_RESTART_REQUEST)
     jz_client_do_restart (C, msg->cause, msg->diagnostic);
   else if (msg->id == JZ_MSG_RESTART_CONFIRMATION)
-      jz_client_do_server_restart (C, c_local_procedure_error, d_invalid_message_for_state_initialized);
+	jz_client_do_punishment_restart (C, c_restart__local_procedure_error,
+								 d_invalid_message_for_state_initialized);
   else if (jz_msg_is_for_channel (msg))
     {
       // Create a logical channel, if necessary
       if (!g_hash_table_contains (C->channels, GINT_TO_POINTER(msg->lcn)))
-        g_hash_table_insert (C->channels, GINT_TO_POINTER (msg->lcn), jz_channel_new (C));
+        {
+          g_hash_table_insert (C->channels, GINT_TO_POINTER (msg->lcn), jz_channel_new (C, msg->lcn));
+          const gchar *addr = jz_client_diagnostic_string (C);
+          g_message ("%s: new channel LCN = %d", addr, (int)msg->lcn);
+        }
 
       // Punt processing to that logical channel;
       jz_channel_process_message (g_hash_table_lookup (C->channels, GINT_TO_POINTER (msg->lcn)), msg);
     }
   else
-    jz_client_do_diagnostic (C, c_local_procedure_error, d_invalid_message_for_state_initialized);
+    jz_client_do_diagnostic (C, d_invalid_message_for_state_initialized,
+                             msg->version, msg->id, msg->lcn);
 }
 
 void
@@ -413,9 +382,9 @@ jz_client_do_connect (JzClient *C, JzMsg *msg)
 }
 
 void
-jz_client_do_diagnostic (JzClient *C, guint8 cause, guint8 diagnostic)
+jz_client_do_diagnostic (JzClient *C, guint8 diagnostic, guint8 version, guint8 id, guint16 lcn)
 {
-  JzMsg *msgC = jz_msg_new_diagnostic (cause, diagnostic);
+  JzMsg *msgC = jz_msg_new_diagnostic (diagnostic, version, id, lcn);
   jz_client_send_msg (C, msgC);
   jz_msg_free (msgC);
 }
@@ -432,12 +401,15 @@ gboolean _restart_iterator_client (gpointer key, gpointer value, gpointer user_d
 
 // The client wants to RESTART all of its channels
 void
-jz_client_do_restart (JzClient *C, cause_t cause, diag_t diagnostic)
+jz_client_do_restart (JzClient *C, restart_cause_t cause, diag_t diagnostic)
 {
-  if (cause != c_client_originated)
-    jz_client_do_server_restart (C, c_local_procedure_error, d_improper_cause_code_from_client);
+  if (!CAUSE_IS_CLIENT_ORIGINATED (cause))
+    jz_client_do_punishment_restart (C, c_restart__local_procedure_error, d_improper_cause_code_from_client);
   else
     {
+	  // Since we aren't waiting for a peer to respond, the transition
+	  // from state C2 to C4 is very rapid.  I probably could
+	  // eliminate the idea of state C2, really.
       C->state = C2_CLIENT_RESTART_REQUEST;
 
       // Send a CLEAR_INDICATION to the peer of every channel to which
@@ -450,7 +422,10 @@ jz_client_do_restart (JzClient *C, cause_t cause, diag_t diagnostic)
       JzMsg *msgC = jz_msg_new_restart_confirmation ();
       jz_client_send_msg (C, msgC);
       jz_msg_free (msgC);
+
+	  // Yep.  We're done with C2.
       C->state = C4_INITIALIZED;
+	  jz_client_timer_reset (C);
     }
 }
 
@@ -458,7 +433,7 @@ gboolean _restart_iterator_server (gpointer key, gpointer value, gpointer user_d
 {
   JzChannel *channel = (JzChannel *) value;
   diag_t diagnostic = (GPOINTER_TO_INT (user_data));
-  jz_channel_do_server_restart_request (channel, diagnostic);
+  jz_channel_do_server_restart_indication (channel, diagnostic);
 
   // returning TRUE eliminates this channel
   return TRUE;
@@ -467,7 +442,7 @@ gboolean _restart_iterator_server (gpointer key, gpointer value, gpointer user_d
 // The server is punishing the client by restarting all of its channels, usually because
 // the client has sent malformed messages from which the server can't recover.
 void
-jz_client_do_server_restart (JzClient *C, cause_t cause, diag_t diagnostic)
+jz_client_do_punishment_restart (JzClient *C, restart_cause_t cause, diag_t diagnostic)
 {
   JzMsg *msg2 = jz_msg_new_restart_request (cause, diagnostic);
   jz_client_send_msg (C, msg2);
@@ -483,7 +458,30 @@ jz_client_do_server_restart (JzClient *C, cause_t cause, diag_t diagnostic)
   // Set the state to "server restart indication" where we'll await
   // the client's reply.
   C->state = C3_SERVER_RESTART_REQUEST;
+  if (C->timer_type != JZ_CLIENT_TIMER_RESTART_INDICATION)
+	C->timer_count = 0;
+  C->timer_type = JZ_CLIENT_TIMER_RESTART_INDICATION;
+  C->timer_expiration_time = (g_get_monotonic_time()
+							  + JZ_CLIENT_TIMER_RESTART_INDICATION_DURATION_IN_SECONDS * G_USEC_PER_SEC);
+
 }
+
+// The server is advising a client's channels' peers that the client has vanished.
+void
+jz_client_do_hangup (JzClient *C)
+{
+  // Send a CLEAR_INDICATION to the peer of every channel to which we
+  // are connected with the cause "remote procedure error" and the
+  // same DIAGNOSTIC.
+  g_hash_table_foreach_remove (C->channels,
+                               _restart_iterator_server,
+                               GINT_TO_POINTER(d_eterm));
+
+  // Set the state to "server restart indication" where we'll await
+  // the client's reply.
+  C->state = C1_UNINITIALIZED;
+}
+
 void
 jz_client_do_restart_confirmation (JzClient *C)
 {
@@ -504,7 +502,7 @@ _jz_client_process_fatally_invalid_message (JzClient *C)
   C->recv_buffer_size = 0;
 
   // And restart everything
-  jz_client_do_server_restart (C, c_local_procedure_error, d_unidentifiable_packet);
+  jz_client_do_punishment_restart (C, c_restart__local_procedure_error, d_unidentifiable_packet);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -521,6 +519,8 @@ jz_client_send_msg (JzClient *C, JzMsg *M)
                                          b_array->len,
                                          NULL,
                                          NULL);
+  g_byte_array_free (b_array, TRUE);
+  
   gchar *intro;
   const gchar *addr = jz_client_diagnostic_string (C);
   if (bytes_written >= 0)
@@ -534,6 +534,12 @@ jz_client_send_msg (JzClient *C, JzMsg *M)
     g_message ("%s: %s %s", addr, intro, id_name(M->id));
 }
 
+void
+jz_client_send_then_free_msg (JzClient *C, JzMsg *M)
+{
+  jz_client_send_msg (C, M);
+  jz_msg_free (M);
+}
 
 
 // Attaches a socket connection to a JzClient so as to be managed as
@@ -558,7 +564,7 @@ void jz_client_take_socket_connection (JzClient *C, GSocketConnection *S)
   g_source_set_callback (C->input_stream_source,
                          _jz_client_input_available_callback, C, NULL);
 
-  C->state = C1_UNITIALIZED;
+  C->state = C1_UNINITIALIZED;
   // C->name is stil NULL
   // recv_buffer is still empty
   // incoming list is still empty
@@ -588,8 +594,12 @@ JzChannel *jz_client_reserve_low_channel (JzClient *C)
     lcn ++;
   if (lcn < JZ_MSG_MAX_LCN)
     {
-      ch = jz_channel_new (C);
+      ch = jz_channel_new (C, lcn);
       key_is_new = g_hash_table_insert (C->channels, GINT_TO_POINTER (lcn), ch);
+      
+      const gchar *addr = jz_client_diagnostic_string (C);
+      g_message ("%s: new channel LCN = %d", addr, (int)lcn);
+      
       g_assert (key_is_new == TRUE);
     }
 
@@ -600,7 +610,7 @@ char diag_string_buffer[80];
 const gchar *
 jz_client_diagnostic_string (JzClient *C)
 {
-  gchar *addr, *output;
+  gchar *addr;
   if (C->address)
     addr = g_strdup_printf ("%s", C->address);
   else
@@ -610,15 +620,68 @@ jz_client_diagnostic_string (JzClient *C)
       g_free (temp);
     }
 
- g_sprintf(diag_string_buffer,
-           "%-16s %-9s %2s %d %d",
-           addr,
-           client_short_state_name(C->state),
-           iodir_short_name(C->iodir),
-           C->incoming->length,
-           g_hash_table_size(C->channels));
+  g_sprintf(diag_string_buffer,
+			"%-16s %-9s %2s %d %d",
+			addr,
+			client_short_state_name(C->state),
+			iodir_short_name(C->iodir),
+			C->incoming->length,
+			g_hash_table_size(C->channels));
   g_free (addr);
   return diag_string_buffer;
+}
+
+void
+jz_client_check_timers (JzClient *C)
+{
+  g_hash_table_foreach (C->channels,
+						jz_channel_check_timers_wrapper,
+						NULL);
+
+  gint64 now = g_get_monotonic_time ();
+
+  if (C->timer_type == JZ_CLIENT_TIMER_NONE || C->timer_expiration_time > now)
+	return;
+
+  C->timer_count ++;
+
+  printf("Client Timer %d, expiration %llu, count %d\n", C->timer_type, C->timer_expiration_time, C->timer_count);
+  switch (C->timer_type)
+	{
+	case JZ_CLIENT_TIMER_NONE:
+	  g_assert_not_reached ();
+	  break;
+	case JZ_CLIENT_TIMER_RESTART_INDICATION:
+	  jz_client_do_restart_indication_expiration (C);
+	  break;
+	default:
+	  g_assert_not_reached ();
+	}
+  
+}
+
+void jz_client_do_restart_indication_expiration (JzClient *C)
+{
+  g_assert (C->timer_count == 1 || C->timer_count == 2);
+  JzMsg *msg;
+
+  switch (C->timer_count)
+	{
+	case 1:
+	  jz_client_do_punishment_restart (C, c_restart__local_procedure_error, d_time_expired_restart_request);
+	  break;
+	case 2:
+	  C->state = C4_INITIALIZED;
+	  jz_client_timer_reset (C);
+	  msg = jz_msg_new_diagnostic (d_time_expired_restart_request, JZ_MSG_VERSION,
+								   JZ_MSG_CLEAR_REQUEST, 0);
+	  jz_client_send_msg (C, msg);
+	  jz_msg_free (msg);
+	  break;
+	default:
+	  g_assert_not_reached ();
+	  break;
+	}
 }
 
 #if 0
@@ -693,8 +756,8 @@ read_some_input_nonblocking (client_t *client)
   g_assert (client->recv_buffer_size < sizeof (client->recv_buffer));
   error = NULL;
   res = g_pollable_input_stream_read_nonblocking (pollable, &client->recv_buffer[client->recv_buffer_size],
-						  sizeof (client->recv_buffer) - client->recv_buffer_size,
-						  NULL, &error);
+												  sizeof (client->recv_buffer) - client->recv_buffer_size,
+												  NULL, &error);
 
   if (res < 0 && g_error_matches (error, G_IO_ERROR, G_IO_ERROR_WOULD_BLOCK))
     {
@@ -738,14 +801,14 @@ do_message_parse_error (client_t *client, msg_t *msg)
     // Drop the message.  We're restarting anyway.
   else if (client->state == C4_READY)
     // Begin a server-requested restart
-}
+	}
 
 
 static void
 process_message (client_t *client, msg_t *msg)
 {
   if (client->state == C1_UNINITIALIZED)
-    process_message_in_c1_unitialized_state (client_t *client, msg_t *msg);
+    process_message_in_c1_uninitialized_state (client_t *client, msg_t *msg);
   else if (client->state == C2_CLIENT_RESTART_REQUEST)
     process_message_in_c2_client_restart_request_state (client_t *client, msg_t *msg);
   else if (client->state == C3_SERVER_RESTART_REQUEST)
@@ -754,9 +817,9 @@ process_message (client_t *client, msg_t *msg)
     process_message_in_c4_ready_state (client_t *client, msg_t *msg);
 }
 
-void     process_message_in_c1_unitialized_state (client_t *client, msg_t *msg);
+void     process_message_in_c1_uninitialized_state (client_t *client, msg_t *msg);
 {
-  // The only valid message for an unitialized client is CONNECT
+  // The only valid message for an uninitialized client is CONNECT
   if (msg->id == JZ_MSG_CONNECT) {
     // Check if this calling address is in use.
     GList *l;
@@ -813,18 +876,12 @@ void     process_message_in_c4_ready_state (client_t *client, msg_t *msg)
   else if (msg->id == JZ_MSG_DISCONNECT)
     {
       // Send a DISCONNECT
-      // return to unitialized state
+      // return to uninitialized state
       // start the CONNECT timer
     }
-  else if (msg->id == JZ_MSG_CALL_REQUEST)
-    {
-      // We handle that: Initiate new call
-    }
-  else if (msg->is == JZ_MSG_CALL_ACCEPTED)
-    {
-      // We handle that: Complete new call
-    }
-  else if (msg_is (JZ_MSG_DATA, JZ_MSG_RR, JZ_MSG_RNR, JZ_MSG_CLEAR_REQUEST,
+  else if (msg_is (JZ_MSG_CALL_REQUEST,
+                   JZ_MSG_CALL_ACCEPTED,
+                   JZ_MSG_DATA, JZ_MSG_RR, JZ_MSG_RNR, JZ_MSG_CLEAR_REQUEST,
                    JZ_MSG_CLEAR_CONFIRMATION, JZ_MSG_RESET_REQUEST, JZ_MSG_RESET_CONFIRMATION))
     {
       // We ask the appropriate channel to handle these
@@ -861,8 +918,6 @@ void _g_socket_connection_attach_input_callback (GSocketConnection *connection,
   g_source_set_callback (source, callback, user_data, NULL);
 }
 
-
-
 void client_init(GSocketConnection *connection)
 {
   client_t *client = g_new0(client_t, 1);
@@ -877,7 +932,7 @@ void client_init(GSocketConnection *connection)
   guint16 remote_port = g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS (remote));
   char *local_address_str = g_inet_address_to_string (g_inet_socket_address_get_address (G_INET_SOCKET_ADDRESS (local)));
   guint16 local_port = g_inet_socket_address_get_port (G_INET_SOCKET_ADDRESS (local));
-  g_message ("incoming connection %s:%u to %s:%u\n", remote_address_str, remote_port, local_address_str, local_port);
+  g_message ("incoming connection %s:%u to %s:%u", remote_address_str, remote_port, local_address_str, local_port);
   g_free (remote_address_str);
 
   client->connection = connection;

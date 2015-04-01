@@ -8,13 +8,24 @@
 typedef struct _JzChannel JzChannel;
 
 typedef enum {
-	C1_UNITIALIZED = 0,
+	C1_UNINITIALIZED = 0,
 	C2_CLIENT_RESTART_REQUEST,
 	C3_SERVER_RESTART_REQUEST,
     C4_INITIALIZED
 } client_state_t;
 
 #define CLIENT_RECV_BUFFER_SIZE (1024)
+
+#define JZ_CLIENT_TIMER_RESTART_INDICATION_DURATION_IN_SECONDS (6)
+
+/**
+ * @brief List of possible active timers for a channel
+ */
+typedef enum {
+    JZ_CLIENT_TIMER_NONE = 0,            /**< no active timer */
+	JZ_CLIENT_TIMER_RESTART_INDICATION = 1
+} JzClientTimerType;
+
 
 struct _JzClient {
   GSocketConnection *connection;
@@ -34,8 +45,9 @@ struct _JzClient {
   iodir_t iodir;
   
   // Timers IDs, like from g_timeout_add
-  // guint restart_timer_id;
-  // guint heartbeat_timer_id;
+  JzClientTimerType timer_type;
+  gint64 timer_expiration_time;
+  int timer_count;
 
   // The input buffer
   guint8 recv_buffer[1024];
@@ -65,8 +77,10 @@ JzClient *jz_client_list_find_client (gchar *address);
 
 JzChannel *jz_client_reserve_low_channel (JzClient *C);
 
-JzChannel *jz_channel_new (JzClient *client);
-
 void
 jz_client_send_msg (JzClient *C, JzMsg *M);
 
+void
+jz_client_send_then_free_msg (JzClient *C, JzMsg *M);
+
+void jz_client_check_timers (JzClient *C);

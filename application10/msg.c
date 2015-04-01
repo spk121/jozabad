@@ -70,7 +70,7 @@ guint8 graphical_char_to_six_bit_integer (char C)
   if (C < 0 || C > 127)
     x = 0xff;
   else
-    x = inverse_sixty_four[C];
+    x = inverse_sixty_four[(unsigned)C];
     
   if (x == 0xFF)
     g_warning ("invalid character for 6-bit integer: %c", C);
@@ -349,22 +349,15 @@ jz_buffer_begins_with_signature (guint8 *buf, gsize len)
 gboolean
 jz_buffer_contains_a_message (guint8 *buf, gsize len)
 {
-  guint32 signature, body_length, padding;
+  guint32 body_length;
   
   if (len < JZ_MSG_ENVELOPE_SIZE)
     return FALSE;
-  signature = (((guint32) (buf [0]) << 24)
-               + ((guint32) (buf [1]) << 16)  
-               + ((guint32) (buf [2]) << 8)   
-               +  (guint32) (buf [3]));
   
-  if (signature != JZ_MSG_SIGNATURE)
+  if (!jz_buffer_begins_with_signature (buf, len))
     return FALSE;
   
-  body_length = (((guint32) (buf [4]) << 24)
-                 + ((guint32) (buf [5]) << 16)  
-                 + ((guint32) (buf [6]) << 8)   
-                 +  (guint32) (buf [7]));
+  body_length = jz_buffer_msg_body_length (buf, len);
 
   if (len < JZ_MSG_ENVELOPE_SIZE + body_length + JZ_MSG_PADDING_LENGTH(body_length))
     return FALSE;
@@ -372,27 +365,35 @@ jz_buffer_contains_a_message (guint8 *buf, gsize len)
   return TRUE;
 }
 
+gsize
+jz_buffer_msg_binary_size (guint8 *buf, gsize len)
+{
+  guint32 body_length;
+  
+  g_assert (len >= JZ_MSG_ENVELOPE_SIZE);
+  g_assert (jz_buffer_begins_with_signature (buf, len));
+
+  body_length = jz_buffer_msg_body_length (buf, len);
+  
+  g_assert (body_length <= JZ_MSG_MAX_PAYLOAD_LENGTH);
+
+  return JZ_MSG_ENVELOPE_SIZE + body_length + JZ_MSG_PADDING_LENGTH(body_length);
+}
+
 gboolean
 jz_buffer_msg_envelope_is_valid (guint8 *buf, gsize len)
 {
-  guint32 signature, body_length, crc, padding;
+  guint32 body_length, crc, padding;
   
   if (len < JZ_MSG_ENVELOPE_SIZE)
     return FALSE;
-  signature = (((guint32) (buf [0]) << 24)
-               + ((guint32) (buf [1]) << 16)  
-               + ((guint32) (buf [2]) << 8)   
-               +  (guint32) (buf [3]));
-  
-  if (signature != JZ_MSG_SIGNATURE)
-    return FALSE;
-  
-  body_length = (((guint32) (buf [4]) << 24)
-                 + ((guint32) (buf [5]) << 16)  
-                 + ((guint32) (buf [6]) << 8)   
-                 +  (guint32) (buf [7]));
 
-  if (body_length > JZ_MSG_MAX_BODY_LENGTH)
+  if (!jz_buffer_begins_with_signature (buf, len))
+    return FALSE;
+
+  body_length = jz_buffer_msg_body_length (buf, len);
+
+  if (body_length > JZ_MSG_MAX_PAYLOAD_LENGTH)
     return FALSE;
   
   padding = JZ_MSG_PADDING_LENGTH(body_length);
@@ -432,11 +433,101 @@ jz_buffer_msg_lcn (guint8 *buf, gsize len)
   
   g_assert (len >= JZ_MSG_ENVELOPE_HEADER_SIZE + JZ_MSG_PAYLOAD_HEADER_SIZE);
 
-  lcn = (((guint32) (buf [JZ_MSG_HEADER_SIZE + 2]) << 8)
-                 +  (guint32) (buf [JZ_MSG_HEADER_SIZE + 3]));
+  lcn = (((guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + 2]) << 8)
+                 +  (guint32) (buf [JZ_MSG_ENVELOPE_HEADER_SIZE + 3]));
 
   return lcn;
 }
+
+
+// Given a raw data buffer BUF of size LEN.
+// SIZ is the number of bytes that were parsed, or zero if
+//   there isn't enough information yet to parse.
+// MSG is the unpacked message, or NULL if no message was unpacked.
+// If IS_FATAL is true, this buffer is hopelessly corrupt
+// IF IS_ERROR is true, a bad message was skipped and MSG contains
+// a diagnostic message.
+
+void
+jz_buffer_parse_into_message (guint8 *buf, gsize len, gsize *siz, JzMsg **msg,
+                              gboolean *is_error, gboolean *is_fatal)
+{
+  *msg = NULL;
+  *siz = 0;
+  *is_error = FALSE;
+  *is_fatal = FALSE;
+
+  g_assert (len > 0);
+
+  // The smallest possible message is 12 bytes, which is just an envelope
+  if (len < JZ_MSG_ENVELOPE_SIZE)
+    {
+      // We haven't even received enough data for a message envelope.
+      // Do nothing, for now
+    }
+  // A message is supposed to start with '~SVC'
+  else if (!jz_buffer_begins_with_signature (buf, len))
+    {
+      // The message envelope didn't start with the right string.
+      // We're hopelessly confused now and can't recover.
+      *is_fatal = TRUE;
+    }
+  else if (!jz_buffer_contains_a_message (buf, len))
+    {
+      // We haven't received enough data yet for this message.  Do
+      // nothing, for now.
+    }
+  else if (!jz_buffer_msg_envelope_is_valid (buf, len))
+    {
+      // Bad envelope usually means bad checksum.
+      // FIXME: extract version, ID, and lcn for the following call
+      *msg = jz_msg_new_diagnostic (d_invalid_envelope, 0, 0, 0);
+      *is_error = TRUE;
+      
+      // Don't unpack this message.  Just advance to the next message.
+      *siz = jz_buffer_msg_binary_size (buf, len);
+      
+    }
+  else if (jz_buffer_msg_body_length (buf, len) < JZ_MSG_PAYLOAD_HEADER_SIZE)
+    {
+      // Check that the message body at least contains a complete header
+      // FIXME: extract version, ID, and LCN for the following call
+      *msg = jz_msg_new_diagnostic (d_packet_too_short, 0, 0, 0);
+      *is_error = TRUE;
+      
+      // Don't unpack this message.  Just advance to the next message.
+      *siz = jz_buffer_msg_binary_size (buf, len);
+    }
+  else if (jz_buffer_msg_lcn (buf, len) > JZ_MSG_MAX_LCN)
+    {
+      // This LCN is out of range for this client
+      // FIXME: extract version, ID, and LCN for the following call
+      *msg = jz_msg_new_diagnostic (d_packet_on_unassigned_logical_channel, 0, 0, 0);
+      *is_error = TRUE;
+      
+      // Don't unpack this message.  Just advance to the next
+      // message.
+      *siz = jz_buffer_msg_binary_size (buf, len);
+    }
+  else
+    {
+      // If we get this far, it is safe to attempt to unpack the
+      // message payload
+      *msg = jz_msg_new_from_data (buf, len);
+      *siz = jz_msg_binary_size (*msg);
+      
+      if (!(*msg)->valid)
+        {
+          // The message payload appears to be too short or too
+          // long.
+          jz_msg_free (*msg);
+          
+          *msg = jz_msg_new_diagnostic ((*msg)->invalidity, (*msg)->version, (*msg)->id, (*msg)->lcn);
+          *is_error = TRUE;
+        }
+    }
+}
+
 
 JzMsg *
 jz_msg_new_from_data (gpointer buf, gsize len)
@@ -445,8 +536,6 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   JzMsg *self = g_new0(JzMsg, 1);
   self->data = g_byte_array_new ();
   size_t string_size;
-  size_t list_size;
-  size_t hash_size;
   size_t frame_length;
   
   g_assert (len > JZ_MSG_ENVELOPE_SIZE);
@@ -472,7 +561,7 @@ jz_msg_new_from_data (gpointer buf, gsize len)
   
   if (self->version != 1)
     {
-      self->invalidity = d_invalid_general_format_identifier;
+      self->invalidity = d_unknown_version;
       goto malformed;
     }
   
@@ -600,7 +689,7 @@ jz_msg_new_from_data (gpointer buf, gsize len)
     case JZ_MSG_RESTART_CONFIRMATION:
       break;
     default:
-      self->invalidity = d_invalid_general_format_identifier;
+      self->invalidity = d_unknown_message_type;
       goto malformed;
     }
 
@@ -681,8 +770,6 @@ jz_msg_to_byte_array (JzMsg *self)
     frame_size += 2;
     //  throughput is a 1-byte integer
     frame_size += 1;
-    //  Raw data size is two octets
-    frame_size += 2;
     //  Raw data
     frame_size += RAW_SIZE (self->data);
     break;
@@ -702,8 +789,6 @@ jz_msg_to_byte_array (JzMsg *self)
     frame_size += 2;
     //  throughput is a 1-byte integer
     frame_size += 1;
-    //  Raw data size is two octets
-    frame_size += 2;
     //  Raw data
     frame_size += RAW_SIZE (self->data);
     break;
@@ -922,7 +1007,7 @@ jz_msg_to_byte_array (JzMsg *self)
 
   for (int i = 0; i < padding; i ++)
     PUT_NUMBER1 (0);
-  self->crc = digital_crc32(buf->data + 8, frame_size);
+  self->crc = digital_crc32(buf->data + JZ_MSG_ENVELOPE_HEADER_SIZE, frame_size);
   PUT_NUMBER4 (self->crc);
   return buf;
 }
@@ -1123,7 +1208,7 @@ jz_msg_new_disconnect_indication ()
 
  JzMsg *
 jz_msg_new_call_request (guint16 lcn, gchar *calling_address, gchar *called_address, packet_t packet,
-                         guint16 window, tput_t throughput, GByteArray *arr)
+                         guint16 window, tput_t throughput, guint8 *data, gsize len)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 
@@ -1135,7 +1220,7 @@ jz_msg_new_call_request (guint16 lcn, gchar *calling_address, gchar *called_addr
   self->packet = packet;
   self->window = window;
   self->throughput = throughput;
-  self->data = g_byte_array_new_take (arr->data, arr->len);
+  self->data = g_byte_array_new_take (data, len);
   MSG_ERROR_CHECK(self);
   return self;
 }
@@ -1143,7 +1228,7 @@ jz_msg_new_call_request (guint16 lcn, gchar *calling_address, gchar *called_addr
  
 JzMsg *
 jz_msg_new_call_accepted (guint16 lcn, gchar *calling_address, gchar *called_address, packet_t packet,
-                         guint16 window, tput_t throughput, GByteArray *arr)
+						  guint16 window, tput_t throughput, guint8 *data, gsize len)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 
@@ -1155,12 +1240,12 @@ jz_msg_new_call_accepted (guint16 lcn, gchar *calling_address, gchar *called_add
   self->packet = packet;
   self->window = window;
   self->throughput = throughput;
-  self->data = g_byte_array_new_take (arr->data, arr->len);
+  self->data = g_byte_array_new_take (data, len);
   MSG_ERROR_CHECK(self);
   return self;
 }
 
-JzMsg *jz_msg_new_clear_request (guint16 lcn, cause_t cause, diag_t diagnostic)
+JzMsg *jz_msg_new_clear_request (guint16 lcn, clear_cause_t cause, diag_t diagnostic)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 
@@ -1185,16 +1270,17 @@ JzMsg *jz_msg_new_clear_confirmation (guint16 lcn)
 }
  
 JzMsg *
-jz_msg_new_data (guint8 q, guint16 pr, guint16 ps, GByteArray *arr)
+jz_msg_new_data (guint16 lcn, guint8 q, guint16 pr, guint16 ps, guint8 *data, gsize len)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 
   MSG_HEADER(self);
   self->id = JZ_MSG_DATA;
+  self->lcn = lcn;
   self->q = q;
   self->pr = pr;
   self->ps = ps;
-  self->data = g_byte_array_new_take (arr->data, arr->len);
+  self->data = g_byte_array_new_take (data, len);
   MSG_ERROR_CHECK(self);
   g_byte_array_ref (self->data);
   return self;
@@ -1222,7 +1308,7 @@ JzMsg *jz_msg_new_rnr (guint16 lcn, guint16 pr)
   return self;
 }
 
-JzMsg *jz_msg_new_reset_request (guint16 lcn, cause_t cause, diag_t diagnostic)
+JzMsg *jz_msg_new_reset_request (guint16 lcn, reset_cause_t cause, diag_t diagnostic)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 
@@ -1262,7 +1348,7 @@ jz_msg_new_diagnostic (diag_t diagnostic, guint8 version, guint8 id, guint16 lcn
   return self;
 }
 
-JzMsg *jz_msg_new_restart_request (cause_t cause, diag_t diagnostic)
+JzMsg *jz_msg_new_restart_request (restart_cause_t cause, diag_t diagnostic)
 {
   JzMsg *self = g_new0(JzMsg, 1);
 

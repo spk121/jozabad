@@ -47,21 +47,27 @@
 // In a server-originated CLEAR REQUEST, the clearing causes are as
 // follows,
 
+// See Table 5-7/X.25
+
 typedef enum {
+  c_clear__client_originated = 0,
+
   c_clear__number_busy = 1,
-  c_clear__invalid_facility_request = 3,
-  c_clear__network_congestion = 5,
   c_clear__out_of_order = 9,
-  c_clear__access_barred = 11,
-  c_clear__not_obtainable = 13,
   c_clear__remote_procedure_error = 17,
-  c_clear__local_procedure_error = 19,
-  c_clear__rpoa_out_of_order = 21,
   c_clear__reverse_charging_not_accepted = 25,
   c_clear__incompatible_destination = 33,
   c_clear__fast_select_not_accepted = 41,
   c_clear__ship_absent = 57,
-} server_clear_clearing_cause_t;
+
+  c_clear__invalid_facility_request = 3,
+  c_clear__access_barred = 11,
+  c_clear__local_procedure_error = 19,
+
+  c_clear__network_congestion = 5,
+  c_clear__not_obtainable = 13,
+  c_clear__roa_out_of_order = 21,
+} clear_cause_t;
 
 // In a client-originated RESET REQUEST, the clearing cause may be 0
 // or may be 128 to 255, of which only the top bit is checked by the
@@ -70,69 +76,44 @@ typedef enum {
 // In a server-originated RESET REQUEST, the clearing cause is one
 // of the following
 
+// Ref Table 5-8/X.25
 typedef enum {
+  c_reset__client_originated = 0,
+  
   c_reset__out_of_order = 1,
   c_reset__remote_procedure_error = 3,
   c_reset__local_procedure_error = 5,
-  c_reset__network_contestion = 7,
+  c_reset__network_congestion = 7,
   c_reset__remote_client_operational = 9,
   c_reset__network_operational = 15,
   c_reset__incompatible_destination = 17,
   c_reset__network_out_of_order = 29,
-} server_reset_clearing_cause_t;
+} reset_cause_t;
 
 // In a client-originated RESTART REQUEST, the clearing cause may be 0
 // or may be 128 to 255, of which only the top bit is checked by the
 // server.  The other 7 bits may be used by the client.
 
-
 // In a server-originated RESTART REQUEST, the clearing cause is one
 // of the following.
+
+// Set Table 5-9/X.25
 typedef enum {
   // These are the cause codes for RESTART packets
+  c_restart__client_originated = 0,
   c_restart__local_procedure_error = 1,
+  
   c_restart__network_congestion = 3,
   c_restart__network_operational = 7,
-  
-  c_restart__registration_confirmed = 127,
-  c_restart__client_restarting = 128,
-} server_restart_clearing_cause_t;
+} restart_cause_t;
 
-#if 0
-typedef enum {
-  c_ok,
-  c_unspecified,
-  c_client_originated, /**<  CLEAR and RESET messages from workers must have this cause */
-  c_number_busy,       /**< a CALL_REQUEST when the other worker is busy. */
-  c_invalid_forwarding_request, /**< a forwarding request that can't be processed */
-  c_access_barred,     /**< a CALL_REQUEST to an output-only or from an input-only channel. */
-  c_local_procedure_error, /**< worker sends inapproprate message for the channel state */
-  c_network_congestion, /**< no available worker slots or channels */
-  
-  c_remote_procedure_error, /**< other worker sent inappropriate message for the channel state */
-    c_call_collision,    /**< a CALL_REQUEST where the other worker has just connected to this worker */
-    c_zmq_sendmsg_err,   /**< the underlying zmq_sendmsg returned non-zero */
-    c_malformed_message, /**< for any message that has out of range or malformed fields */
-    c_invalid_facility_request, /**< a facility negotiation where a worker is trying to cheat */
-    c_address_in_use,    /**< a CONNECTION request where the desired address is in use */
-    c_unknown_address,    /**< a CALL_REQUEST where the called address is unknown */
-    c_broker_shutdown,
-    c_quota_exceeded,    /**< when a broker shuts down a worker or channel for too much data */
-} cause_t;
-#endif
+#define CAUSE_IS_CLIENT_ORIGINATED(x) (((x) == 0) || (((x) >= 128) && ((x) <= 255)))
 
-typedef guint8 cause_t;
-
-#define CAUSE_MAX (255)
-
-/**
- * @brief Returns a string reprentation of a cause.
- *
- * @param C an cause
- * @return A null-terminated string. Do not free.
- */
-const char *cause_name(cause_t c);
-
-gboolean cause_validate(cause_t c);
+const char *clear_cause_name(clear_cause_t c);
+gboolean clear_cause_validate(clear_cause_t c);
+const char *reset_cause_name(reset_cause_t c);
+gboolean reset_cause_validate(reset_cause_t c);
+const char *restart_cause_name(restart_cause_t c);
+gboolean restart_cause_validate(restart_cause_t c);
 
 #endif

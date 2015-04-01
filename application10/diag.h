@@ -35,11 +35,11 @@
 
 
 typedef enum {
+  d_ok,
+
   d_packet_too_short,
   d_packet_on_unassigned_logical_channel,
   
-  d_ok,
-
   // for c_unspecified
   d_unspecified, /**< for c_unspecified */
 
@@ -67,8 +67,10 @@ typedef enum {
   // For c_malformed_message
   d_unidentifiable_packet,
   d_invalid_signature,
+  d_invalid_envelope,
   d_unknown_version,
   d_unknown_message_type,
+  d_packet_too_long, /**< envelope is longer than contents require it to be */
   d_invalid_lcn,
   d_invalid_q,     /**< for c_malformed_message */
   d_invalid_pr,  /**< for c_malformed_message, PR too large */
@@ -123,24 +125,27 @@ typedef enum {
   d_invalid_message_for_state_client_waiting,
   d_invalid_message_for_state_server_waiting,
   d_invalid_message_for_state_flow_control_ready,
-  d_invalid_message_for_state_client_reset_request,  
   d_invalid_message_for_state_y_call_request, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_invalid_message_for_state_data_transfer, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_invalid_message_for_state_call_collision, /**< for c_local_procedure_error or c_remote_procedure_error */
-  d_invalid_message_for_state_x_clear_request, /**< for c_local_procedure_error or c_remote_procedure_error */
-  d_invalid_message_for_state_y_clear_request, /**< for c_local_procedure_error or c_remote_procedure_error */
-  d_invalid_message_for_state_x_reset_request, /**< for c_local_procedure_error or c_remote_procedure_error */
-  d_invalid_message_for_state_y_reset_request, /**< for c_local_procedure_error or c_remote_procedure_error */
+  d_invalid_message_for_state_client_clear_request, /**< for c_local_procedure_error or c_remote_procedure_error */
+  d_invalid_message_for_state_server_clear_request, /**< for c_local_procedure_error or c_remote_procedure_error */
+  d_invalid_message_for_state_client_reset_request, /**< for c_local_procedure_error or c_remote_procedure_error */
+  d_invalid_message_for_state_server_reset_request, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_ps_out_of_order, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_ps_not_in_window, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_pr_invalid_window_update, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_data_too_long_for_packet_facility, /**< for c_local_procedure_error or c_remote_procedure_error */
   d_improper_cause_code_from_client,
+  d_time_expired_incoming_call,
+  d_time_expired_reset_request,
+  d_time_expired_clear_request,
+  d_time_expired_restart_request,
   
   // for quota_exceeded
   d_data_rate_exceeded, /**< for c_quota_exceeded, too many bytes-per-second */
   d_message_rate_exceeded, /**< for c_quota_exceeded, too many messages-per-second  */
-
+  
   d_last = d_message_rate_exceeded
 } diag_t;
 

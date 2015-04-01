@@ -60,26 +60,28 @@
 #define JZ_MSG_VERSION                    1
 #define JZ_MSG_COUNT                      20
 
-#define JZ_MSG_DATA                       0
-#define JZ_MSG_RR                         1
-#define JZ_MSG_RNR                        2
-#define JZ_MSG_CALL_REQUEST               3
-#define JZ_MSG_CALL_ACCEPTED              4
-#define JZ_MSG_CLEAR_REQUEST              5
-#define JZ_MSG_CLEAR_CONFIRMATION         6
-#define JZ_MSG_RESET_REQUEST              7
-#define JZ_MSG_RESET_CONFIRMATION         8
-#define JZ_MSG_CONNECT                    9
-#define JZ_MSG_CONNECT_INDICATION         10
-#define JZ_MSG_DISCONNECT                 11
-#define JZ_MSG_DISCONNECT_INDICATION      12
-#define JZ_MSG_DIAGNOSTIC                 13
-#define JZ_MSG_DIRECTORY_REQUEST          14
-#define JZ_MSG_DIRECTORY                  15
-#define JZ_MSG_ENQ                        16
-#define JZ_MSG_ACK                        17
-#define JZ_MSG_RESTART_REQUEST            18
-#define JZ_MSG_RESTART_CONFIRMATION       19
+typedef enum {
+  JZ_MSG_DATA                       = 0,
+  JZ_MSG_RR                         = 1,
+  JZ_MSG_RNR                        = 2,
+  JZ_MSG_CALL_REQUEST               = 3,
+  JZ_MSG_CALL_ACCEPTED              = 4,
+  JZ_MSG_CLEAR_REQUEST              = 5,
+  JZ_MSG_CLEAR_CONFIRMATION         = 6,
+  JZ_MSG_RESET_REQUEST              = 7,
+  JZ_MSG_RESET_CONFIRMATION         = 8,
+  JZ_MSG_CONNECT                    = 9,
+  JZ_MSG_CONNECT_INDICATION         = 10,
+  JZ_MSG_DISCONNECT                 = 11,
+  JZ_MSG_DISCONNECT_INDICATION      = 12,
+  JZ_MSG_DIAGNOSTIC                 = 13,
+  JZ_MSG_DIRECTORY_REQUEST          = 14,
+  JZ_MSG_DIRECTORY                  = 15,
+  JZ_MSG_ENQ                        = 16,
+  JZ_MSG_ACK                        = 17,
+  JZ_MSG_RESTART_REQUEST            = 18,
+  JZ_MSG_RESTART_CONFIRMATION       = 19,
+} msg_id_t;
 
 #define JZ_MSG_ERROR_NONE                    0x0000
 #define JZ_MSG_ERROR_INVALID_SIGNATURE       0x0001
@@ -116,9 +118,12 @@
 
 struct _JzMsg {
   // Header for all messages
-  guint32 signature;
+  union {
+    char signature_string[4];
+    guint32 signature;
+  };
   guint8 version;
-  guint8 id;
+  msg_id_t id;
 
   // Bookkeeping
   guint8 *needle;               //  Read/write pointer for serialization
@@ -140,9 +145,9 @@ struct _JzMsg {
   guint16 lcn;                  // Logical channel number
   gchar *calling_address;
   gchar *called_address;
-  guint8 packet;
+  packet_t packet;
   guint16 window;
-  guint8 throughput;
+  tput_t throughput;
 
   // Diagnostic
   guint8 cause;
@@ -162,7 +167,7 @@ struct _JzMsg {
 
 typedef struct _JzMsg JzMsg;
 
-#define JZ_MSG_SIGNATURE 0x7e535643   // as a string "~SVC"
+#define JZ_MSG_SIGNATURE 0x4356537e   // as a string "~SVC"
 
 const char *id_name(guint8 id);
 
@@ -179,14 +184,20 @@ JzMsg *jz_msg_new_connect_indication ();
 JzMsg *jz_msg_new_disconnect ();
 JzMsg *jz_msg_new_disconnect_indication ();
 JzMsg * jz_msg_new_call_request (guint16 lcn, gchar *calling_address, gchar *called_address, packet_t packet,
-                                 guint16 window, tput_t throughput, GByteArray *arr);
+                                 guint16 window, tput_t throughput, guint8 *data, gsize len);
 JzMsg * jz_msg_new_call_accepted (guint16 lcn, gchar *calling_address, gchar *called_address, packet_t packet,
-                                  guint16 window, tput_t throughput, GByteArray *arr);
-JzMsg *jz_msg_new_clear_request (guint16 lcn, cause_t cause, diag_t diagnostic);
+                                  guint16 window, tput_t throughput, guint8 *data, gsize len);
+JzMsg *jz_msg_new_clear_request (guint16 lcn, clear_cause_t cause, diag_t diagnostic);
 JzMsg *jz_msg_new_clear_confirmation (guint16 lcn);
-JzMsg *jz_msg_new_diagnostic (diag_t diagnostic, guint8 version, guint8 id, guint8 lcn);
-JzMsg *jz_msg_new_restart_request (cause_t cause, diag_t diagnostic);
+JzMsg *jz_msg_new_diagnostic (diag_t diagnostic, guint8 version, guint8 id, guint16 lcn);
+JzMsg *jz_msg_new_restart_request (restart_cause_t cause, diag_t diagnostic);
 JzMsg *jz_msg_new_restart_confirmation ();
+JzMsg *jz_msg_new_reset_request (guint16 lcn, reset_cause_t cause, diag_t diagnostic);
+JzMsg *jz_msg_new_reset_confirmation (guint16 lcn);
+JzMsg *jz_msg_new_data (guint16 lcn, guint8 q, guint16 pr, guint16 ps, guint8 *data, gsize len);
+JzMsg *jz_msg_new_rr (guint16 lcn, guint16 pr);
+JzMsg *jz_msg_new_rnr (guint16 lcn, guint16 pr);
+
 
 gboolean jz_msg_is_for_channel (JzMsg *M);
 
@@ -195,6 +206,9 @@ gboolean jz_buffer_contains_a_message (guint8 *buf, gsize len);
 gboolean jz_buffer_msg_envelope_is_valid (guint8 *buf, gsize len);
 guint32 jz_buffer_msg_body_length (guint8 *buf, gsize len);
 guint16 jz_buffer_msg_lcn (guint8 *buf, gsize len);
+gsize jz_buffer_msg_binary_size (guint8 *buf, gsize len);
+void jz_buffer_parse_into_message (guint8 *buf, gsize len, gsize *siz, JzMsg **msg,
+                                   gboolean *is_error, gboolean *is_fatal);
 
 
 

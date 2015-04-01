@@ -1,7 +1,7 @@
 /*
     cause.c - causes for diagnostic messages
 
-    Copyright 2013 Michael L. Gran <spk121@yahoo.com>
+    Copyright 2013--2015 Michael L. Gran <spk121@yahoo.com>
 
     This file is part of Jozabad.
 
@@ -23,37 +23,173 @@
 #include <glib.h>
 #include "cause.h"
 
-#define CAUSE_NAME_MAX_LEN (30)
-
-static const char cause_names[CAUSE_MAX + 1][CAUSE_NAME_MAX_LEN] = {
-    "C_UNSPECIFIED",
-    "C_WORKER_ORIGINATED",
-    "C_NUMBER_BUSY",
-    "C_CALL_COLLISION",
-    "C_ZMQ_SENDMSG_ERR",
-    "C_MALFORMED_MSG",
-    "C_INVALID_FACILITY_REQUEST",
-    "C_INVALID_FORWARDING_REQUEST",
-    "C_ACCESS_BARRED",
-    "C_ADDRESS_IN_USE",
-    "C_UNKNOWN_ADDRESS",
-    "C_NETWORK_CONGESTION",
-    "C_LOCAL_PROCEDURE_ERROR",
-    "C_REMOTE_PROCEDURE_ERROR",
-    "C_BROKER_SHUTDOWN",
-    "C_QUOTA_EXCEEDED"
-};
-
-const char *cause_name(cause_t c)
+const char *clear_cause_name(clear_cause_t c)
 {
-    g_assert_cmpint(c, <=, CAUSE_MAX);
+    switch (c) {
+    case c_clear__client_originated:
+      return "CLIENT ORIGINATED";
+      break;
+    case c_clear__number_busy:
+      return "NUMBER BUSY";
+      break;
+    case c_clear__out_of_order:
+      return "OUT OF ORDER";
+      break;
+    case c_clear__remote_procedure_error:
+      return "REMOTE PROCEDURE ERROR";
+      break;
+    case c_clear__reverse_charging_not_accepted:
+      return "REVERSE CHARING NOT ACCEPTED";
+      break;
+    case c_clear__incompatible_destination:
+      return "INCOMPATIBLE DESTINATION";
+      break;
+    case c_clear__fast_select_not_accepted:
+      return "FAST SELECT NOT ACCEPTED";
+      break;
+    case c_clear__ship_absent:
+      return "SHIP ABSENT";
+      break;
+    case c_clear__invalid_facility_request:
+      return "INVALID FACILITY REQUEST";
+      break;
+    case c_clear__access_barred:
+      return "ACCESS BARRED";
+      break;
+    case c_clear__local_procedure_error:
+      return "LOCAL PROCEDURE ERROR";
+      break;
+    case c_clear__network_congestion:
+      return "NETWORK CONGESTION";
+      break;
+    case c_clear__not_obtainable:
+      return "NOT OBTAINABLE";
+      break;
+    case c_clear__roa_out_of_order:
+      return "ROA OUT OF ORDER";
+      break;
+    }
+    if ((unsigned)c & 0b10000000)
+      return "CLIENT ORIGINATED";
 
-    return &(cause_names[c][0]);
+    return "UNKNOWN CAUSE";
 }
 
-gboolean cause_validate(cause_t c)
+gboolean clear_cause_validate(clear_cause_t c)
 {
-  if (c < c_unspecified || c > CAUSE_MAX)
+    switch (c) {
+    case c_clear__client_originated:
+    case c_clear__number_busy:
+    case c_clear__out_of_order:
+    case c_clear__remote_procedure_error:
+    case c_clear__reverse_charging_not_accepted:
+    case c_clear__incompatible_destination:
+    case c_clear__fast_select_not_accepted:
+    case c_clear__ship_absent:
+    case c_clear__invalid_facility_request:
+    case c_clear__access_barred:
+    case c_clear__local_procedure_error:
+    case c_clear__network_congestion:
+    case c_clear__not_obtainable:
+    case c_clear__roa_out_of_order:
+      return TRUE;
+    }
+    if ((unsigned)c & 0b10000000)
+      return TRUE;
+
     return FALSE;
-  return TRUE;
+}
+
+const char *reset_cause_name(reset_cause_t c)
+{
+    switch (c) {
+    case c_reset__client_originated:
+      return "CLIENT ORIGINATED";
+      break;
+    case c_reset__out_of_order:
+      return "OUT OF ORDER";
+      break;
+    case c_reset__remote_procedure_error:
+      return "REMOTE PROCEDURE ERROR";
+      break;
+    case c_reset__local_procedure_error:
+      return "LOCAL PROCEDURE ERROR";
+      break;
+    case c_reset__network_congestion:
+      return "NETWORK CONGESTION";
+      break;
+    case c_reset__remote_client_operational:
+      return "REMOTE CLIENT OPERATIONAL";
+      break;
+    case c_reset__network_operational:
+      return "NETWORK OPERATIONAL";
+      break;
+    case c_reset__incompatible_destination:
+      return "INCOMPATIBLE DESTINATION";
+      break;
+    case c_reset__network_out_of_order:
+      return "NETWORK OUT OF ORDER";
+      break;
+    }
+    if ((unsigned)c & 0b10000000)
+      return "CLIENT ORIGINATED";
+
+    return "UNKNOWN CAUSE";
+}
+
+gboolean reset_cause_validate(reset_cause_t c)
+{
+    switch (c) {
+    case c_reset__client_originated:
+    case c_reset__out_of_order:
+    case c_reset__remote_procedure_error:
+    case c_reset__local_procedure_error:
+    case c_reset__network_congestion:
+    case c_reset__remote_client_operational:
+    case c_reset__network_operational:
+    case c_reset__incompatible_destination:
+    case c_reset__network_out_of_order:
+      return TRUE;
+    }
+    if ((unsigned)c & 0b10000000)
+      return TRUE;
+
+    return FALSE;
+}
+
+const char *restart_cause_name(restart_cause_t c)
+{
+    switch (c) {
+    case c_restart__client_originated:
+      return "CLIENT ORIGINATED";
+      break;
+    case c_restart__local_procedure_error:
+      return "LOCAL PROCEDURE ERROR";
+      break;
+    case c_restart__network_congestion:
+      return "NETWORK CONGESTION";
+      break;
+    case c_restart__network_operational:
+      return "NETWORK OPERATIONAL";
+      break;
+    }
+    if ((unsigned)c & 0b10000000)
+      return "CLIENT ORIGINATED";
+
+    return "UNKNOWN CAUSE";
+}
+
+gboolean restart_cause_validate(restart_cause_t c)
+{
+    switch (c) {
+    case c_restart__client_originated:
+    case c_restart__local_procedure_error:
+    case c_restart__network_congestion:
+    case c_restart__network_operational:
+      return TRUE;
+    }
+    if ((unsigned)c & 0b10000000)
+      return TRUE;
+
+    return FALSE;
 }
